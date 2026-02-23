@@ -1,0 +1,286 @@
+import { Router } from 'express';
+import { asyncHandler } from '../middleware/errorHandler.js';
+import { validateStatusChange, getAvailableTransitions } from '../lib/stateMachine.js';
+import { checkDriverConflicts } from '../lib/conflictDetection.js';
+import { calculateLoadTotal } from '../lib/rateCalculator.js';
+
+export default function loadsRouter(db) {
+  const router = Router();
+
+  // Helper: enrich a load row with stops + names + accessorials
+  async function enrichLoad(load) {
+    const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
+    const customer = await db('customers').where({ id: load.customer_id }).first();
+    const driver = load.driver_id ? await db('drivers').where({ id: load.driver_id }).first() : null;
+
+    // Fetch accessorials
+    const accessorials = await db('load_accessorials')
+      .join('accessorial_types', 'load_accessorials.accessorial_type_id', 'accessorial_types.id')
+      .where({ 'load_accessorials.load_id': load.id })
+      .select('load_accessorials.*', 'accessorial_types.code', 'accessorial_types.name as type_name', 'accessorial_types.unit');
+
+    const accessorialsSum = accessorials.reduce((sum, a) => sum + parseFloat(a.total), 0);
+    const totalAmount = load.total_amount || calculateLoadTotal(
+      parseFloat(load.rate_amount),
+      parseFloat(load.fuel_surcharge_amount || 0),
+      accessorialsSum
+    );
+
+    const firstStop = stops[0];
+    const lastStop = stops[stops.length - 1];
+
+    return {
+      ...load,
+      stops,
+      accessorials,
+      total_amount: totalAmount,
+      customer_name: customer?.company_name,
+      driver_name: driver?.full_name,
+      pickup_city: firstStop?.city,
+      pickup_state: firstStop?.state,
+      delivery_city: lastStop?.city,
+      delivery_state: lastStop?.state,
+      available_transitions: getAvailableTransitions(load.status),
+    };
+  }
+
+  // GET /api/loads
+  router.get('/', asyncHandler(async (req, res) => {
+    const { status, driver_id, customer_id } = req.query;
+    let query = db('loads');
+
+    if (status) query = query.where({ status });
+    if (driver_id) query = query.where({ driver_id });
+    if (customer_id) query = query.where({ customer_id });
+
+    const loads = await query.orderBy('id', 'desc');
+    const enriched = await Promise.all(loads.map(enrichLoad));
+    res.json(enriched);
+  }));
+
+  // GET /api/loads/:id
+  router.get('/:id', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const enriched = await enrichLoad(load);
+    res.json(enriched);
+  }));
+
+  // POST /api/loads
+  router.post('/', asyncHandler(async (req, res) => {
+    const {
+      reference_number,
+      customer_id,
+      rate_amount,
+      rate_type = 'FLAT',
+      loaded_miles,
+      empty_miles = 0,
+      commodity,
+      weight,
+      equipment_type,
+      stops,
+      status = 'CREATED',
+      email_import_id,
+      confidence_score,
+      special_instructions,
+      fuel_surcharge_amount = 0,
+    } = req.body;
+
+    if (!customer_id || !rate_amount || !stops || stops.length < 2) {
+      return res.status(400).json({
+        error: 'Missing required fields: customer_id, rate_amount, and at least 2 stops'
+      });
+    }
+
+    const totalAmount = calculateLoadTotal(parseFloat(rate_amount), parseFloat(fuel_surcharge_amount), 0);
+
+    const [newLoad] = await db('loads').insert({
+      reference_number: reference_number || `LOAD-${Date.now()}`,
+      customer_id,
+      driver_id: null,
+      dispatcher_id: req.user.id,
+      status,
+      rate_amount,
+      rate_type,
+      loaded_miles: loaded_miles || 0,
+      empty_miles,
+      commodity: commodity || '',
+      weight: weight || 0,
+      equipment_type: equipment_type || 'Dry Van',
+      email_import_id: email_import_id || null,
+      confidence_score: confidence_score || null,
+      special_instructions: special_instructions || null,
+      fuel_surcharge_amount,
+      total_amount: totalAmount,
+    }).returning('*');
+
+    // Insert stops
+    const stopRows = stops.map((stop, index) => ({
+      id: `s${Date.now()}-${index}`,
+      load_id: newLoad.id,
+      sequence_order: index + 1,
+      stop_type: stop.stop_type,
+      facility_name: stop.facility_name || '',
+      address: stop.address || '',
+      city: stop.city || '',
+      state: stop.state || '',
+      zip: stop.zip || '',
+      appointment_start: stop.appointment_start || null,
+      appointment_end: stop.appointment_end || null,
+    }));
+
+    await db('stops').insert(stopRows);
+
+    const enriched = await enrichLoad(newLoad);
+    res.status(201).json(enriched);
+  }));
+
+  // PATCH /api/loads/:id/assign
+  router.patch('/:id/assign', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const { driver_id } = req.body;
+    if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
+
+    const driver = await db('drivers').where({ id: driver_id }).first();
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
+
+    if (driver.status === 'OUT_OF_SERVICE') {
+      return res.status(400).json({ error: 'Cannot assign driver who is out of service' });
+    }
+
+    // Check for conflicts
+    const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
+    const pickupDate = stops[0]?.appointment_start;
+    const deliveryDate = stops[stops.length - 1]?.appointment_end;
+
+    // Get driver's other loads with stop info for conflict check
+    const driverLoads = await db('loads')
+      .where({ driver_id })
+      .whereIn('status', ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT'])
+      .select('loads.*');
+
+    const driverLoadsWithStops = await Promise.all(driverLoads.map(async (dl) => {
+      const dlStops = await db('stops').where({ load_id: dl.id }).orderBy('sequence_order');
+      return {
+        ...dl,
+        pickup_start: dlStops[0]?.appointment_start,
+        delivery_end: dlStops[dlStops.length - 1]?.appointment_end,
+        pickup_city: dlStops[0]?.city,
+        delivery_city: dlStops[dlStops.length - 1]?.city,
+      };
+    }));
+
+    const availability = checkDriverConflicts(driverLoadsWithStops, pickupDate, deliveryDate);
+
+    if (!availability.available) {
+      return res.status(409).json({
+        error: 'Driver has conflicting loads',
+        conflicts: availability.conflicts
+      });
+    }
+
+    // Assign driver
+    const updates = {
+      driver_id,
+      assigned_at: new Date().toISOString(),
+    };
+
+    // Auto-transition to ASSIGNED if currently CREATED
+    if (load.status === 'CREATED') {
+      updates.status = 'ASSIGNED';
+    }
+
+    await db('loads').where({ id: load.id }).update(updates);
+    await db('drivers').where({ id: driver_id }).update({ status: 'EN_ROUTE' });
+
+    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const enriched = await enrichLoad(updatedLoad);
+    res.json(enriched);
+  }));
+
+  // PATCH /api/loads/:id/status
+  router.patch('/:id/status', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'status is required' });
+
+    const validation = validateStatusChange(load, status);
+    if (!validation.valid) return res.status(400).json({ error: validation.error });
+
+    const updates = { status };
+    const oldStatus = load.status;
+
+    if (status === 'PICKED_UP' && !load.picked_up_at) {
+      updates.picked_up_at = new Date().toISOString();
+    }
+
+    if (status === 'DELIVERED' && !load.delivered_at) {
+      updates.delivered_at = new Date().toISOString();
+      if (load.driver_id) {
+        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      }
+    }
+
+    await db('loads').where({ id: load.id }).update(updates);
+
+    console.log(`Load #${load.id} status changed: ${oldStatus} -> ${status}`);
+
+    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const enriched = await enrichLoad(updatedLoad);
+    res.json(enriched);
+  }));
+
+  // PATCH /api/loads/:id
+  router.patch('/:id', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const allowedUpdates = [
+      'reference_number', 'customer_id', 'rate_amount', 'loaded_miles',
+      'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions'
+    ];
+
+    const updates = {};
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    // Handle stops update
+    if (req.body.stops) {
+      await db('stops').where({ load_id: load.id }).del();
+      const stopRows = req.body.stops.map((stop, index) => ({
+        id: stop.id || `s${Date.now()}-${index}`,
+        load_id: load.id,
+        sequence_order: index + 1,
+        stop_type: stop.stop_type,
+        facility_name: stop.facility_name || '',
+        address: stop.address || '',
+        city: stop.city || '',
+        state: stop.state || '',
+        zip: stop.zip || '',
+        appointment_start: stop.appointment_start || null,
+        appointment_end: stop.appointment_end || null,
+        arrived_at: stop.arrived_at || null,
+        departed_at: stop.departed_at || null,
+      }));
+      await db('stops').insert(stopRows);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db('loads').where({ id: load.id }).update(updates);
+    }
+
+    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const enriched = await enrichLoad(updatedLoad);
+    res.json(enriched);
+  }));
+
+  return router;
+}
