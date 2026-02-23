@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["cd frontend && npm install", "cd server && npm install"]
+cmds = ["cd frontend && npm install --include=dev", "cd server && npm install"]
 
 [phases.build]
-cmds = ["cd frontend && VITE_API_URL=/api npm run build"]
+cmds = ["cd frontend && VITE_API_URL=/api npx vite build"]
 
 [start]
 cmd = "cd server && npx knex migrate:latest && node index.js"
