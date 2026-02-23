@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "cd frontend && npm install && cd ../server && npm install",
-    "build": "cd frontend && npm install --include=dev && VITE_API_URL=/api npm run build",
-    "start": "cd server && node index.js",
+    "postinstall": "cd frontend && npm install --include=dev && cd ../server && npm install",
+    "build": "cd frontend && VITE_API_URL=/api npm run build",
+    "start": "cd server && npx knex migrate:latest && node index.js",
     "db:setup": "cd server && npx knex migrate:latest && npx knex seed:run"
   }
 }
