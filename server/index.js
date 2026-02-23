@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db from './db/index.js';
 import authRouter from './routes/auth.js';
 import loadsRouter from './routes/loads.js';
@@ -48,6 +50,14 @@ app.use('/api/samsara', samsaraRouter(db));
 
 // Error handler
 app.use(errorHandler);
+
+// Serve frontend in production
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 // Start server
 app.listen(PORT, async () => {

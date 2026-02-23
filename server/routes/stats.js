@@ -15,7 +15,7 @@ export default function statsRouter(db) {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const todayDeliveries = await db('loads')
-      .where({ status: 'DELIVERED' })
+      .where({ status: 'COMPLETED' })
       .whereNotNull('delivered_at')
       .where('delivered_at', '>=', today.toISOString())
       .where('delivered_at', '<', tomorrow.toISOString())
@@ -28,7 +28,7 @@ export default function statsRouter(db) {
       .first();
 
     const draftLoads = await db('loads')
-      .where({ status: 'DRAFT' })
+      .where({ status: 'OPEN' })
       .count('id as count')
       .first();
 
@@ -57,7 +57,7 @@ export default function statsRouter(db) {
     const stats = {
       total_loads: loads.length,
       active_loads: loads.filter(l =>
-        ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT'].includes(l.status)
+        ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(l.status)
       ).length,
       available_drivers: drivers.filter(d => d.status === 'AVAILABLE').length,
       today_deliveries: parseInt(todayDeliveries?.count || 0),

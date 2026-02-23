@@ -1,14 +1,15 @@
 // Load status state machine with valid transitions
 
 export const VALID_TRANSITIONS = {
-  DRAFT: ['CREATED', 'CANCELLED'],
-  CREATED: ['ASSIGNED', 'CANCELLED'],
-  ASSIGNED: ['DISPATCHED', 'CANCELLED'],
-  DISPATCHED: ['PICKED_UP', 'CANCELLED'],
-  PICKED_UP: ['IN_TRANSIT', 'DELIVERED'],
-  IN_TRANSIT: ['DELIVERED'],
-  DELIVERED: [], // Terminal state
-  CANCELLED: []  // Terminal state
+  OPEN: ['SCHEDULED', 'BROKERED', 'TONU', 'CANCELLED'],
+  SCHEDULED: ['IN_PICKUP_YARD', 'TONU', 'CANCELLED'],
+  IN_PICKUP_YARD: ['IN_TRANSIT', 'TONU', 'CANCELLED'],
+  IN_TRANSIT: ['COMPLETED'],
+  COMPLETED: ['INVOICED'],
+  TONU: [],        // Terminal state
+  CANCELLED: [],   // Terminal state
+  INVOICED: [],    // Terminal state
+  BROKERED: ['SCHEDULED', 'CANCELLED'],
 };
 
 export function isValidTransition(currentStatus, newStatus) {
@@ -30,24 +31,18 @@ export function validateStatusChange(load, newStatus) {
   }
 
   // Business rules validation
-  if (newStatus === 'DISPATCHED' && !load.driver_id) {
+  if (newStatus === 'SCHEDULED' && !load.driver_id) {
     return {
       valid: false,
-      error: 'Cannot dispatch load without assigned driver'
+      error: 'Cannot schedule load without assigned driver'
     };
   }
 
-  if (newStatus === 'DELIVERED') {
-    if (!load.picked_up_at) {
-      return {
-        valid: false,
-        error: 'Cannot mark as delivered before pickup'
-      };
-    }
+  if (newStatus === 'COMPLETED') {
     if (!load.loaded_miles || load.loaded_miles === 0) {
       return {
         valid: false,
-        error: 'Must enter loaded miles before marking as delivered'
+        error: 'Must enter loaded miles before marking as completed'
       };
     }
   }

@@ -27,7 +27,7 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
     customer_id: customerId,
     driver_id: null,
     dispatcher_id: dispatcherId,
-    status: 'DRAFT',
+    status: 'OPEN',
     email_import_id: emailImportId,
     confidence_score: extractedData.confidence || null,
     rate_amount: data.rate_amount?.value || 0,

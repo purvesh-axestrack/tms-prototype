@@ -115,7 +115,7 @@ export default function driversRouter(db) {
 
     const activeLoads = await db('loads')
       .where({ driver_id: req.params.id })
-      .whereNotIn('status', ['DELIVERED', 'CANCELLED'])
+      .whereNotIn('status', ['COMPLETED', 'INVOICED', 'CANCELLED', 'TONU'])
       .count('id as count')
       .first();
 
@@ -139,7 +139,7 @@ export default function driversRouter(db) {
 
     const driverLoads = await db('loads')
       .where({ driver_id: req.params.id })
-      .whereIn('status', ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT']);
+      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT']);
 
     const driverLoadsWithStops = await Promise.all(driverLoads.map(async (load) => {
       const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');

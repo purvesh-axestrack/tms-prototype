@@ -80,7 +80,7 @@ export default function loadsRouter(db) {
       weight,
       equipment_type,
       stops,
-      status = 'CREATED',
+      status = 'OPEN',
       email_import_id,
       confidence_score,
       special_instructions,
@@ -159,7 +159,7 @@ export default function loadsRouter(db) {
     // Get driver's other loads with stop info for conflict check
     const driverLoads = await db('loads')
       .where({ driver_id })
-      .whereIn('status', ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT'])
+      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
       .select('loads.*');
 
     const driverLoadsWithStops = await Promise.all(driverLoads.map(async (dl) => {
@@ -188,9 +188,9 @@ export default function loadsRouter(db) {
       assigned_at: new Date().toISOString(),
     };
 
-    // Auto-transition to ASSIGNED if currently CREATED
-    if (load.status === 'CREATED') {
-      updates.status = 'ASSIGNED';
+    // Auto-transition to SCHEDULED if currently OPEN
+    if (load.status === 'OPEN') {
+      updates.status = 'SCHEDULED';
     }
 
     await db('loads').where({ id: load.id }).update(updates);
@@ -215,12 +215,18 @@ export default function loadsRouter(db) {
     const updates = { status };
     const oldStatus = load.status;
 
-    if (status === 'PICKED_UP' && !load.picked_up_at) {
+    if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
       updates.picked_up_at = new Date().toISOString();
     }
 
-    if (status === 'DELIVERED' && !load.delivered_at) {
+    if (status === 'COMPLETED' && !load.delivered_at) {
       updates.delivered_at = new Date().toISOString();
+      if (load.driver_id) {
+        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      }
+    }
+
+    if (status === 'TONU') {
       if (load.driver_id) {
         await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
       }

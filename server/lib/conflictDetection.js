@@ -2,7 +2,7 @@
 
 export function checkDriverConflicts(driverLoads, pickupDate, deliveryDate) {
   const activeLoads = driverLoads.filter(load =>
-    ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT'].includes(load.status)
+    ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(load.status)
   );
 
   const conflicts = activeLoads.filter(load => {
@@ -30,15 +30,15 @@ export function checkDriverConflicts(driverLoads, pickupDate, deliveryDate) {
 
 export function calculateDriverStats(driverLoads) {
   const activeLoads = driverLoads.filter(load =>
-    ['ASSIGNED', 'DISPATCHED', 'PICKED_UP', 'IN_TRANSIT'].includes(load.status)
+    ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(load.status)
   ).length;
 
   const completedLoads = driverLoads.filter(load =>
-    load.status === 'DELIVERED'
+    ['COMPLETED', 'INVOICED'].includes(load.status)
   ).length;
 
   const totalMiles = driverLoads
-    .filter(load => load.status === 'DELIVERED')
+    .filter(load => ['COMPLETED', 'INVOICED'].includes(load.status))
     .reduce((sum, load) => sum + (load.loaded_miles || 0), 0);
 
   return {

@@ -46,7 +46,7 @@ export default function invoicesRouter(db) {
   router.get('/uninvoiced-loads', asyncHandler(async (req, res) => {
     const { customer_id } = req.query;
     let query = db('loads')
-      .where({ status: 'DELIVERED' })
+      .where({ status: 'COMPLETED' })
       .whereNull('invoice_id');
 
     if (customer_id) query = query.where({ customer_id });
@@ -137,7 +137,7 @@ export default function invoicesRouter(db) {
     const customer = await db('customers').where({ id: customer_id }).first();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const loads = await db('loads').whereIn('id', load_ids).where({ customer_id, status: 'DELIVERED' });
+    const loads = await db('loads').whereIn('id', load_ids).where({ customer_id, status: 'COMPLETED' });
     if (loads.length === 0) {
       return res.status(400).json({ error: 'No delivered loads found for this customer' });
     }

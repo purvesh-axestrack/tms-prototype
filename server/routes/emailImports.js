@@ -79,7 +79,7 @@ export default function emailImportsRouter(db) {
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions'
     ];
 
-    const loadUpdates = { status: 'CREATED' };
+    const loadUpdates = { status: 'OPEN' };
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) loadUpdates[field] = updates[field];
     });

@@ -1,0 +1,11 @@
+{
+  "name": "tms-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "cd frontend && npm install && cd ../server && npm install",
+    "build": "cd frontend && VITE_API_URL=/api npm run build",
+    "start": "cd server && node index.js",
+    "db:setup": "cd server && npx knex migrate:latest && npx knex seed:run"
+  }
+}
