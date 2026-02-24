@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "cd frontend && npm install --include=dev && cd ../server && npm install",
     "build": "cd frontend && VITE_API_URL=/api npm run build",
-    "start": "cd server && npx knex migrate:latest && node index.js",
+    "start": "cd server && npx knex migrate:latest && npx knex seed:run && node index.js",
     "db:setup": "cd server && npx knex migrate:latest && npx knex seed:run"
   }
 }
