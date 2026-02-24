@@ -18,13 +18,15 @@ import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
 
 const statusColors = {
-  DRAFT: 'bg-yellow-100 text-yellow-700',
-  CREATED: 'bg-indigo-100 text-indigo-700',
-  ASSIGNED: 'bg-purple-100 text-purple-700',
-  DISPATCHED: 'bg-blue-100 text-blue-700',
-  PICKED_UP: 'bg-sky-100 text-sky-700',
-  IN_TRANSIT: 'bg-green-100 text-green-700',
-  DELIVERED: 'bg-emerald-100 text-emerald-700',
+  OPEN: 'bg-blue-100 text-blue-700',
+  SCHEDULED: 'bg-indigo-100 text-indigo-700',
+  IN_PICKUP_YARD: 'bg-purple-100 text-purple-700',
+  IN_TRANSIT: 'bg-sky-100 text-sky-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  TONU: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-slate-100 text-slate-700',
+  INVOICED: 'bg-emerald-100 text-emerald-700',
+  BROKERED: 'bg-amber-100 text-amber-700',
 };
 
 const EQUIPMENT_TYPES = ['Dry Van', 'Reefer', 'Flatbed', 'Step Deck', 'Power Only', 'Box Truck'];
@@ -356,7 +358,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span className="text-sm text-green-700 font-medium">Invoiced (Invoice #{load.invoice_id})</span>
               </div>
-            ) : load.status === 'DELIVERED' ? (
+            ) : load.status === 'COMPLETED' ? (
               <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <span className="text-sm text-amber-700 font-medium">Uninvoiced &mdash; Ready for billing</span>

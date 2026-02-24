@@ -292,7 +292,7 @@ export default function DraftReviewModal({ emailImport, onClose }) {
               {confirmAction === 'retry' && 'Re-extract Data'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction === 'approve' && 'Approve this load and move to CREATED status?'}
+              {confirmAction === 'approve' && 'Approve this load and move to Open status?'}
               {confirmAction === 'reject' && 'Reject this import? The draft load will be cancelled.'}
               {confirmAction === 'retry' && 'Re-extract data from the PDF?'}
             </AlertDialogDescription>

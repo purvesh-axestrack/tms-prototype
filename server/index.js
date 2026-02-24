@@ -28,12 +28,17 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend in production
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+
 // Public routes (no auth required)
 app.use('/api/auth', authRouter(db));
 app.use('/api/gmail', gmailPublicRouter(db)); // Only OAuth callback is public
 
 // Protected routes
-app.use(authenticate(db));
+app.use('/api', authenticate(db));
 app.use('/api/gmail', gmailRouter(db)); // auth-url, status, disconnect, sync, filter-senders
 app.use('/api/loads', loadsRouter(db));
 app.use('/api/drivers', driversRouter(db));
@@ -48,16 +53,13 @@ app.use('/api/vehicles', vehiclesRouter(db));
 app.use('/api/users', usersRouter(db));
 app.use('/api/samsara', samsaraRouter(db));
 
-// Error handler
-app.use(errorHandler);
-
-// Serve frontend in production
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(express.static(frontendDist));
+// SPA catch-all: serve index.html for all non-API routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
+
+// Error handler
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, async () => {

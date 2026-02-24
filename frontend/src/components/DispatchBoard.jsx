@@ -13,13 +13,15 @@ import DraftReviewModal from './DraftReviewModal';
 import LoadCreateModal from './LoadCreateModal';
 
 const STATUSES = [
-  { key: 'DRAFT', label: 'Draft', bgColor: 'bg-yellow-50', headerBg: 'bg-yellow-100 text-yellow-800', dotColor: 'bg-yellow-400' },
-  { key: 'CREATED', label: 'Created', bgColor: 'bg-indigo-50', headerBg: 'bg-indigo-100 text-indigo-800', dotColor: 'bg-indigo-400' },
-  { key: 'ASSIGNED', label: 'Assigned', bgColor: 'bg-purple-50', headerBg: 'bg-purple-100 text-purple-800', dotColor: 'bg-purple-400' },
-  { key: 'DISPATCHED', label: 'Dispatched', bgColor: 'bg-blue-50', headerBg: 'bg-blue-100 text-blue-800', dotColor: 'bg-blue-400' },
-  { key: 'PICKED_UP', label: 'Picked Up', bgColor: 'bg-sky-50', headerBg: 'bg-sky-100 text-sky-800', dotColor: 'bg-sky-400' },
-  { key: 'IN_TRANSIT', label: 'In Transit', bgColor: 'bg-green-50', headerBg: 'bg-green-100 text-green-800', dotColor: 'bg-green-400' },
-  { key: 'DELIVERED', label: 'Delivered', bgColor: 'bg-emerald-50', headerBg: 'bg-emerald-100 text-emerald-800', dotColor: 'bg-emerald-400' },
+  { key: 'OPEN', label: 'Open', bgColor: 'bg-blue-50', headerBg: 'bg-blue-100 text-blue-800', dotColor: 'bg-blue-400' },
+  { key: 'SCHEDULED', label: 'Scheduled', bgColor: 'bg-indigo-50', headerBg: 'bg-indigo-100 text-indigo-800', dotColor: 'bg-indigo-400' },
+  { key: 'IN_PICKUP_YARD', label: 'In Pick Up Yard', bgColor: 'bg-purple-50', headerBg: 'bg-purple-100 text-purple-800', dotColor: 'bg-purple-400' },
+  { key: 'IN_TRANSIT', label: 'In Transit', bgColor: 'bg-sky-50', headerBg: 'bg-sky-100 text-sky-800', dotColor: 'bg-sky-400' },
+  { key: 'COMPLETED', label: 'Completed', bgColor: 'bg-green-50', headerBg: 'bg-green-100 text-green-800', dotColor: 'bg-green-400' },
+  { key: 'TONU', label: 'TONU', bgColor: 'bg-red-50', headerBg: 'bg-red-100 text-red-800', dotColor: 'bg-red-400' },
+  { key: 'CANCELLED', label: 'Cancelled', bgColor: 'bg-slate-50', headerBg: 'bg-slate-100 text-slate-800', dotColor: 'bg-slate-400' },
+  { key: 'INVOICED', label: 'Invoiced', bgColor: 'bg-emerald-50', headerBg: 'bg-emerald-100 text-emerald-800', dotColor: 'bg-emerald-400' },
+  { key: 'BROKERED', label: 'Brokered', bgColor: 'bg-amber-50', headerBg: 'bg-amber-100 text-amber-800', dotColor: 'bg-amber-400' },
 ];
 
 export default function DispatchBoard() {
@@ -54,7 +56,7 @@ export default function DispatchBoard() {
   }, {});
 
   const handleCardClick = (load) => {
-    if (load.status === 'DRAFT' && load.email_import_id) {
+    if (load.status === 'OPEN' && load.email_import_id) {
       setDraftReview({ id: load.email_import_id });
     } else {
       setSelectedLoad(load);
@@ -68,8 +70,8 @@ export default function DispatchBoard() {
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32 rounded-lg" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-9 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-12 rounded-t-lg" />
               <div className="space-y-2 p-2">
@@ -107,7 +109,7 @@ export default function DispatchBoard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-9 gap-3">
         {STATUSES.map(status => {
           const count = groupedLoads[status.key]?.length || 0;
           return (
@@ -122,7 +124,7 @@ export default function DispatchBoard() {
                 </Badge>
               </div>
               <div className={`${status.bgColor} rounded-b-xl p-2 min-h-[460px] space-y-2 border border-t-0 border-slate-200 ${
-                status.key === 'DRAFT' ? 'border-dashed border-yellow-300' : ''
+                status.key === 'OPEN' ? 'border-dashed border-blue-300' : ''
               }`}>
                 {groupedLoads[status.key]?.map(load => (
                   <LoadCard

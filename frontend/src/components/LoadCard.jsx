@@ -4,13 +4,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const statusColors = {
-  DRAFT: 'bg-yellow-100 text-yellow-700',
-  CREATED: 'bg-indigo-100 text-indigo-700',
-  ASSIGNED: 'bg-purple-100 text-purple-700',
-  DISPATCHED: 'bg-blue-100 text-blue-700',
-  PICKED_UP: 'bg-sky-100 text-sky-700',
-  IN_TRANSIT: 'bg-green-100 text-green-700',
-  DELIVERED: 'bg-emerald-100 text-emerald-700',
+  OPEN: 'bg-blue-100 text-blue-700',
+  SCHEDULED: 'bg-indigo-100 text-indigo-700',
+  IN_PICKUP_YARD: 'bg-purple-100 text-purple-700',
+  IN_TRANSIT: 'bg-sky-100 text-sky-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  TONU: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-slate-100 text-slate-700',
+  INVOICED: 'bg-emerald-100 text-emerald-700',
+  BROKERED: 'bg-amber-100 text-amber-700',
 };
 
 function ConfidenceDot({ score }) {
@@ -36,7 +38,7 @@ export default function LoadCard({ load, onClick }) {
     <Card
       onClick={onClick}
       className={`cursor-pointer hover:shadow-md transition-shadow py-3 ${
-        load.status === 'DRAFT' ? 'ring-1 ring-yellow-300 ring-inset' : ''
+        load.status === 'OPEN' ? 'ring-1 ring-blue-300 ring-inset' : ''
       }`}
     >
       <CardContent className="p-3 space-y-0">

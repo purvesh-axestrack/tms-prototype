@@ -51,8 +51,8 @@ export default function StatsBar() {
     { label: 'Active Loads', value: stats?.active_loads || 0, icon: 'truck', color: 'blue' },
     { label: 'Available Drivers', value: stats?.available_drivers || 0, icon: 'driver', color: 'green' },
     { label: 'Pending Imports', value: stats?.pending_imports || 0, icon: 'email', color: 'orange' },
-    { label: 'Draft Loads', value: stats?.draft_loads || 0, icon: 'draft', color: 'yellow' },
-    { label: "Today's Deliveries", value: stats?.today_deliveries || 0, icon: 'delivery', color: 'amber' },
+    { label: 'Open Loads', value: stats?.draft_loads || 0, icon: 'draft', color: 'yellow' },
+    { label: "Today's Completed", value: stats?.today_deliveries || 0, icon: 'delivery', color: 'amber' },
     { label: 'Total Loads', value: stats?.total_loads || 0, icon: 'chart', color: 'purple' },
   ];
 
