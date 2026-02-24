@@ -42,7 +42,7 @@ export default function LoadCard({ load, onClick }) {
       }`}
     >
       <CardContent className="p-3 space-y-0">
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex items-start justify-between gap-1.5 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-sm">#{load.id}</span>
@@ -52,7 +52,7 @@ export default function LoadCard({ load, onClick }) {
               <div className="text-[11px] text-muted-foreground truncate mt-0.5">{load.reference_number}</div>
             )}
           </div>
-          <Badge className={`text-[10px] px-2 py-0.5 font-bold uppercase tracking-wide ${statusColors[load.status]}`}>
+          <Badge className={`text-[9px] px-1.5 py-0.5 font-bold uppercase leading-tight whitespace-nowrap flex-shrink-0 ${statusColors[load.status]}`}>
             {load.status.replaceAll('_', ' ')}
           </Badge>
         </div>
