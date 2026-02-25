@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, AlertTriangle, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -68,8 +69,6 @@ export default function InvoiceCreateModal({ onClose }) {
     createMutation.mutate({ customer_id: customerId, load_ids: selectedLoadIds, notes });
   };
 
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-4xl">
@@ -88,14 +87,17 @@ export default function InvoiceCreateModal({ onClose }) {
 
           <div className="space-y-2">
             <Label>Customer</Label>
-            <select
-              value={customerId}
-              onChange={(e) => { setCustomerId(e.target.value); setSelectedLoadIds([]); }}
-              className={selectClass}
+            <Select
+              value={customerId || undefined}
+              onValueChange={(v) => { setCustomerId(v); setSelectedLoadIds([]); }}
             >
-              <option value="">Select customer...</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
-            </select>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select customer..." />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           {customerId && (

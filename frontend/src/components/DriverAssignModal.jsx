@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -96,21 +97,24 @@ export default function DriverAssignModal({ load, onClose, onAssigned }) {
 
             <div>
               <Label className="mb-2 block">Select Driver</Label>
-              <select
-                value={selectedDriverId}
-                onChange={(e) => {
-                  setSelectedDriverId(e.target.value);
-                  handleCheckAvailability(e.target.value);
+              <Select
+                value={selectedDriverId || undefined}
+                onValueChange={(v) => {
+                  setSelectedDriverId(v);
+                  handleCheckAvailability(v);
                 }}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">-- Select a driver --</option>
-                {availableDrivers.map(driver => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.full_name} ({driver.pay_model} - {driver.status})
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="-- Select a driver --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableDrivers.map(driver => (
+                    <SelectItem key={driver.id} value={String(driver.id)}>
+                      {driver.full_name} ({driver.pay_model} - {driver.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {checking && (
@@ -152,7 +156,7 @@ export default function DriverAssignModal({ load, onClose, onAssigned }) {
             )}
 
             {selectedDriverId && (() => {
-              const driver = drivers.find(d => d.id === selectedDriverId);
+              const driver = drivers.find(d => String(d.id) === selectedDriverId);
               return driver ? (
                 <Card className="py-4">
                   <CardContent>

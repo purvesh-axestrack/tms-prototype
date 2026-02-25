@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -155,16 +156,25 @@ export default function LoadCreateModal({ onClose }) {
               </div>
               <div className="space-y-2">
                 <Label>Customer <span className="text-red-400">*</span></Label>
-                <select value={form.customer_id} onChange={(e) => updateField('customer_id', e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" required>
-                  <option value="">Select customer...</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
-                </select>
+                <Select value={form.customer_id || undefined} onValueChange={(v) => updateField('customer_id', v)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select customer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Equipment Type</Label>
-                <select value={form.equipment_type} onChange={(e) => updateField('equipment_type', e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                  {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <Select value={form.equipment_type} onValueChange={(v) => updateField('equipment_type', v)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select equipment..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EQUIPMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Commodity</Label>
@@ -188,11 +198,16 @@ export default function LoadCreateModal({ onClose }) {
               </div>
               <div className="space-y-2">
                 <Label>Rate Type</Label>
-                <select value={form.rate_type} onChange={(e) => updateField('rate_type', e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                  <option value="FLAT">Flat Rate</option>
-                  <option value="CPM">Per Mile</option>
-                  <option value="PERCENTAGE">Percentage</option>
-                </select>
+                <Select value={form.rate_type} onValueChange={(v) => updateField('rate_type', v)}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select rate type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT">Flat Rate</SelectItem>
+                    <SelectItem value="CPM">Per Mile</SelectItem>
+                    <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Loaded Miles</Label>
@@ -226,14 +241,15 @@ export default function LoadCreateModal({ onClose }) {
                         }`}>
                           {index + 1}
                         </div>
-                        <select
-                          value={stop.stop_type}
-                          onChange={(e) => updateStop(index, 'stop_type', e.target.value)}
-                          className="px-2 py-1 border border-input rounded-lg text-xs font-semibold bg-transparent"
-                        >
-                          <option value="PICKUP">PICKUP</option>
-                          <option value="DELIVERY">DELIVERY</option>
-                        </select>
+                        <Select value={stop.stop_type} onValueChange={(v) => updateStop(index, 'stop_type', v)}>
+                          <SelectTrigger className="h-7 w-auto px-2 text-xs font-semibold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PICKUP">PICKUP</SelectItem>
+                            <SelectItem value="DELIVERY">DELIVERY</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       {form.stops.length > 2 && (
                         <Button type="button" variant="ghost" size="xs" onClick={() => removeStop(index)} className="text-red-400 hover:text-red-600">

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -69,7 +70,6 @@ export default function AccessorialEditor({ loadId }) {
   };
 
   const total = accessorials.reduce((sum, a) => sum + parseFloat(a.total), 0);
-  const selectClass = "flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
   return (
     <Card className="py-4">
@@ -109,10 +109,14 @@ export default function AccessorialEditor({ loadId }) {
         <div className="flex items-end gap-2">
           <div className="flex-1 space-y-1">
             <Label className="text-xs">Type</Label>
-            <select value={selectedType} onChange={(e) => handleTypeChange(e.target.value)} className={selectClass}>
-              <option value="">Add accessorial...</option>
-              {types.map(t => <option key={t.id} value={t.id}>{t.name} ({t.unit})</option>)}
-            </select>
+            <Select value={selectedType || undefined} onValueChange={(v) => handleTypeChange(v)}>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Add accessorial..." />
+              </SelectTrigger>
+              <SelectContent>
+                {types.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name} ({t.unit})</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-16 space-y-1">
             <Label className="text-xs">Qty</Label>

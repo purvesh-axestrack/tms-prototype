@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -136,7 +137,6 @@ export default function DraftReviewModal({ emailImport, onClose }) {
 
   const getFieldConfidence = (fieldName) => extracted?.data?.[fieldName]?.confidence;
   const isDraft = importDetail?.processing_status === 'DRAFT_CREATED';
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <>
@@ -175,10 +175,14 @@ export default function DraftReviewModal({ emailImport, onClose }) {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Customer</Label><ConfidenceDot score={getFieldConfidence('broker_name')} /></div>
-                  <select value={form.customer_id || ''} onChange={(e) => updateField('customer_id', e.target.value)} disabled={!isDraft} className={selectClass}>
-                    <option value="">-- Select Customer --</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
-                  </select>
+                  <Select value={form.customer_id ? String(form.customer_id) : undefined} onValueChange={(v) => updateField('customer_id', v)} disabled={!isDraft}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="-- Select Customer --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Rate ($)</Label><ConfidenceDot score={getFieldConfidence('rate_amount')} /></div>
@@ -186,9 +190,16 @@ export default function DraftReviewModal({ emailImport, onClose }) {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Rate Type</Label><ConfidenceDot score={getFieldConfidence('rate_type')} /></div>
-                  <select value={form.rate_type || 'FLAT'} onChange={(e) => updateField('rate_type', e.target.value)} disabled={!isDraft} className={selectClass}>
-                    <option value="FLAT">Flat</option><option value="CPM">Per Mile</option><option value="PERCENTAGE">Percentage</option>
-                  </select>
+                  <Select value={form.rate_type || 'FLAT'} onValueChange={(v) => updateField('rate_type', v)} disabled={!isDraft}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select rate type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FLAT">Flat</SelectItem>
+                      <SelectItem value="CPM">Per Mile</SelectItem>
+                      <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Equipment</Label><ConfidenceDot score={getFieldConfidence('equipment_type')} /></div>

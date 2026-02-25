@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   SlidersHorizontal, CalendarIcon, X, ChevronsUpDown, ChevronDown, ChevronRight,
   Search, User, Building2, Truck, MapPin,
@@ -177,16 +179,10 @@ function FilterSection({ label, defaultOpen = false, children }) {
 // ──── Toggle filter ────
 function ToggleFilter({ label, value, onChange }) {
   return (
-    <button
-      onClick={() => onChange(!value)}
-      className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-all ${
-        value
-          ? 'bg-amber-50 border-amber-300 text-amber-700'
-          : 'bg-white border-slate-200 text-muted-foreground hover:border-slate-300'
-      }`}
-    >
-      {label}
-    </button>
+    <div className="flex items-center gap-2">
+      <Switch checked={value} onCheckedChange={onChange} size="sm" />
+      <Label className="text-xs font-medium cursor-pointer" onClick={() => onChange(!value)}>{label}</Label>
+    </div>
   );
 }
 

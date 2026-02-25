@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
@@ -102,7 +103,6 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   };
 
   const currentDriver = drivers.find(d => d.id === load.driver_id);
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
   return (
     <>
@@ -174,16 +174,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 <CardContent>
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer</div>
                   {editing ? (
-                    <select
-                      value={editData.customer_id}
-                      onChange={(e) => setEditData({ ...editData, customer_id: e.target.value })}
-                      className={selectClass}
+                    <Select
+                      value={editData.customer_id ? String(editData.customer_id) : undefined}
+                      onValueChange={(v) => setEditData({ ...editData, customer_id: v })}
                     >
-                      <option value="">Select customer</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.company_name}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(c => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <div className="text-lg font-bold">{load.customer_name}</div>
                   )}
@@ -282,15 +285,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                         step="0.01"
                         className="h-8"
                       />
-                      <select
+                      <Select
                         value={editData.rate_type}
-                        onChange={(e) => setEditData({ ...editData, rate_type: e.target.value })}
-                        className={selectClass + ' h-8'}
+                        onValueChange={(v) => setEditData({ ...editData, rate_type: v })}
                       >
-                        <option value="FLAT">Flat</option>
-                        <option value="CPM">Per Mile</option>
-                        <option value="PERCENTAGE">Percentage</option>
-                      </select>
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Select rate type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FLAT">Flat</SelectItem>
+                          <SelectItem value="CPM">Per Mile</SelectItem>
+                          <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   ) : (
                     <>
@@ -380,13 +387,17 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Equipment</Label>
-                      <select
+                      <Select
                         value={editData.equipment_type}
-                        onChange={(e) => setEditData({ ...editData, equipment_type: e.target.value })}
-                        className={selectClass + ' h-8'}
+                        onValueChange={(v) => setEditData({ ...editData, equipment_type: v })}
                       >
-                        {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Select equipment" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EQUIPMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Empty Miles</Label>

@@ -20,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings, Users, Receipt, Minus, Link2, Plus, KeyRound, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -137,8 +138,6 @@ function UsersTab() {
     ACCOUNTANT: 'bg-green-100 text-green-700',
   };
 
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   if (isLoading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
 
   return (
@@ -211,11 +210,16 @@ function UsersTab() {
             </div>
             <div className="space-y-1.5">
               <Label>Role *</Label>
-              <select value={form.role} onChange={(e) => setForm(p => ({ ...p, role: e.target.value }))} className={selectClass}>
-                <option value="DISPATCHER">Dispatcher</option>
-                <option value="ACCOUNTANT">Accountant</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              <Select value={form.role} onValueChange={(v) => setForm(p => ({ ...p, role: v }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DISPATCHER">Dispatcher</SelectItem>
+                  <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Password</Label>
@@ -247,11 +251,16 @@ function UsersTab() {
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <select value={form.role} onChange={(e) => setForm(p => ({ ...p, role: e.target.value }))} className={selectClass}>
-                <option value="DISPATCHER">Dispatcher</option>
-                <option value="ACCOUNTANT">Accountant</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              <Select value={form.role} onValueChange={(v) => setForm(p => ({ ...p, role: v }))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DISPATCHER">Dispatcher</SelectItem>
+                  <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>New Password</Label>
@@ -338,8 +347,6 @@ function AccessorialTypesTab() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to create'),
   });
 
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   if (isLoading) return <Skeleton className="h-48 w-full" />;
 
   return (
@@ -401,12 +408,17 @@ function AccessorialTypesTab() {
               </div>
               <div className="space-y-1.5">
                 <Label>Unit</Label>
-                <select value={form.unit} onChange={(e) => setForm(p => ({ ...p, unit: e.target.value }))} className={selectClass}>
-                  <option value="FLAT">Flat</option>
-                  <option value="PER_HOUR">Per Hour</option>
-                  <option value="PER_MILE">Per Mile</option>
-                  <option value="PER_CWT">Per CWT</option>
-                </select>
+                <Select value={form.unit} onValueChange={(v) => setForm(p => ({ ...p, unit: v }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT">Flat</SelectItem>
+                    <SelectItem value="PER_HOUR">Per Hour</SelectItem>
+                    <SelectItem value="PER_MILE">Per Mile</SelectItem>
+                    <SelectItem value="PER_CWT">Per CWT</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

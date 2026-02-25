@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Truck, Plus, Search, MapPin, Gauge } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -141,8 +142,6 @@ export default function FleetPage() {
     setEditVehicle(v);
   };
 
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   const tractorCount = vehicles.filter(v => v.type === 'TRACTOR').length;
   const trailerCount = vehicles.filter(v => v.type === 'TRAILER').length;
 
@@ -232,13 +231,13 @@ export default function FleetPage() {
                     <Badge variant="outline">{v.type}</Badge>
                   </TableCell>
                   <TableCell className="text-sm">
-                    {[v.year, v.make, v.model].filter(Boolean).join(' ') || '—'}
+                    {[v.year, v.make, v.model].filter(Boolean).join(' ') || '\u2014'}
                   </TableCell>
-                  <TableCell className="text-sm font-mono text-muted-foreground">{v.vin || '—'}</TableCell>
+                  <TableCell className="text-sm font-mono text-muted-foreground">{v.vin || '\u2014'}</TableCell>
                   <TableCell className="text-sm">
-                    {v.license_plate ? `${v.license_plate}${v.license_state ? ` (${v.license_state})` : ''}` : '—'}
+                    {v.license_plate ? `${v.license_plate}${v.license_state ? ` (${v.license_state})` : ''}` : '\u2014'}
                   </TableCell>
-                  <TableCell className="text-sm">{v.driver_name || '—'}</TableCell>
+                  <TableCell className="text-sm">{v.driver_name || '\u2014'}</TableCell>
                   <TableCell>
                     <Badge className={statusColors[v.status] || ''}>{v.status}</Badge>
                   </TableCell>
@@ -258,7 +257,7 @@ export default function FleetPage() {
           <DialogHeader>
             <DialogTitle className="font-display">Add Vehicle</DialogTitle>
           </DialogHeader>
-          <VehicleForm form={form} setForm={setForm} selectClass={selectClass} />
+          <VehicleForm form={form} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={createMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
@@ -274,7 +273,7 @@ export default function FleetPage() {
           <DialogHeader>
             <DialogTitle className="font-display">Edit Vehicle</DialogTitle>
           </DialogHeader>
-          <VehicleForm form={form} setForm={setForm} selectClass={selectClass} showStatus />
+          <VehicleForm form={form} setForm={setForm} showStatus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVehicle(null)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
@@ -306,12 +305,12 @@ export default function FleetPage() {
                   <CardContent>
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Vehicle Information</div>
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                      <div><span className="text-muted-foreground">Year:</span> <span className="font-medium">{detail.year || '—'}</span></div>
-                      <div><span className="text-muted-foreground">Make:</span> <span className="font-medium">{detail.make || '—'}</span></div>
-                      <div><span className="text-muted-foreground">Model:</span> <span className="font-medium">{detail.model || '—'}</span></div>
-                      <div><span className="text-muted-foreground">VIN:</span> <span className="font-medium font-mono text-xs">{detail.vin || '—'}</span></div>
-                      <div><span className="text-muted-foreground">License:</span> <span className="font-medium">{detail.license_plate || '—'} {detail.license_state ? `(${detail.license_state})` : ''}</span></div>
-                      <div><span className="text-muted-foreground">Odometer:</span> <span className="font-medium">{detail.odometer ? `${Number(detail.odometer).toLocaleString()} mi` : '—'}</span></div>
+                      <div><span className="text-muted-foreground">Year:</span> <span className="font-medium">{detail.year || '\u2014'}</span></div>
+                      <div><span className="text-muted-foreground">Make:</span> <span className="font-medium">{detail.make || '\u2014'}</span></div>
+                      <div><span className="text-muted-foreground">Model:</span> <span className="font-medium">{detail.model || '\u2014'}</span></div>
+                      <div><span className="text-muted-foreground">VIN:</span> <span className="font-medium font-mono text-xs">{detail.vin || '\u2014'}</span></div>
+                      <div><span className="text-muted-foreground">License:</span> <span className="font-medium">{detail.license_plate || '\u2014'} {detail.license_state ? `(${detail.license_state})` : ''}</span></div>
+                      <div><span className="text-muted-foreground">Odometer:</span> <span className="font-medium">{detail.odometer ? `${Number(detail.odometer).toLocaleString()} mi` : '\u2014'}</span></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -344,14 +343,19 @@ export default function FleetPage() {
                   <CardContent>
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Assigned Driver</div>
                     <div className="flex items-center gap-2">
-                      <select
-                        value={assignDriverId || detail.current_driver_id || ''}
-                        onChange={(e) => setAssignDriverId(e.target.value)}
-                        className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <option value="">No driver assigned</option>
-                        {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                      </select>
+                      <div className="flex-1">
+                        <Select
+                          value={assignDriverId || (detail.current_driver_id ? String(detail.current_driver_id) : undefined)}
+                          onValueChange={(v) => setAssignDriverId(v)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="No driver assigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {drivers.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <Button
                         size="sm"
                         onClick={() => {
@@ -431,56 +435,67 @@ export default function FleetPage() {
   );
 }
 
-function VehicleForm({ form, setForm, selectClass, showStatus }) {
-  const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+function VehicleForm({ form, setForm, showStatus }) {
+  const set = (field) => (v) => setForm(prev => ({ ...prev, [field]: v }));
+  const setInput = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-1.5">
         <Label>Unit Number *</Label>
-        <Input value={form.unit_number} onChange={set('unit_number')} placeholder="e.g., T-101" />
+        <Input value={form.unit_number} onChange={setInput('unit_number')} placeholder="e.g., T-101" />
       </div>
       <div className="space-y-1.5">
         <Label>Type *</Label>
-        <select value={form.type} onChange={set('type')} className={selectClass}>
-          {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <Select value={form.type} onValueChange={set('type')}>
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {VEHICLE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1.5">
         <Label>VIN</Label>
-        <Input value={form.vin} onChange={set('vin')} placeholder="Vehicle Identification Number" />
+        <Input value={form.vin} onChange={setInput('vin')} placeholder="Vehicle Identification Number" />
       </div>
       <div className="space-y-1.5">
         <Label>Year</Label>
-        <Input value={form.year} onChange={set('year')} placeholder="2024" type="number" />
+        <Input value={form.year} onChange={setInput('year')} placeholder="2024" type="number" />
       </div>
       <div className="space-y-1.5">
         <Label>Make</Label>
-        <Input value={form.make} onChange={set('make')} placeholder="e.g., Freightliner" />
+        <Input value={form.make} onChange={setInput('make')} placeholder="e.g., Freightliner" />
       </div>
       <div className="space-y-1.5">
         <Label>Model</Label>
-        <Input value={form.model} onChange={set('model')} placeholder="e.g., Cascadia" />
+        <Input value={form.model} onChange={setInput('model')} placeholder="e.g., Cascadia" />
       </div>
       <div className="space-y-1.5">
         <Label>License Plate</Label>
-        <Input value={form.license_plate} onChange={set('license_plate')} />
+        <Input value={form.license_plate} onChange={setInput('license_plate')} />
       </div>
       <div className="space-y-1.5">
         <Label>License State</Label>
-        <Input value={form.license_state} onChange={set('license_state')} placeholder="e.g., TX" maxLength={2} />
+        <Input value={form.license_state} onChange={setInput('license_state')} placeholder="e.g., TX" maxLength={2} />
       </div>
       {showStatus && (
         <div className="space-y-1.5">
           <Label>Status</Label>
-          <select value={form.status} onChange={set('status')} className={selectClass}>
-            {VEHICLE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <Select value={form.status} onValueChange={set('status')}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VEHICLE_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       )}
       <div className="col-span-2 space-y-1.5">
         <Label>Notes</Label>
-        <Textarea value={form.notes} onChange={set('notes')} rows={2} placeholder="Any additional notes..." />
+        <Textarea value={form.notes} onChange={setInput('notes')} rows={2} placeholder="Any additional notes..." />
       </div>
     </div>
   );

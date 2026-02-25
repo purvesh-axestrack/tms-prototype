@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Plus, Package, Search, LayoutGrid, List, GanttChart } from 'lucide-react';
 import LoadCard from './LoadCard';
 import LoadDetail from './LoadDetail';
@@ -232,23 +233,17 @@ export default function DispatchBoard() {
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
-          <div className="flex bg-slate-100 rounded-lg p-0.5">
+          <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v)} variant="outline" size="sm">
             {VIEWS.map(v => {
               const Icon = v.icon;
               return (
-                <button
-                  key={v.key}
-                  onClick={() => setView(v.key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    view === v.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
+                <ToggleGroupItem key={v.key} value={v.key} className="text-xs gap-1.5 px-2.5 h-8">
                   <Icon className="w-3.5 h-3.5" />
                   {v.label}
-                </button>
+                </ToggleGroupItem>
               );
             })}
-          </div>
+          </ToggleGroup>
 
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
@@ -191,24 +192,10 @@ export default function LoadTimelineView({ loads, onLoadClick }) {
           </div>
           <h3 className="text-sm font-semibold text-slate-700">{periodLabel}</h3>
         </div>
-        <div className="flex bg-white rounded-lg border p-0.5">
-          <button
-            onClick={() => setMode('week')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-              mode === 'week' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setMode('twoweek')}
-            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-              mode === 'twoweek' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            2 Weeks
-          </button>
-        </div>
+        <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v)} variant="outline" size="sm">
+          <ToggleGroupItem value="week" className="text-xs px-3 h-8">Week</ToggleGroupItem>
+          <ToggleGroupItem value="twoweek" className="text-xs px-3 h-8">2 Weeks</ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Day headers */}

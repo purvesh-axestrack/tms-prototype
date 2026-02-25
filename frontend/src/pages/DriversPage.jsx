@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, User, Search, Pencil, Trash2, Loader2, Phone, CreditCard, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverDeductionsEditor from '../components/DriverDeductionsEditor';
@@ -138,7 +139,6 @@ export default function DriversPage() {
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const selectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
   const fmtRate = (d) => {
     if (d.pay_model === 'CPM') return `$${Number(d.pay_rate).toFixed(2)}/mi`;
@@ -261,21 +261,30 @@ export default function DriversPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>License State</Label>
-                <select value={formData.license_state} onChange={(e) => setFormData({ ...formData, license_state: e.target.value })} className={selectClass}>
-                  <option value="">Select state</option>
-                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select value={formData.license_state || undefined} onValueChange={(v) => setFormData({ ...formData, license_state: v })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <Separator />
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label>Pay Model *</Label>
-                <select value={formData.pay_model} onChange={(e) => setFormData({ ...formData, pay_model: e.target.value })} className={selectClass}>
-                  <option value="CPM">Per Mile (CPM)</option>
-                  <option value="PERCENTAGE">Percentage</option>
-                  <option value="FLAT">Flat Rate</option>
-                </select>
+                <Select value={formData.pay_model} onValueChange={(v) => setFormData({ ...formData, pay_model: v })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CPM">Per Mile (CPM)</SelectItem>
+                    <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                    <SelectItem value="FLAT">Flat Rate</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Pay Rate *</Label>

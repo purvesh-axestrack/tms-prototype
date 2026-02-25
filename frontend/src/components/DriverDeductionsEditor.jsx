@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -61,8 +62,6 @@ export default function DriverDeductionsEditor({ driverId }) {
     });
   };
 
-  const selectClass = "flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
   return (
     <div className="space-y-3">
       <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Recurring Deductions</div>
@@ -96,10 +95,14 @@ export default function DriverDeductionsEditor({ driverId }) {
 
       <div className="flex items-end gap-2">
         <div className="flex-1 space-y-1">
-          <select value={selectedType} onChange={(e) => handleTypeChange(e.target.value)} className={selectClass}>
-            <option value="">Add deduction...</option>
-            {types.map(t => <option key={t.id} value={t.id}>{t.name} {t.is_recurring ? '(Recurring)' : ''}</option>)}
-          </select>
+          <Select value={selectedType || undefined} onValueChange={(v) => handleTypeChange(v)}>
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Add deduction..." />
+            </SelectTrigger>
+            <SelectContent>
+              {types.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name} {t.is_recurring ? '(Recurring)' : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="w-24 space-y-1">
           <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-8 text-sm" placeholder="Amount" step="0.01" />
