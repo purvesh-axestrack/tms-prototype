@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: Creates and validates Claude Code skills following Anthropic's official best practices. Use when user says "create a skill", "build a skill", "new skill", "make a skill for", "skill for X", or asks to set up a reusable workflow as a skill. Also use when user says "review skill", "validate skill", or "improve skill".
+description: Creates and validates Claude Code skills following Anthropic's official best practices. Use when user says "create a skill", "build a skill", "new skill", "make a skill for", "skill for X", or asks to set up a reusable workflow as a skill. Also use when user says "review skill", "validate skill", or "improve skill". Do NOT use when user asks to USE or INVOKE an existing skill by name (e.g. "use db-engineering", "run the deployment skill").
 metadata:
   author: TMS Prototype
   version: 1.0.0
