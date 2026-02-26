@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl } from '../services/api';
+import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   const [brokerRate, setBrokerRate] = useState('');
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: drivers = [] } = useQuery({
@@ -116,6 +117,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
     },
     onError: (err) => {
       toast.error(err.response?.data?.error || 'Failed to update load');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteLoad(load.id),
+    onSuccess: () => {
+      toast.success('Load deleted');
+      queryClient.invalidateQueries({ queryKey: ['loads'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      onClose();
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Failed to delete load');
     },
   });
 
@@ -257,9 +271,16 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   </Button>
                 </div>
               ) : (
-                <Button size="sm" variant="outline" onClick={startEditing}>
-                  <Pencil className="w-3.5 h-3.5" /> Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={startEditing}>
+                    <Pencil className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                  {['OPEN', 'CANCELLED'].includes(load.status) && (
+                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -796,6 +817,27 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
           }}
         />
       )}
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Load #{load.id}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete load {load.reference_number} and all its stops, accessorials, and documents. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Load'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!confirmTransition} onOpenChange={(open) => !open && setConfirmTransition(null)}>
         <AlertDialogContent>

@@ -116,6 +116,11 @@ export const updateLoad = async (loadId, updates) => {
   return response.data;
 };
 
+export const deleteLoad = async (loadId) => {
+  const response = await api.delete(`/loads/${loadId}`);
+  return response.data;
+};
+
 // Drivers
 export const getDrivers = async (params = {}) => {
   const response = await api.get('/drivers', { params });

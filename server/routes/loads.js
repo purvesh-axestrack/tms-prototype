@@ -334,5 +334,41 @@ export default function loadsRouter(db) {
     res.json(enriched);
   }));
 
+  // DELETE /api/loads/:id
+  router.delete('/:id', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    if (!['OPEN', 'CANCELLED'].includes(load.status)) {
+      return res.status(400).json({ error: `Cannot delete a load with status ${load.status}. Only OPEN or CANCELLED loads can be deleted.` });
+    }
+
+    if (load.invoice_id) {
+      return res.status(400).json({ error: 'Cannot delete a load that is linked to an invoice' });
+    }
+
+    if (load.settlement_id) {
+      return res.status(400).json({ error: 'Cannot delete a load that is linked to a settlement' });
+    }
+
+    // Cascade-delete related records
+    const docs = await db('documents').where({ load_id: load.id });
+    for (const doc of docs) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const filePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', doc.storage_path);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch {}
+    }
+    await db('documents').where({ load_id: load.id }).del();
+    await db('load_accessorials').where({ load_id: load.id }).del();
+    await db('stops').where({ load_id: load.id }).del();
+    await db('loads').where({ id: load.id }).del();
+
+    console.log(`Load #${load.id} (${load.reference_number}) deleted`);
+    res.json({ message: 'Load deleted' });
+  }));
+
   return router;
 }
