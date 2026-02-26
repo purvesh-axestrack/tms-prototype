@@ -57,7 +57,7 @@ export default function driversRouter(db) {
 
   // POST /api/drivers
   router.post('/', asyncHandler(async (req, res) => {
-    const { full_name, phone, license_number, license_state, pay_model, pay_rate, minimum_per_mile } = req.body;
+    const { full_name, phone, email, license_number, license_state, pay_model, pay_rate, minimum_per_mile, driver_type, tax_type, route_type, hire_date } = req.body;
     if (!full_name) return res.status(400).json({ error: 'Full name is required' });
     if (!pay_model || !['CPM', 'PERCENTAGE', 'FLAT'].includes(pay_model)) {
       return res.status(400).json({ error: 'Pay model must be CPM, PERCENTAGE, or FLAT' });
@@ -69,12 +69,17 @@ export default function driversRouter(db) {
       id,
       full_name,
       phone: phone || null,
+      email: email || null,
       license_number: license_number || null,
       license_state: license_state || null,
       status: 'AVAILABLE',
       pay_model,
       pay_rate,
       minimum_per_mile: minimum_per_mile || null,
+      driver_type: driver_type || null,
+      tax_type: tax_type || null,
+      route_type: route_type || null,
+      hire_date: hire_date || null,
     });
 
     const driver = await db('drivers').where({ id }).first();
@@ -86,7 +91,7 @@ export default function driversRouter(db) {
     const driver = await db('drivers').where({ id: req.params.id }).first();
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-    const allowed = ['full_name', 'phone', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile'];
+    const allowed = ['full_name', 'phone', 'email', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile', 'driver_type', 'tax_type', 'route_type', 'hire_date'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];

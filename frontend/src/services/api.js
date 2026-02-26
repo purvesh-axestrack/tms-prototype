@@ -105,8 +105,9 @@ export const assignDriver = async (loadId, driverId) => {
   return response.data;
 };
 
-export const updateLoadStatus = async (loadId, status) => {
-  const response = await api.patch(`/loads/${loadId}/status`, { status });
+export const updateLoadStatus = async (loadId, statusData) => {
+  const body = typeof statusData === 'string' ? { status: statusData } : statusData;
+  const response = await api.patch(`/loads/${loadId}/status`, body);
   return response.data;
 };
 
@@ -382,6 +383,42 @@ export const deleteVehicle = async (id) => {
 
 export const assignVehicleDriver = async (vehicleId, driverId) => {
   const response = await api.post(`/vehicles/${vehicleId}/assign-driver`, { driver_id: driverId });
+  return response.data;
+};
+
+// Carriers
+export const getCarriers = async (params = {}) => {
+  const response = await api.get('/carriers', { params });
+  return response.data;
+};
+
+export const getCarrierById = async (id) => {
+  const response = await api.get(`/carriers/${id}`);
+  return response.data;
+};
+
+export const createCarrier = async (data) => {
+  const response = await api.post('/carriers', data);
+  return response.data;
+};
+
+export const updateCarrier = async (id, data) => {
+  const response = await api.patch(`/carriers/${id}`, data);
+  return response.data;
+};
+
+export const deleteCarrier = async (id) => {
+  const response = await api.delete(`/carriers/${id}`);
+  return response.data;
+};
+
+export const addCarrierInsurance = async (carrierId, data) => {
+  const response = await api.post(`/carriers/${carrierId}/insurance`, data);
+  return response.data;
+};
+
+export const removeCarrierInsurance = async (carrierId, insuranceId) => {
+  const response = await api.delete(`/carriers/${carrierId}/insurance/${insuranceId}`);
   return response.data;
 };
 

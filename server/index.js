@@ -16,6 +16,7 @@ import accessorialsRouter from './routes/accessorials.js';
 import invoicesRouter from './routes/invoices.js';
 import settlementsRouter from './routes/settlements.js';
 import vehiclesRouter from './routes/vehicles.js';
+import carriersRouter from './routes/carriers.js';
 import usersRouter from './routes/users.js';
 import samsaraRouter from './routes/samsara.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -50,6 +51,7 @@ app.use('/api/accessorials', accessorialsRouter(db));
 app.use('/api/invoices', invoicesRouter(db));
 app.use('/api/settlements', settlementsRouter(db));
 app.use('/api/vehicles', vehiclesRouter(db));
+app.use('/api/carriers', carriersRouter(db));
 app.use('/api/users', usersRouter(db));
 app.use('/api/samsara', samsaraRouter(db));
 

@@ -38,6 +38,21 @@ export default function invoicesRouter(db) {
     if (to_date) query = query.where('issue_date', '<=', to_date);
 
     const invoices = await query.orderBy('id', 'desc');
+
+    // Auto-transition SENT invoices past due_date to OVERDUE
+    const today = new Date().toISOString().slice(0, 10);
+    const overdueIds = invoices
+      .filter(inv => inv.status === 'SENT' && inv.due_date && inv.due_date < today)
+      .map(inv => inv.id);
+
+    if (overdueIds.length > 0) {
+      await db('invoices').whereIn('id', overdueIds).update({ status: 'OVERDUE' });
+      // Update local objects
+      for (const inv of invoices) {
+        if (overdueIds.includes(inv.id)) inv.status = 'OVERDUE';
+      }
+    }
+
     const enriched = await Promise.all(invoices.map(enrichInvoice));
     res.json(enriched);
   }));
@@ -121,6 +136,13 @@ export default function invoicesRouter(db) {
   router.get('/:id', asyncHandler(async (req, res) => {
     const invoice = await db('invoices').where({ id: req.params.id }).first();
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Auto-transition if past due
+    const today = new Date().toISOString().slice(0, 10);
+    if (invoice.status === 'SENT' && invoice.due_date && invoice.due_date < today) {
+      await db('invoices').where({ id: invoice.id }).update({ status: 'OVERDUE' });
+      invoice.status = 'OVERDUE';
+    }
 
     const enriched = await enrichInvoice(invoice);
     res.json(enriched);
