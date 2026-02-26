@@ -1,18 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-const statusColors = {
-  OPEN: 'bg-blue-100 text-blue-700',
-  SCHEDULED: 'bg-indigo-100 text-indigo-700',
-  IN_PICKUP_YARD: 'bg-purple-100 text-purple-700',
-  IN_TRANSIT: 'bg-sky-100 text-sky-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-  TONU: 'bg-red-100 text-red-700',
-  CANCELLED: 'bg-slate-100 text-slate-700',
-  INVOICED: 'bg-emerald-100 text-emerald-700',
-  BROKERED: 'bg-amber-100 text-amber-700',
-};
+import { LOAD_STATUS_COLORS as statusColors } from '@/lib/constants';
 
 export default function LoadListView({ loads, onLoadClick }) {
   return (

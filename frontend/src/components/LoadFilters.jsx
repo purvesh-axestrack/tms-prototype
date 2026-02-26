@@ -13,28 +13,7 @@ import {
   SlidersHorizontal, CalendarIcon, X, ChevronsUpDown, ChevronDown, ChevronRight,
   Search, User, Building2, Truck, MapPin,
 } from 'lucide-react';
-
-// ──── US States ────
-const US_STATES = [
-  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
-  'KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY',
-  'NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
-];
-
-// ──── Status config ────
-const STATUSES = [
-  { key: 'OPEN', label: 'Open', dot: '#3b82f6' },
-  { key: 'SCHEDULED', label: 'Scheduled', dot: '#6366f1' },
-  { key: 'IN_PICKUP_YARD', label: 'Pickup Yard', dot: '#a855f7' },
-  { key: 'IN_TRANSIT', label: 'In Transit', dot: '#0ea5e9' },
-  { key: 'COMPLETED', label: 'Completed', dot: '#22c55e' },
-  { key: 'TONU', label: 'TONU', dot: '#ef4444' },
-  { key: 'CANCELLED', label: 'Cancelled', dot: '#94a3b8' },
-  { key: 'INVOICED', label: 'Invoiced', dot: '#10b981' },
-  { key: 'BROKERED', label: 'Brokered', dot: '#f59e0b' },
-];
-
-const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
+import { US_STATES, EQUIPMENT_TYPES, LOAD_STATUS_CONFIG as STATUSES } from '@/lib/constants';
 const ALL_STATUS_KEYS = STATUSES.map(s => s.key);
 
 // ──── Reusable multi-select ────

@@ -11,12 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Check, Wallet, Download, DollarSign, MinusCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverDeductionsEditor from './DriverDeductionsEditor';
-
-const STATUS_COLORS = {
-  DRAFT: 'bg-yellow-100 text-yellow-700',
-  APPROVED: 'bg-blue-100 text-blue-700',
-  PAID: 'bg-green-100 text-green-700',
-};
+import { SETTLEMENT_STATUS_COLORS as STATUS_COLORS } from '@/lib/constants';
 
 export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
   const queryClient = useQueryClient();

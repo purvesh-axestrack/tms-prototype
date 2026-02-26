@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-
-const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
+import { EQUIPMENT_TYPES } from '@/lib/constants';
+import LocationAutocomplete from './LocationAutocomplete';
 
 const emptyStop = () => ({
   stop_type: 'PICKUP',
@@ -260,7 +260,25 @@ export default function LoadCreateModal({ onClose }) {
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Facility</Label>
-                        <Input value={stop.facility_name} onChange={(e) => updateStop(index, 'facility_name', e.target.value)} className="h-8 text-sm" />
+                        <LocationAutocomplete
+                          value={stop.facility_name}
+                          onChange={(val) => updateStop(index, 'facility_name', val)}
+                          onSelect={(loc) => {
+                            setForm(prev => {
+                              const stops = [...prev.stops];
+                              stops[index] = {
+                                ...stops[index],
+                                facility_name: loc.facility_name,
+                                address: loc.address || '',
+                                city: loc.city || '',
+                                state: loc.state || '',
+                                zip: loc.zip || '',
+                              };
+                              return { ...prev, stops };
+                            });
+                          }}
+                          className="h-8 text-sm"
+                        />
                       </div>
                       <div className="lg:col-span-2 space-y-1">
                         <Label className="text-xs">Address</Label>

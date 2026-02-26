@@ -17,21 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, User, Search, Pencil, Trash2, Loader2, Phone, CreditCard, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverDeductionsEditor from '../components/DriverDeductionsEditor';
-
-const STATUS_COLORS = {
-  AVAILABLE: 'bg-green-100 text-green-700',
-  EN_ROUTE: 'bg-blue-100 text-blue-700',
-  OUT_OF_SERVICE: 'bg-red-100 text-red-700',
-  INACTIVE: 'bg-slate-200 text-slate-500',
-};
-
-const PAY_LABELS = {
-  CPM: 'Per Mile',
-  PERCENTAGE: '% of Load',
-  FLAT: 'Flat Rate',
-};
-
-const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+import { DRIVER_STATUS_COLORS as STATUS_COLORS, PAY_MODEL_LABELS as PAY_LABELS, US_STATES } from '@/lib/constants';
 
 const EMPTY_FORM = { full_name: '', phone: '', email: '', license_number: '', license_state: '', pay_model: 'CPM', pay_rate: '', minimum_per_mile: '', driver_type: '', tax_type: '', route_type: '', hire_date: '' };
 

@@ -13,21 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Calendar, Download, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const STATUS_COLORS = {
-  DRAFT: 'bg-slate-100 text-slate-600',
-  SENT: 'bg-blue-100 text-blue-700',
-  OVERDUE: 'bg-red-100 text-red-700',
-  PAID: 'bg-green-100 text-green-700',
-  VOID: 'bg-slate-200 text-slate-400',
-};
-
-const LINE_TYPE_COLORS = {
-  LOAD_CHARGE: 'bg-blue-50 text-blue-700',
-  FUEL_SURCHARGE: 'bg-orange-50 text-orange-700',
-  ACCESSORIAL: 'bg-purple-50 text-purple-700',
-  ADJUSTMENT: 'bg-slate-100 text-slate-600',
-};
+import { INVOICE_STATUS_COLORS as STATUS_COLORS, INVOICE_LINE_TYPE_COLORS as LINE_TYPE_COLORS } from '@/lib/constants';
 
 export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
   const queryClient = useQueryClient();

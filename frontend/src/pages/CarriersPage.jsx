@@ -17,22 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building, Plus, Search, Shield, AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const CARRIER_STATUSES = ['PROSPECT', 'ACTIVE', 'SUSPENDED', 'INACTIVE'];
-const INSURANCE_TYPES = ['AUTO_LIABILITY', 'CARGO', 'GENERAL'];
-
-const statusColors = {
-  PROSPECT: 'bg-blue-100 text-blue-700',
-  ACTIVE: 'bg-green-100 text-green-700',
-  SUSPENDED: 'bg-amber-100 text-amber-700',
-  INACTIVE: 'bg-slate-100 text-slate-500',
-};
-
-const insuranceTypeLabels = {
-  AUTO_LIABILITY: 'Auto Liability',
-  CARGO: 'Cargo',
-  GENERAL: 'General Liability',
-};
+import { CARRIER_STATUSES, INSURANCE_TYPES, CARRIER_STATUS_COLORS as statusColors, INSURANCE_TYPE_LABELS as insuranceTypeLabels } from '@/lib/constants';
 
 const emptyForm = {
   company_name: '', mc_number: '', dot_number: '', scac_code: '',

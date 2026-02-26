@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
-
-const CARRIER_STATUSES = ['PROSPECT', 'ACTIVE', 'SUSPENDED', 'INACTIVE'];
-const INSURANCE_TYPES = ['AUTO_LIABILITY', 'CARGO', 'GENERAL'];
+import { CARRIER_STATUSES, INSURANCE_TYPES } from '../lib/constants.js';
 
 export default function carriersRouter(db) {
   const router = Router();

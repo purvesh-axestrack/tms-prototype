@@ -19,9 +19,11 @@ import vehiclesRouter from './routes/vehicles.js';
 import carriersRouter from './routes/carriers.js';
 import usersRouter from './routes/users.js';
 import samsaraRouter from './routes/samsara.js';
+import locationsRouter from './routes/locations.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticate } from './middleware/auth.js';
 import { startPoller } from './services/emailPoller.js';
+import { ALL_ENUMS } from './lib/constants.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +35,12 @@ app.use(express.json());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
+
+// Static data (no auth, cacheable)
+app.get('/api/enums', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.json(ALL_ENUMS);
+});
 
 // Public routes (no auth required)
 app.use('/api/auth', authRouter(db));
@@ -54,6 +62,7 @@ app.use('/api/vehicles', vehiclesRouter(db));
 app.use('/api/carriers', carriersRouter(db));
 app.use('/api/users', usersRouter(db));
 app.use('/api/samsara', samsaraRouter(db));
+app.use('/api/locations', locationsRouter(db));
 
 // SPA catch-all: serve index.html for all non-API routes
 app.get('*', (req, res) => {

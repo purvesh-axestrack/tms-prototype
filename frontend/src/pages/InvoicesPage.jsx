@@ -11,16 +11,9 @@ import { Plus, BarChart3, FileText, Search } from 'lucide-react';
 import InvoiceCreateModal from '../components/InvoiceCreateModal';
 import InvoiceDetail from '../components/InvoiceDetail';
 import AgingReport from '../components/AgingReport';
+import { INVOICE_STATUS_COLORS as STATUS_COLORS } from '@/lib/constants';
 
 const STATUS_TABS = ['ALL', 'DRAFT', 'SENT', 'OVERDUE', 'PAID', 'VOID'];
-
-const STATUS_COLORS = {
-  DRAFT: 'bg-slate-100 text-slate-600',
-  SENT: 'bg-blue-100 text-blue-700',
-  OVERDUE: 'bg-red-100 text-red-700',
-  PAID: 'bg-green-100 text-green-700',
-  VOID: 'bg-slate-200 text-slate-400',
-};
 
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState('ALL');

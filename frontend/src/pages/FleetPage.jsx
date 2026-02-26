@@ -17,16 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Truck, Plus, Search, MapPin, Gauge } from 'lucide-react';
 import { toast } from 'sonner';
-
-const VEHICLE_TYPES = ['TRACTOR', 'TRAILER'];
-const VEHICLE_STATUSES = ['ACTIVE', 'IN_SHOP', 'OUT_OF_SERVICE', 'INACTIVE'];
-
-const statusColors = {
-  ACTIVE: 'bg-green-100 text-green-700',
-  IN_SHOP: 'bg-amber-100 text-amber-700',
-  OUT_OF_SERVICE: 'bg-red-100 text-red-700',
-  INACTIVE: 'bg-slate-100 text-slate-500',
-};
+import { VEHICLE_TYPES, VEHICLE_STATUSES, VEHICLE_STATUS_COLORS as statusColors } from '@/lib/constants';
 
 const emptyForm = {
   unit_number: '', type: 'TRACTOR', vin: '', year: '', make: '', model: '',

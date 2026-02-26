@@ -5,18 +5,7 @@ import { Card } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
-
-const STATUS_COLORS = {
-  OPEN:           { bg: '#3b82f6', border: '#2563eb', text: '#fff' },
-  SCHEDULED:      { bg: '#6366f1', border: '#4f46e5', text: '#fff' },
-  IN_PICKUP_YARD: { bg: '#a855f7', border: '#9333ea', text: '#fff' },
-  IN_TRANSIT:     { bg: '#0ea5e9', border: '#0284c7', text: '#fff' },
-  COMPLETED:      { bg: '#22c55e', border: '#16a34a', text: '#fff' },
-  TONU:           { bg: '#ef4444', border: '#dc2626', text: '#fff' },
-  CANCELLED:      { bg: '#94a3b8', border: '#64748b', text: '#fff' },
-  INVOICED:       { bg: '#10b981', border: '#059669', text: '#fff' },
-  BROKERED:       { bg: '#f59e0b', border: '#d97706', text: '#fff' },
-};
+import { LOAD_STATUS_RGB as STATUS_COLORS } from '@/lib/constants';
 
 function startOfWeek(date) {
   const d = new Date(date);

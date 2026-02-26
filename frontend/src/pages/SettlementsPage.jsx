@@ -10,14 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Wallet, Search } from 'lucide-react';
 import SettlementBatchModal from '../components/SettlementBatchModal';
 import SettlementDetail from '../components/SettlementDetail';
+import { SETTLEMENT_STATUS_COLORS as STATUS_COLORS } from '@/lib/constants';
 
 const STATUS_TABS = ['ALL', 'DRAFT', 'APPROVED', 'PAID'];
-
-const STATUS_COLORS = {
-  DRAFT: 'bg-yellow-100 text-yellow-700',
-  APPROVED: 'bg-blue-100 text-blue-700',
-  PAID: 'bg-green-100 text-green-700',
-};
 
 export default function SettlementsPage() {
   const [activeTab, setActiveTab] = useState('ALL');

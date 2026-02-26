@@ -239,6 +239,27 @@ export const getDocumentUrl = (docId) => {
   return `${API_BASE_URL}/documents/${docId}/view${token ? `?token=${token}` : ''}`;
 };
 
+export const getLoadDocuments = async (loadId) => {
+  const response = await api.get(`/documents/by-load/${loadId}`);
+  return response.data;
+};
+
+export const uploadDocument = async (loadId, file, docType = 'OTHER') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('load_id', loadId);
+  formData.append('doc_type', docType);
+  const response = await api.post('/documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const deleteDocument = async (docId) => {
+  const response = await api.delete(`/documents/${docId}`);
+  return response.data;
+};
+
 // Helpers
 export const getApiBaseUrl = () => API_BASE_URL;
 
@@ -466,6 +487,27 @@ export const connectSamsara = async (apiKey) => {
 
 export const disconnectSamsara = async () => {
   const response = await api.post('/samsara/disconnect');
+  return response.data;
+};
+
+// Locations
+export const getLocations = async (params = {}) => {
+  const response = await api.get('/locations', { params });
+  return response.data;
+};
+
+export const createLocation = async (data) => {
+  const response = await api.post('/locations', data);
+  return response.data;
+};
+
+export const updateLocation = async (id, data) => {
+  const response = await api.patch(`/locations/${id}`, data);
+  return response.data;
+};
+
+export const deleteLocation = async (id) => {
+  const response = await api.delete(`/locations/${id}`);
   return response.data;
 };
 

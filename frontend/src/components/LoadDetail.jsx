@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, getDrivers, getCustomers, getCarriers, getVehicles } from '../services/api';
+import { updateLoadStatus, updateLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,24 +14,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical } from 'lucide-react';
+import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
-
-const statusColors = {
-  OPEN: 'bg-blue-100 text-blue-700',
-  SCHEDULED: 'bg-indigo-100 text-indigo-700',
-  IN_PICKUP_YARD: 'bg-purple-100 text-purple-700',
-  IN_TRANSIT: 'bg-sky-100 text-sky-700',
-  COMPLETED: 'bg-green-100 text-green-700',
-  TONU: 'bg-red-100 text-red-700',
-  CANCELLED: 'bg-slate-100 text-slate-700',
-  INVOICED: 'bg-emerald-100 text-emerald-700',
-  BROKERED: 'bg-amber-100 text-amber-700',
-};
-
-const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
+import LocationAutocomplete from './LocationAutocomplete';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES } from '@/lib/constants';
 
 export default function LoadDetail({ load, onClose, onUpdate }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
@@ -68,6 +56,41 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
 
   const tractors = vehicles.filter(v => v.type === 'TRACTOR' && v.status === 'ACTIVE');
   const trailers = vehicles.filter(v => v.type === 'TRAILER' && v.status === 'ACTIVE');
+
+  const { data: documents = [], refetch: refetchDocs } = useQuery({
+    queryKey: ['documents', 'load', load.id],
+    queryFn: () => getLoadDocuments(load.id),
+  });
+
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadDocType, setUploadDocType] = useState('OTHER');
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDoc(true);
+    try {
+      await uploadDocument(load.id, file, uploadDocType);
+      toast.success('Document uploaded');
+      refetchDocs();
+      setUploadDocType('OTHER');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteDoc = async (docId) => {
+    try {
+      await deleteDocument(docId);
+      toast.success('Document deleted');
+      refetchDocs();
+    } catch (err) {
+      toast.error('Failed to delete document');
+    }
+  };
 
   const statusMutation = useMutation({
     mutationFn: (newStatus) => updateLoadStatus(load.id, newStatus),
@@ -367,10 +390,21 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                           </Button>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <Input
+                          <LocationAutocomplete
                             value={stop.facility_name || ''}
-                            onChange={(e) => updateStop(index, 'facility_name', e.target.value)}
-                            placeholder="Facility name"
+                            onChange={(val) => updateStop(index, 'facility_name', val)}
+                            onSelect={(loc) => {
+                              const newStops = [...editData.stops];
+                              newStops[index] = {
+                                ...newStops[index],
+                                facility_name: loc.facility_name,
+                                address: loc.address || '',
+                                city: loc.city || '',
+                                state: loc.state || '',
+                                zip: loc.zip || '',
+                              };
+                              setEditData({ ...editData, stops: newStops });
+                            }}
                             className="h-7 text-sm"
                           />
                           <Input
@@ -558,6 +592,71 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             </div>
 
             <AccessorialEditor loadId={load.id} />
+
+            {/* Documents */}
+            <Card className="py-4">
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Documents</div>
+                  <div className="flex items-center gap-2">
+                    <Select value={uploadDocType} onValueChange={setUploadDocType}>
+                      <SelectTrigger className="h-7 w-[120px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOC_TYPES.map(t => (
+                          <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" variant="outline" className="h-7 text-xs relative" disabled={uploadingDoc}>
+                      {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
+                      Upload
+                      <input
+                        type="file"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={handleFileUpload}
+                        disabled={uploadingDoc}
+                      />
+                    </Button>
+                  </div>
+                </div>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No documents attached</p>
+                ) : (
+                  <div className="space-y-2">
+                    {documents.map(doc => (
+                      <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{doc.filename}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {doc.doc_type.replace(/_/g, ' ')} &middot; {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
+                            <a href={getDocumentUrl(doc.id)} target="_blank" rel="noopener noreferrer">
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteDoc(doc.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {load.invoice_id ? (
               <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-100">

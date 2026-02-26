@@ -7,6 +7,25 @@ import { calculateLoadTotal } from '../lib/rateCalculator.js';
 export default function loadsRouter(db) {
   const router = Router();
 
+  // Helper: auto-save stop locations to the locations master table
+  async function autoSaveLocations(stops) {
+    for (const stop of stops) {
+      if (!stop.facility_name || !stop.city || !stop.state) continue;
+      const existing = await db('locations')
+        .where({ facility_name: stop.facility_name, city: stop.city, state: stop.state })
+        .first();
+      if (!existing) {
+        await db('locations').insert({
+          facility_name: stop.facility_name,
+          address: stop.address || null,
+          city: stop.city,
+          state: stop.state,
+          zip: stop.zip || null,
+        }).catch(() => {}); // Silently ignore duplicates
+      }
+    }
+  }
+
   // Helper: enrich a load row with stops + names + accessorials
   async function enrichLoad(load) {
     const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
@@ -141,6 +160,7 @@ export default function loadsRouter(db) {
     }));
 
     await db('stops').insert(stopRows);
+    await autoSaveLocations(stops);
 
     const enriched = await enrichLoad(newLoad);
     res.status(201).json(enriched);
@@ -302,6 +322,7 @@ export default function loadsRouter(db) {
         departed_at: stop.departed_at || null,
       }));
       await db('stops').insert(stopRows);
+      await autoSaveLocations(req.body.stops);
     }
 
     if (Object.keys(updates).length > 0) {
