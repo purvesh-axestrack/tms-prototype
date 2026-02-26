@@ -181,6 +181,26 @@ export default function settlementsRouter(db) {
     res.json(enriched);
   }));
 
+  // DELETE /api/settlements/:id — only DRAFT settlements
+  router.delete('/:id', asyncHandler(async (req, res) => {
+    const settlement = await db('settlements').where({ id: req.params.id }).first();
+    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+
+    if (settlement.status !== 'DRAFT') {
+      return res.status(400).json({ error: `Cannot delete settlement in ${settlement.status} status. Only DRAFT settlements can be deleted.` });
+    }
+
+    // Unlink loads from this settlement
+    await db('loads').where({ settlement_id: settlement.id }).update({ settlement_id: null });
+    // Delete line items
+    await db('settlement_line_items').where({ settlement_id: settlement.id }).del();
+    // Delete settlement
+    await db('settlements').where({ id: settlement.id }).del();
+
+    console.log(`Settlement ${settlement.settlement_number} deleted`);
+    res.json({ message: 'Settlement deleted' });
+  }));
+
   // GET /api/settlements/:id/export
   router.get('/:id/export', asyncHandler(async (req, res) => {
     const settlement = await db('settlements').where({ id: req.params.id }).first();

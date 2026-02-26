@@ -325,6 +325,11 @@ export const getUninvoicedLoads = async (params = {}) => {
   return response.data;
 };
 
+export const deleteInvoice = async (id) => {
+  const response = await api.delete(`/invoices/${id}`);
+  return response.data;
+};
+
 export const exportInvoiceCSV = (id) => {
   const token = localStorage.getItem('access_token');
   return `${API_BASE_URL}/invoices/${id}/export?token=${token}`;
@@ -353,6 +358,11 @@ export const approveSettlement = async (id) => {
 
 export const paySettlement = async (id) => {
   const response = await api.post(`/settlements/${id}/pay`);
+  return response.data;
+};
+
+export const deleteSettlement = async (id) => {
+  const response = await api.delete(`/settlements/${id}`);
   return response.data;
 };
 

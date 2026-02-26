@@ -316,5 +316,50 @@ export default function invoicesRouter(db) {
     res.send(csv);
   }));
 
+  // PATCH /api/invoices/:id
+  router.patch('/:id', asyncHandler(async (req, res) => {
+    const invoice = await db('invoices').where({ id: req.params.id }).first();
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    if (invoice.status !== 'DRAFT') {
+      return res.status(400).json({ error: 'Only DRAFT invoices can be edited' });
+    }
+
+    const allowed = ['notes', 'due_date', 'issue_date'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    await db('invoices').where({ id: invoice.id }).update(updates);
+    const updated = await db('invoices').where({ id: invoice.id }).first();
+    const enriched = await enrichInvoice(updated);
+    res.json(enriched);
+  }));
+
+  // DELETE /api/invoices/:id — only DRAFT invoices
+  router.delete('/:id', asyncHandler(async (req, res) => {
+    const invoice = await db('invoices').where({ id: req.params.id }).first();
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    if (invoice.status !== 'DRAFT') {
+      return res.status(400).json({ error: `Cannot delete invoice in ${invoice.status} status. Only DRAFT invoices can be deleted.` });
+    }
+
+    // Unlink loads from this invoice
+    await db('loads').where({ invoice_id: invoice.id }).update({ invoice_id: null });
+    // Delete line items
+    await db('invoice_line_items').where({ invoice_id: invoice.id }).del();
+    // Delete invoice
+    await db('invoices').where({ id: invoice.id }).del();
+
+    console.log(`Invoice ${invoice.invoice_number} deleted`);
+    res.json({ message: 'Invoice deleted' });
+  }));
+
   return router;
 }

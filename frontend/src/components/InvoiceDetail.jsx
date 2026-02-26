@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getInvoiceById, updateInvoiceStatus, recordInvoicePayment, exportInvoiceCSV } from '../services/api';
+import { getInvoiceById, updateInvoiceStatus, recordInvoicePayment, exportInvoiceCSV, deleteInvoice } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Calendar, Download, CreditCard, Loader2 } from 'lucide-react';
+import { Calendar, Download, CreditCard, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { INVOICE_STATUS_COLORS as STATUS_COLORS, INVOICE_LINE_TYPE_COLORS as LINE_TYPE_COLORS } from '@/lib/constants';
 
@@ -20,6 +20,7 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [confirmStatus, setConfirmStatus] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoice', invoiceId],
@@ -48,6 +49,17 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
       setPaymentAmount('');
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Payment failed'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteInvoice(invoiceId),
+    onSuccess: () => {
+      toast.success('Invoice deleted');
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete invoice'),
   });
 
   const handlePayment = () => {
@@ -114,6 +126,11 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
                 <Button size="sm" variant="outline" onClick={handleExport}>
                   <Download className="w-3.5 h-3.5" /> Export
                 </Button>
+                {invoice.status === 'DRAFT' && (
+                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -215,6 +232,23 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Invoice {invoice.invoice_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this invoice and unlink its loads. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Invoice'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!confirmStatus} onOpenChange={(open) => !open && setConfirmStatus(null)}>
         <AlertDialogContent>

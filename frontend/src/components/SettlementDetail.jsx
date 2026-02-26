@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSettlementById, approveSettlement, paySettlement, exportSettlementCSV } from '../services/api';
+import { useState } from 'react';
+import { getSettlementById, approveSettlement, paySettlement, exportSettlementCSV, deleteSettlement } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
-import { Check, Wallet, Download, DollarSign, MinusCircle, Loader2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Check, Wallet, Download, DollarSign, MinusCircle, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverDeductionsEditor from './DriverDeductionsEditor';
 import { SETTLEMENT_STATUS_COLORS as STATUS_COLORS } from '@/lib/constants';
@@ -43,6 +45,18 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to process payment'),
   });
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteSettlement(settlementId),
+    onSuccess: () => {
+      toast.success('Settlement deleted');
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete settlement'),
+  });
+
   const handleExport = () => {
     window.open(exportSettlementCSV(settlementId), '_blank');
   };
@@ -66,6 +80,7 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
   const deductions = settlement.line_items?.filter(li => li.line_type === 'DEDUCTION') || [];
 
   return (
+    <>
     <Sheet open={true} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
         <div className="bg-navy-900 text-white p-6">
@@ -97,6 +112,11 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
             <Button variant="outline" onClick={handleExport}>
               <Download className="w-4 h-4" /> Export CSV
             </Button>
+            {settlement.status === 'DRAFT' && (
+              <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 className="w-4 h-4" /> Delete
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -204,5 +224,23 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
         </div>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Settlement {settlement.settlement_number}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete this settlement and unlink its loads. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Settlement'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
