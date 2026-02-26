@@ -10,7 +10,7 @@ export async function up(knex) {
   // ── Loads ──────────────────────────────────────────────────────────────
   await knex.schema.alterTable('loads', (t) => {
     t.integer('booking_authority_id').unsigned().references('id').inTable('carriers').onDelete('SET NULL').defaultTo(null);
-    t.integer('sales_agent_id').unsigned().references('id').inTable('users').onDelete('SET NULL').defaultTo(null);
+    t.string('sales_agent_id').references('id').inTable('users').onDelete('SET NULL').defaultTo(null);
     t.string('customer_ref_number').defaultTo(null);
   });
 

@@ -9,7 +9,7 @@ export async function up(knex) {
   // ── Loads ──────────────────────────────────────────────────────────────
   await knex.schema.alterTable('loads', (t) => {
     t.integer('parent_load_id').unsigned().references('id').inTable('loads').onDelete('SET NULL').defaultTo(null);
-    t.integer('driver2_id').unsigned().references('id').inTable('drivers').onDelete('SET NULL').defaultTo(null);
+    t.string('driver2_id').references('id').inTable('drivers').onDelete('SET NULL').defaultTo(null);
     t.boolean('is_reefer').notNullable().defaultTo(false);
     t.string('reefer_mode').defaultTo(null);
     t.decimal('set_temp', 5, 2).defaultTo(null);
@@ -38,7 +38,7 @@ export async function up(knex) {
     t.timestamp('arrival_time').defaultTo(null);
     t.timestamp('departure_time').defaultTo(null);
     t.integer('free_time_minutes').notNullable().defaultTo(120);
-    t.integer('trailer_id').unsigned().references('id').inTable('vehicles').onDelete('SET NULL').defaultTo(null);
+    t.string('trailer_id').references('id').inTable('vehicles').onDelete('SET NULL').defaultTo(null);
     t.boolean('trailer_dropped').notNullable().defaultTo(false);
     t.string('stop_status').defaultTo(null);
   });
