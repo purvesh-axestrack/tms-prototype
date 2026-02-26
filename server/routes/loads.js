@@ -107,7 +107,7 @@ export default function loadsRouter(db) {
       empty_miles,
       commodity: commodity || '',
       weight: weight || 0,
-      equipment_type: equipment_type || 'Dry Van',
+      equipment_type: equipment_type || 'DRY_VAN',
       email_import_id: email_import_id || null,
       confidence_score: confidence_score || null,
       special_instructions: special_instructions || null,

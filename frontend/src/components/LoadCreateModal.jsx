@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, X, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
-const EQUIPMENT_TYPES = ['Dry Van', 'Reefer', 'Flatbed', 'Step Deck', 'Power Only', 'Box Truck'];
+const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
 
 const emptyStop = () => ({
   stop_type: 'PICKUP',
@@ -34,7 +34,7 @@ export default function LoadCreateModal({ onClose }) {
   const [form, setForm] = useState({
     reference_number: '',
     customer_id: '',
-    equipment_type: 'Dry Van',
+    equipment_type: 'DRY_VAN',
     commodity: '',
     weight: '',
     rate_amount: '',
