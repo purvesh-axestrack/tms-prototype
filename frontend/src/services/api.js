@@ -121,6 +121,11 @@ export const deleteLoad = async (loadId) => {
   return response.data;
 };
 
+export const createSplitLoad = async (parentLoadId) => {
+  const response = await api.post(`/loads/${parentLoadId}/split`);
+  return response.data;
+};
+
 // Drivers
 export const getDrivers = async (params = {}) => {
   const response = await api.get('/drivers', { params });

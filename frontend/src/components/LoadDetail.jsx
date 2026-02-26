@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl } from '../services/api';
+import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad, getUsers } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye, Thermometer, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
 import LocationAutocomplete from './LocationAutocomplete';
-import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES } from '@/lib/constants';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS } from '@/lib/constants';
 
 export default function LoadDetail({ load, onClose, onUpdate }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
@@ -46,7 +48,13 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   const { data: carriers = [] } = useQuery({
     queryKey: ['carriers'],
     queryFn: getCarriers,
-    enabled: showBrokerDialog || !!load.carrier_id,
+    enabled: showBrokerDialog || !!load.carrier_id || editing || !!load.booking_authority_id,
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    enabled: editing || !!load.sales_agent_id,
   });
 
   const { data: vehicles = [] } = useQuery({
@@ -65,6 +73,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadDocType, setUploadDocType] = useState('OTHER');
+  const [previewDoc, setPreviewDoc] = useState(null);
+
+  const splitMutation = useMutation({
+    mutationFn: () => createSplitLoad(load.id),
+    onSuccess: () => {
+      toast.success('Split load created');
+      queryClient.invalidateQueries({ queryKey: ['loads'] });
+      onUpdate();
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Failed to create split');
+    },
+  });
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -172,6 +193,22 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
       truck_id: load.truck_id || '',
       trailer_id: load.trailer_id || '',
       stops: (load.stops || []).map(s => ({ ...s })),
+      // Domain depth fields
+      is_reefer: load.is_reefer || false,
+      reefer_mode: load.reefer_mode || '',
+      set_temp: load.set_temp || '',
+      reefer_fuel_pct: load.reefer_fuel_pct || '',
+      bol_number: load.bol_number || '',
+      po_number: load.po_number || '',
+      pro_number: load.pro_number || '',
+      pickup_number: load.pickup_number || '',
+      delivery_number: load.delivery_number || '',
+      is_ltl: load.is_ltl || false,
+      exclude_from_settlement: load.exclude_from_settlement || false,
+      driver2_id: load.driver2_id || '',
+      booking_authority_id: load.booking_authority_id || '',
+      sales_agent_id: load.sales_agent_id || '',
+      customer_ref_number: load.customer_ref_number || '',
     });
     setEditing(true);
   };
@@ -223,6 +260,9 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 <Badge className={statusColors[load.status]}>
                   {load.status.replaceAll('_', ' ')}
                 </Badge>
+                {load.parent_load_id && <Badge className="bg-orange-100 text-orange-700">SPLIT LEG</Badge>}
+                {load.child_loads?.length > 0 && <Badge className="bg-purple-100 text-purple-700">SPLIT PARENT</Badge>}
+                {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
               </div>
               <SheetDescription className="theme-sidebar-text">
                 {editing ? (
@@ -367,6 +407,64 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </Card>
             )}
 
+            {/* Booking Authority / Sales Agent / Customer Ref */}
+            {(editing || load.booking_authority_name || load.sales_agent_name || load.customer_ref_number) && (
+              <Card className="py-4">
+                <CardContent>
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Load Metadata</div>
+                  {editing ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Booking Authority</Label>
+                        <Select value={editData.booking_authority_id ? String(editData.booking_authority_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, booking_authority_id: v === 'NONE' ? null : v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Select carrier" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            {carriers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Sales Agent</Label>
+                        <Select value={editData.sales_agent_id ? String(editData.sales_agent_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, sales_agent_id: v === 'NONE' ? null : v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Select user" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            {users.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Customer Ref #</Label>
+                        <Input value={editData.customer_ref_number || ''} onChange={(e) => setEditData({ ...editData, customer_ref_number: e.target.value })} className="h-8" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      {load.booking_authority_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Book Auth</span>
+                          <span className="font-medium">{load.booking_authority_name}</span>
+                        </div>
+                      )}
+                      {load.sales_agent_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Sales Agent</span>
+                          <span className="font-medium">{load.sales_agent_name}</span>
+                        </div>
+                      )}
+                      {load.customer_ref_number && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Cust Ref #</span>
+                          <span className="font-medium">{load.customer_ref_number}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="py-4">
               <CardContent>
                 <div className="flex items-center justify-between mb-3">
@@ -476,55 +574,249 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Action Type</Label>
+                            <Select value={stop.action_type || 'NONE'} onValueChange={(v) => updateStop(index, 'action_type', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {STOP_ACTION_TYPES.map(t => <SelectItem key={t} value={t}>{STOP_ACTION_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Stop Status</Label>
+                            <Select value={stop.stop_status || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_status', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {STOP_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replaceAll('_', ' ')}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Free Time (min)</Label>
+                            <Input type="number" value={stop.free_time_minutes ?? 120} onChange={(e) => updateStop(index, 'free_time_minutes', parseInt(e.target.value) || 0)} className="h-7 text-sm" />
+                          </div>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Appt Type</Label>
+                            <Select value={stop.appointment_type || 'APPOINTMENT'} onValueChange={(v) => updateStop(index, 'appointment_type', v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {APPOINTMENT_TYPES.map(t => <SelectItem key={t} value={t}>{APPOINTMENT_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Quantity</Label>
+                            <Input type="number" step="0.01" value={stop.quantity || ''} onChange={(e) => updateStop(index, 'quantity', e.target.value)} className="h-7 text-sm" placeholder="0" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Qty Type</Label>
+                            <Select value={stop.quantity_type || 'NONE'} onValueChange={(v) => updateStop(index, 'quantity_type', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {QUANTITY_TYPES.map(t => <SelectItem key={t} value={t}>{QUANTITY_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Commodity</Label>
+                            <Input value={stop.commodity || ''} onChange={(e) => updateStop(index, 'commodity', e.target.value)} className="h-7 text-sm" placeholder="e.g. General Freight" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Weight (lbs)</Label>
+                            <Input type="number" step="0.01" value={stop.weight || ''} onChange={(e) => updateStop(index, 'weight', e.target.value)} className="h-7 text-sm" placeholder="0" />
+                          </div>
+                        </div>
+                        {stop.stop_type === 'PICKUP' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground flex items-center gap-1"><Snowflake className="w-3 h-3 text-sky-500" /> Reefer Mode</Label>
+                              <Select value={stop.stop_reefer_mode || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_reefer_mode', v === 'NONE' ? null : v)}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="NONE">None</SelectItem>
+                                  {STOP_REEFER_MODES.map(m => <SelectItem key={m} value={m}>{STOP_REEFER_MODE_LABELS[m]}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Set Temp (&deg;F)</Label>
+                              <Input type="number" step="0.1" value={stop.stop_set_temp || ''} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-7 text-sm" placeholder="e.g. -10" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">BOL #</Label>
+                            <Input value={stop.bol_number || ''} onChange={(e) => updateStop(index, 'bol_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">PO #</Label>
+                            <Input value={stop.po_number || ''} onChange={(e) => updateStop(index, 'po_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">{stop.stop_type === 'PICKUP' ? 'PU #' : 'DEL #'}</Label>
+                            <Input value={stop.ref_number || ''} onChange={(e) => updateStop(index, 'ref_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-muted-foreground">Instructions</Label>
+                          <Input value={stop.instructions || ''} onChange={(e) => updateStop(index, 'instructions', e.target.value)} className="h-7 text-sm" placeholder="Stop-specific instructions" />
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Appointment</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {load.stops?.map((stop, index) => (
-                        <TableRow key={stop.id}>
-                          <TableCell>
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                  <div className="space-y-3">
+                    {load.stops?.map((stop, index) => {
+                      const detentionMin = (stop.arrival_time && stop.departure_time)
+                        ? Math.max(0, Math.round((new Date(stop.departure_time) - new Date(stop.arrival_time)) / 60000) - (stop.free_time_minutes || 120))
+                        : null;
+                      return (
+                        <div key={stop.id} className={`border rounded-lg p-3 border-l-4 ${stop.stop_type === 'PICKUP' ? 'border-l-blue-400' : 'border-l-green-400'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                               stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                            }`}>
-                              {index + 1}
-                            </div>
-                          </TableCell>
-                          <TableCell>
+                            }`}>{index + 1}</div>
                             <Badge className={stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
                               {stop.stop_type}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
-                              <div className="text-muted-foreground">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {stop.appointment_start && (
-                              <>
-                                {new Date(stop.appointment_start).toLocaleString()}
-                                {stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}
-                              </>
+                            {stop.action_type && (
+                              <Badge className={STOP_ACTION_TYPE_COLORS[stop.action_type] || 'bg-slate-100 text-slate-600'}>
+                                {STOP_ACTION_TYPE_LABELS[stop.action_type]}
+                              </Badge>
                             )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            <Badge className={stop.appointment_type === 'FCFS' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}>
+                              {APPOINTMENT_TYPE_LABELS[stop.appointment_type] || 'Appt'}
+                            </Badge>
+                            {stop.stop_status && (
+                              <Badge className={STOP_STATUS_COLORS[stop.stop_status] || 'bg-slate-100 text-slate-600'}>
+                                {stop.stop_status.replaceAll('_', ' ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <div>
+                              {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
+                              <div className="text-muted-foreground text-xs">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              {stop.appointment_start && (
+                                <div>{new Date(stop.appointment_start).toLocaleString()}{stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}</div>
+                              )}
+                              {stop.arrival_time && (
+                                <div>Arr: {new Date(stop.arrival_time).toLocaleString()}{stop.departure_time && <> &middot; Dep: {new Date(stop.departure_time).toLocaleTimeString()}</>}</div>
+                              )}
+                              {detentionMin != null && detentionMin > 0 && (
+                                <div className="text-red-600 font-medium">Detention: {Math.floor(detentionMin / 60)}h {detentionMin % 60}m</div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Stop-level domain fields */}
+                          {(stop.commodity || stop.weight || stop.quantity || stop.bol_number || stop.po_number || stop.ref_number || stop.stop_reefer_mode || stop.instructions) && (
+                            <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              {(stop.quantity || stop.commodity || stop.weight) && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  {stop.commodity && <span><span className="text-muted-foreground">Commodity:</span> {stop.commodity}</span>}
+                                  {stop.quantity && <span><span className="text-muted-foreground">Qty:</span> {stop.quantity} {stop.quantity_type ? QUANTITY_TYPE_LABELS[stop.quantity_type] : ''}</span>}
+                                  {stop.weight && <span><span className="text-muted-foreground">Weight:</span> {stop.weight} lbs</span>}
+                                </div>
+                              )}
+                              {stop.stop_reefer_mode && (
+                                <div className="flex items-center gap-1">
+                                  <Snowflake className="w-3 h-3 text-sky-500" />
+                                  <span>{STOP_REEFER_MODE_LABELS[stop.stop_reefer_mode]}</span>
+                                  {stop.stop_set_temp != null && <span>@ {stop.stop_set_temp}&deg;F</span>}
+                                </div>
+                              )}
+                              {(stop.bol_number || stop.po_number || stop.ref_number) && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  {stop.bol_number && <span><span className="text-muted-foreground">BOL:</span> {stop.bol_number}</span>}
+                                  {stop.po_number && <span><span className="text-muted-foreground">PO:</span> {stop.po_number}</span>}
+                                  {stop.ref_number && <span><span className="text-muted-foreground">{stop.stop_type === 'PICKUP' ? 'PU#' : 'DEL#'}:</span> {stop.ref_number}</span>}
+                                </div>
+                              )}
+                              {stop.instructions && (
+                                <div className="col-span-2 text-muted-foreground italic">{stop.instructions}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Split Loads */}
+            {(load.parent_load || load.child_loads?.length > 0 || !load.parent_load_id) && (load.parent_load || load.child_loads?.length > 0) && (
+              <Card className="py-4 border-l-4 border-l-purple-400">
+                <CardContent>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-purple-500" />
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Split Loads</div>
+                    </div>
+                    {!load.parent_load_id && (
+                      <Button size="sm" variant="outline" onClick={() => splitMutation.mutate()} disabled={splitMutation.isPending}>
+                        {splitMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        Create Split
+                      </Button>
+                    )}
+                  </div>
+                  {load.parent_load && (
+                    <div className="flex items-center gap-2 mb-3 p-2 bg-orange-50 rounded-lg text-sm">
+                      <Link2 className="w-4 h-4 text-orange-500" />
+                      <span>Parent Load: <span className="font-bold">#{load.parent_load.id}</span> ({load.parent_load.reference_number})</span>
+                    </div>
+                  )}
+                  {load.child_loads?.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Miles</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {load.child_loads.map(child => (
+                          <TableRow key={child.id}>
+                            <TableCell className="font-medium">#{child.id}</TableCell>
+                            <TableCell className="text-sm">{child.reference_number}</TableCell>
+                            <TableCell className="text-sm">{child.driver_name || '\u2014'}</TableCell>
+                            <TableCell><Badge className={statusColors[child.status]}>{child.status.replaceAll('_', ' ')}</Badge></TableCell>
+                            <TableCell className="text-sm">{child.loaded_miles || 0}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Create Split button for standalone loads with no children yet */}
+            {!load.parent_load_id && !load.child_loads?.length && (
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" onClick={() => splitMutation.mutate()} disabled={splitMutation.isPending}>
+                  {splitMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <GitBranch className="w-3.5 h-3.5" />}
+                  Create Split Load
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-4">
               <Card className="py-4">
@@ -648,16 +940,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   <div className="space-y-2">
                     {documents.map(doc => (
                       <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={() => setPreviewDoc(doc)}>
                           <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{doc.filename}</div>
+                            <div className="text-sm font-medium truncate hover:underline">{doc.filename}</div>
                             <div className="text-xs text-muted-foreground">
                               {doc.doc_type.replace(/_/g, ' ')} &middot; {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : ''}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setPreviewDoc(doc)} title="Preview">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
                             <a href={getDocumentUrl(doc.id)} target="_blank" rel="noopener noreferrer">
                               <Download className="w-3.5 h-3.5" />
@@ -765,6 +1060,28 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                         rows={2}
                       />
                     </div>
+                    <Separator className="col-span-2" />
+                    <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Flags</div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Team Driver</Label>
+                      <Select value={editData.driver2_id || 'NONE'} onValueChange={(v) => setEditData({ ...editData, driver2_id: v === 'NONE' ? null : v })}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Select driver" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">None</SelectItem>
+                          {drivers.filter(d => d.id !== load.driver_id).map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-6 pt-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={editData.is_ltl} onCheckedChange={(v) => setEditData({ ...editData, is_ltl: !!v })} />
+                        LTL
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={editData.exclude_from_settlement} onCheckedChange={(v) => setEditData({ ...editData, exclude_from_settlement: !!v })} />
+                        Exclude from Settlement
+                      </label>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -792,10 +1109,22 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                       <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Trailer</span>
                       <span className="font-medium">{load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : '\u2014'}</span>
                     </div>
+                    {load.driver2_name && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Team Driver</span>
+                        <span className="font-medium">{load.driver2_name}</span>
+                      </div>
+                    )}
                     {load.special_instructions && (
                       <div className="col-span-2 flex items-start gap-2">
                         <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Instructions</span>
                         <span className="font-medium">{load.special_instructions}</span>
+                      </div>
+                    )}
+                    {(load.is_ltl || load.exclude_from_settlement) && (
+                      <div className="col-span-2 flex gap-2 pt-1">
+                        {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
+                        {load.exclude_from_settlement && <Badge className="bg-red-100 text-red-700">Excluded from Settlement</Badge>}
                       </div>
                     )}
                   </div>
@@ -917,6 +1246,44 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               Broker Load
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.filename}</DialogTitle>
+            <DialogDescription>
+              {previewDoc?.doc_type?.replace(/_/g, ' ')} &middot; {previewDoc?.file_size ? `${(previewDoc.file_size / 1024).toFixed(0)} KB` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-[60vh]">
+            {previewDoc && (() => {
+              const url = getDocumentUrl(previewDoc.id);
+              const ext = previewDoc.filename?.split('.').pop()?.toLowerCase();
+              const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+              const isPdf = ext === 'pdf';
+
+              if (isPdf) {
+                return <iframe src={url} className="w-full h-[60vh] rounded-lg border" title={previewDoc.filename} />;
+              }
+              if (isImage) {
+                return <img src={url} alt={previewDoc.filename} className="max-w-full max-h-[60vh] mx-auto rounded-lg object-contain" />;
+              }
+              return (
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-muted-foreground">
+                  <FileText className="w-12 h-12" />
+                  <p>Preview not available for this file type</p>
+                  <Button asChild>
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <Download className="w-4 h-4" /> Download File
+                    </a>
+                  </Button>
+                </div>
+              );
+            })()}
+          </div>
         </DialogContent>
       </Dialog>
     </>

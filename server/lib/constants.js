@@ -11,6 +11,17 @@ export const LOAD_STATUSES = ['OPEN', 'SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT
 export const RATE_TYPES = ['FLAT', 'CPM', 'PERCENTAGE'];
 export const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'LOWBOY', 'HOTSHOT', 'CONTAINER', 'POWER_ONLY', 'TANKER', 'STRAIGHT_TRUCK', 'SPRINTER_VAN', 'CARGO_VAN'];
 export const STOP_TYPES = ['PICKUP', 'DELIVERY'];
+export const REEFER_MODES = ['CONTINUOUS', 'CYCLE_SENTRY', 'OFF'];
+export const STOP_ACTION_TYPES = ['LIVE_LOAD', 'LIVE_UNLOAD', 'DROP_TRAILER', 'HOOK_TRAILER'];
+export const STOP_STATUSES = ['PENDING', 'EN_ROUTE', 'AT_FACILITY', 'LOADING', 'UNLOADING', 'COMPLETED'];
+export const APPOINTMENT_TYPES = ['FCFS', 'APPOINTMENT'];
+export const STOP_REEFER_MODES = ['CONTINUOUS', 'CYCLE', 'SPECIAL_SETTING'];
+export const QUANTITY_TYPES = [
+  'PALLETS','BOXES','BUSHELS','CASES','CRATES','GALLONS','PIECES',
+  'TRAILER','ROLLS','DRUMS','BAG','BARREL','CARTON','PACKAGE','SKID','TANK',
+  'HAZMAT','POUND','LINEAR_FEET','BULK','MIXED','TON','HOURS','DAYS',
+  'FEET','METERS','INCHES','CENTIMETERS','YARDS','TOTES',
+];
 
 // ── Drivers ────────────────────────────────────────────────────────────
 export const DRIVER_STATUSES = ['AVAILABLE', 'EN_ROUTE', 'OUT_OF_SERVICE', 'INACTIVE'];
@@ -51,6 +62,16 @@ export const SETTLEMENT_LINE_TYPES = ['LOAD_PAY', 'BONUS', 'FUEL_ADVANCE', 'DEDU
 // ── Display labels ─────────────────────────────────────────────────────
 export const PAY_MODEL_LABELS = { CPM: 'Per Mile', PERCENTAGE: '% of Load', FLAT: 'Flat Rate' };
 export const INSURANCE_TYPE_LABELS = { AUTO_LIABILITY: 'Auto Liability', CARGO: 'Cargo', GENERAL: 'General Liability' };
+export const APPOINTMENT_TYPE_LABELS = { FCFS: 'FCFS', APPOINTMENT: 'Appointment' };
+export const STOP_REEFER_MODE_LABELS = { CONTINUOUS: 'Continuous', CYCLE: 'Cycle', SPECIAL_SETTING: 'Special Setting' };
+export const QUANTITY_TYPE_LABELS = {
+  PALLETS: 'Pallets', BOXES: 'Boxes', BUSHELS: 'Bushels', CASES: 'Cases', CRATES: 'Crates',
+  GALLONS: 'Gallons', PIECES: 'Pieces', TRAILER: 'Trailer', ROLLS: 'Rolls', DRUMS: 'Drums',
+  BAG: 'Bag', BARREL: 'Barrel', CARTON: 'Carton', PACKAGE: 'Package', SKID: 'Skid', TANK: 'Tank',
+  HAZMAT: 'Hazmat', POUND: 'Pound', LINEAR_FEET: 'Linear Feet', BULK: 'Bulk', MIXED: 'Mixed',
+  TON: 'Ton', HOURS: 'Hours', DAYS: 'Days', FEET: 'Feet', METERS: 'Meters', INCHES: 'Inches',
+  CENTIMETERS: 'Centimeters', YARDS: 'Yards', TOTES: 'Totes',
+};
 
 // ── US States ──────────────────────────────────────────────────────────
 export const US_STATES = [
@@ -109,6 +130,29 @@ export const SETTLEMENT_STATUS_COLORS = {
   PAID: 'bg-green-100 text-green-700',
 };
 
+export const STOP_STATUS_COLORS = {
+  PENDING: 'bg-slate-100 text-slate-600',
+  EN_ROUTE: 'bg-blue-100 text-blue-700',
+  AT_FACILITY: 'bg-purple-100 text-purple-700',
+  LOADING: 'bg-amber-100 text-amber-700',
+  UNLOADING: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+};
+
+export const STOP_ACTION_TYPE_LABELS = {
+  LIVE_LOAD: 'Live Load',
+  LIVE_UNLOAD: 'Live Unload',
+  DROP_TRAILER: 'Drop Trailer',
+  HOOK_TRAILER: 'Hook Trailer',
+};
+
+export const STOP_ACTION_TYPE_COLORS = {
+  LIVE_LOAD: 'bg-blue-100 text-blue-700',
+  LIVE_UNLOAD: 'bg-green-100 text-green-700',
+  DROP_TRAILER: 'bg-amber-100 text-amber-700',
+  HOOK_TRAILER: 'bg-purple-100 text-purple-700',
+};
+
 // ── Bundle for GET /api/enums endpoint ─────────────────────────────────
 export const ALL_ENUMS = {
   USER_ROLES,
@@ -135,11 +179,24 @@ export const ALL_ENUMS = {
   // Labels
   PAY_MODEL_LABELS,
   INSURANCE_TYPE_LABELS,
+  REEFER_MODES,
+  STOP_ACTION_TYPES,
+  STOP_STATUSES,
+  // Labels
+  STOP_ACTION_TYPE_LABELS,
   // Colors
   LOAD_STATUS_COLORS,
+  STOP_STATUS_COLORS,
+  STOP_ACTION_TYPE_COLORS,
   DRIVER_STATUS_COLORS,
   VEHICLE_STATUS_COLORS,
   CARRIER_STATUS_COLORS,
   INVOICE_STATUS_COLORS,
   SETTLEMENT_STATUS_COLORS,
+  APPOINTMENT_TYPES,
+  APPOINTMENT_TYPE_LABELS,
+  STOP_REEFER_MODES,
+  STOP_REEFER_MODE_LABELS,
+  QUANTITY_TYPES,
+  QUANTITY_TYPE_LABELS,
 };

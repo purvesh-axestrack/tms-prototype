@@ -62,7 +62,8 @@ export default function invoicesRouter(db) {
     const { customer_id } = req.query;
     let query = db('loads')
       .where({ status: 'COMPLETED' })
-      .whereNull('invoice_id');
+      .whereNull('invoice_id')
+      .whereNull('parent_load_id'); // Only parent/standalone loads can be invoiced
 
     if (customer_id) query = query.where({ customer_id });
 
@@ -162,6 +163,12 @@ export default function invoicesRouter(db) {
     const loads = await db('loads').whereIn('id', load_ids).where({ customer_id, status: 'COMPLETED' });
     if (loads.length === 0) {
       return res.status(400).json({ error: 'No delivered loads found for this customer' });
+    }
+
+    // Reject child loads — only parent/standalone loads can be invoiced
+    const childLoad = loads.find(l => l.parent_load_id != null);
+    if (childLoad) {
+      return res.status(400).json({ error: `Load #${childLoad.id} is a split leg and cannot be invoiced directly. Invoice the parent load instead.` });
     }
 
     // Build line items and calculate totals
