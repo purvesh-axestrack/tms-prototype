@@ -12,6 +12,9 @@ export default function loadsRouter(db) {
     const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
     const customer = await db('customers').where({ id: load.customer_id }).first();
     const driver = load.driver_id ? await db('drivers').where({ id: load.driver_id }).first() : null;
+    const carrier = load.carrier_id ? await db('carriers').where({ id: load.carrier_id }).first() : null;
+    const truck = load.truck_id ? await db('vehicles').where({ id: load.truck_id }).first() : null;
+    const trailer = load.trailer_id ? await db('vehicles').where({ id: load.trailer_id }).first() : null;
 
     // Fetch accessorials
     const accessorials = await db('load_accessorials')
@@ -36,10 +39,17 @@ export default function loadsRouter(db) {
       total_amount: totalAmount,
       customer_name: customer?.company_name,
       driver_name: driver?.full_name,
+      carrier_name: carrier?.company_name,
+      truck_unit: truck?.unit_number || null,
+      truck_info: truck ? `${truck.year || ''} ${truck.make || ''} ${truck.model || ''}`.trim() : null,
+      trailer_unit: trailer?.unit_number || null,
+      trailer_info: trailer ? `${trailer.year || ''} ${trailer.make || ''} ${trailer.model || ''}`.trim() : null,
       pickup_city: firstStop?.city,
       pickup_state: firstStop?.state,
+      pickup_date: firstStop?.appointment_start || null,
       delivery_city: lastStop?.city,
       delivery_state: lastStop?.state,
+      delivery_date: lastStop?.appointment_end || lastStop?.appointment_start || null,
       available_transitions: getAvailableTransitions(load.status),
     };
   }
@@ -206,7 +216,7 @@ export default function loadsRouter(db) {
     const load = await db('loads').where({ id: req.params.id }).first();
     if (!load) return res.status(404).json({ error: 'Load not found' });
 
-    const { status } = req.body;
+    const { status, carrier_id, carrier_rate } = req.body;
     if (!status) return res.status(400).json({ error: 'status is required' });
 
     const validation = validateStatusChange(load, status);
@@ -214,6 +224,20 @@ export default function loadsRouter(db) {
 
     const updates = { status };
     const oldStatus = load.status;
+
+    // BROKERED requires carrier assignment
+    if (status === 'BROKERED') {
+      if (!carrier_id) {
+        return res.status(400).json({ error: 'Must select a carrier to broker this load' });
+      }
+      const carrier = await db('carriers').where({ id: carrier_id }).first();
+      if (!carrier) return res.status(400).json({ error: 'Carrier not found' });
+      if (carrier.status !== 'ACTIVE') {
+        return res.status(400).json({ error: 'Carrier must be ACTIVE to accept brokered loads' });
+      }
+      updates.carrier_id = carrier_id;
+      if (carrier_rate) updates.carrier_rate = carrier_rate;
+    }
 
     if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
       updates.picked_up_at = new Date().toISOString();
@@ -248,7 +272,8 @@ export default function loadsRouter(db) {
 
     const allowedUpdates = [
       'reference_number', 'customer_id', 'rate_amount', 'loaded_miles',
-      'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions'
+      'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
+      'carrier_id', 'carrier_rate', 'truck_id', 'trailer_id',
     ];
 
     const updates = {};

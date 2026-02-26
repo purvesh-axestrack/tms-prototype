@@ -105,8 +105,9 @@ export const assignDriver = async (loadId, driverId) => {
   return response.data;
 };
 
-export const updateLoadStatus = async (loadId, status) => {
-  const response = await api.patch(`/loads/${loadId}/status`, { status });
+export const updateLoadStatus = async (loadId, statusData) => {
+  const body = typeof statusData === 'string' ? { status: statusData } : statusData;
+  const response = await api.patch(`/loads/${loadId}/status`, body);
   return response.data;
 };
 

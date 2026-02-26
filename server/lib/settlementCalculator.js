@@ -15,7 +15,8 @@ export async function generateSettlement(db, driverId, periodStart, periodEnd, c
 
   // Find delivered loads in period without a settlement
   const loads = await db('loads')
-    .where({ driver_id: driverId, status: 'DELIVERED' })
+    .where({ driver_id: driverId })
+    .whereIn('status', ['COMPLETED', 'INVOICED'])
     .whereNull('settlement_id')
     .where('delivered_at', '>=', periodStart)
     .where('delivered_at', '<=', periodEnd + 'T23:59:59Z');

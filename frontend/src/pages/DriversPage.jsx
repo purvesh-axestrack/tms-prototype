@@ -33,7 +33,7 @@ const PAY_LABELS = {
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
-const EMPTY_FORM = { full_name: '', phone: '', license_number: '', license_state: '', pay_model: 'CPM', pay_rate: '', minimum_per_mile: '' };
+const EMPTY_FORM = { full_name: '', phone: '', email: '', license_number: '', license_state: '', pay_model: 'CPM', pay_rate: '', minimum_per_mile: '', driver_type: '', tax_type: '', route_type: '', hire_date: '' };
 
 export default function DriversPage() {
   const [search, setSearch] = useState('');
@@ -108,11 +108,16 @@ export default function DriversPage() {
     setFormData({
       full_name: driver.full_name || '',
       phone: driver.phone || '',
+      email: driver.email || '',
       license_number: driver.license_number || '',
       license_state: driver.license_state || '',
       pay_model: driver.pay_model || 'CPM',
       pay_rate: driver.pay_rate || '',
       minimum_per_mile: driver.minimum_per_mile || '',
+      driver_type: driver.driver_type || '',
+      tax_type: driver.tax_type || '',
+      route_type: driver.route_type || '',
+      hire_date: driver.hire_date || '',
     });
     setShowForm(true);
   };
@@ -210,7 +215,10 @@ export default function DriversPage() {
                           {d.full_name?.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-semibold group-hover:text-amber-600 transition-colors">{d.full_name}</span>
+                      <div>
+                        <div className="font-semibold group-hover:text-amber-600 transition-colors">{d.full_name}</div>
+                        {d.driver_type && <div className="text-xs text-muted-foreground">{d.driver_type.replaceAll('_', ' ')}</div>}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{d.phone || '\u2014'}</TableCell>
@@ -245,14 +253,33 @@ export default function DriversPage() {
           <DialogHeader>
             <DialogTitle>{editingDriver ? 'Edit Driver' : 'Add Driver'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Full Name *</Label>
-              <Input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} placeholder="e.g., John Miller" />
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Full Name *</Label>
+                <Input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} placeholder="e.g., John Miller" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Driver Type</Label>
+                <Select value={formData.driver_type || 'NONE'} onValueChange={(v) => setFormData({ ...formData, driver_type: v === 'NONE' ? '' : v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Not specified</SelectItem>
+                    <SelectItem value="COMPANY_DRIVER">Company Driver</SelectItem>
+                    <SelectItem value="OWNER_OPERATOR">Owner Operator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="555-0101" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="555-0101" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="driver@example.com" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -269,6 +296,35 @@ export default function DriversPage() {
                     {US_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Tax Type</Label>
+                <Select value={formData.tax_type || 'NONE'} onValueChange={(v) => setFormData({ ...formData, tax_type: v === 'NONE' ? '' : v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Not specified</SelectItem>
+                    <SelectItem value="W2">W-2</SelectItem>
+                    <SelectItem value="1099">1099</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Route Type</Label>
+                <Select value={formData.route_type || 'NONE'} onValueChange={(v) => setFormData({ ...formData, route_type: v === 'NONE' ? '' : v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Not specified</SelectItem>
+                    <SelectItem value="LOCAL">Local</SelectItem>
+                    <SelectItem value="REGIONAL">Regional</SelectItem>
+                    <SelectItem value="OTR">OTR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Hire Date</Label>
+                <Input type="date" value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} />
               </div>
             </div>
             <Separator />
@@ -329,8 +385,10 @@ export default function DriversPage() {
                       </Avatar>
                       <div>
                         <SheetTitle className="text-2xl font-display font-bold text-white">{detail.full_name}</SheetTitle>
-                        <SheetDescription className="text-slate-400 flex items-center gap-3">
+                        <SheetDescription className="text-slate-400 flex items-center gap-3 flex-wrap">
                           <Badge className={STATUS_COLORS[detail.status]}>{detail.status.replaceAll('_', ' ')}</Badge>
+                          {detail.driver_type && <Badge className="bg-white/10 text-slate-300">{detail.driver_type.replaceAll('_', ' ')}</Badge>}
+                          {detail.route_type && <Badge className="bg-white/10 text-slate-300">{detail.route_type}</Badge>}
                           {detail.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {detail.phone}</span>}
                         </SheetDescription>
                       </div>
@@ -357,6 +415,29 @@ export default function DriversPage() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {(detail.email || detail.tax_type || detail.hire_date) && (
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      {detail.email && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">Email</span>
+                          <span className="font-medium truncate">{detail.email}</span>
+                        </div>
+                      )}
+                      {detail.tax_type && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">Tax</span>
+                          <Badge variant="secondary">{detail.tax_type}</Badge>
+                        </div>
+                      )}
+                      {detail.hire_date && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">Hired</span>
+                          <span className="font-medium">{new Date(detail.hire_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-3 gap-3">
                     <Card className="py-4">
