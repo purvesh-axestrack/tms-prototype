@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "postgres-local": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zeddotdev/postgres-context-server",
+        "postgresql://mobirapid@localhost:5432/tms_dev"
+      ]
+    },
+    "postgres-loadstop": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@zeddotdev/postgres-context-server",
+        "postgresql://purvesh_thakre:A7kP9xLm2QzR5tY8wNs4@erpdb.xswift.biz:5432/loadstop"
+      ]
+    }
+  }
+}
