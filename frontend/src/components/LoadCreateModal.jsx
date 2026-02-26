@@ -225,7 +225,7 @@ export default function LoadCreateModal({ onClose }) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Stops ({form.stops.length})</h3>
-              <Button type="button" variant="ghost" size="sm" onClick={addStop} className="text-amber-600 hover:text-amber-700">
+              <Button type="button" variant="ghost" size="sm" onClick={addStop} className="theme-brand-text">
                 <Plus className="w-3.5 h-3.5" />
                 Add Stop
               </Button>
@@ -323,7 +323,7 @@ export default function LoadCreateModal({ onClose }) {
 
           <DialogFooter className="pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={createMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button type="submit" disabled={createMutation.isPending} className="theme-brand-bg text-white">
               {createMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
               ) : 'Create Load'}

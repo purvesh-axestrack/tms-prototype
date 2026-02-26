@@ -89,7 +89,7 @@ function DateRangePicker({ label, value, onChange }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className={`h-8 text-xs gap-1 justify-between min-w-[140px] ${hasRange ? 'border-amber-300 bg-amber-50' : ''}`}>
+        <Button variant="outline" size="sm" className={`h-8 text-xs gap-1 justify-between min-w-[140px] ${hasRange ? 'theme-brand-selected' : ''}`}>
           <span className="flex items-center gap-1.5 truncate">
             <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <span className="text-muted-foreground">{label}:</span>
@@ -281,7 +281,7 @@ export default function LoadFilters({
           {expanded ? 'Less' : 'More'}
           <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
           {activeCount > 0 && (
-            <Badge className="ml-1 h-4 px-1 text-[10px] bg-amber-100 text-amber-700">{activeCount}</Badge>
+            <Badge className="ml-1 h-4 px-1 text-[10px] theme-brand-badge">{activeCount}</Badge>
           )}
         </Button>
 

@@ -196,7 +196,7 @@ export default function LoadTimelineView({ loads, onLoadClick }) {
             <div
               key={i}
               className={`text-center py-2 border-r last:border-r-0 ${
-                isT ? 'bg-amber-50' : isWeekend ? 'bg-slate-50' : ''
+                isT ? 'theme-brand-today' : isWeekend ? 'bg-slate-50' : ''
               }`}
             >
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -204,7 +204,7 @@ export default function LoadTimelineView({ loads, onLoadClick }) {
               </div>
               <div className={`text-sm font-semibold mt-0.5 ${
                 isT
-                  ? 'w-7 h-7 rounded-full bg-amber-500 text-white inline-flex items-center justify-center'
+                  ? 'w-7 h-7 rounded-full theme-brand-dot text-white inline-flex items-center justify-center'
                   : 'text-slate-700'
               }`}>
                 {day.getDate()}
@@ -223,7 +223,7 @@ export default function LoadTimelineView({ loads, onLoadClick }) {
               const isT = isSameDay(day, today);
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               return (
-                <div key={i} className={`border-r last:border-r-0 ${isT ? 'bg-amber-50/50' : isWeekend ? 'bg-slate-50/50' : ''}`} />
+                <div key={i} className={`border-r last:border-r-0 ${isT ? 'theme-brand-today opacity-50' : isWeekend ? 'bg-slate-50/50' : ''}`} />
               );
             })}
           </div>
@@ -280,7 +280,7 @@ export default function LoadTimelineView({ loads, onLoadClick }) {
             <div
               key={i}
               className={`border-r last:border-r-0 min-h-[120px] p-1 ${
-                isT ? 'bg-amber-50/30' : isWeekend ? 'bg-slate-50/50' : ''
+                isT ? 'theme-brand-today opacity-30' : isWeekend ? 'bg-slate-50/50' : ''
               }`}
             >
               {dayLoads.map(load => {

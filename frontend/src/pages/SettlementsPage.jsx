@@ -43,7 +43,7 @@ export default function SettlementsPage() {
           <h2 className="text-2xl font-display font-bold">Driver Settlements</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Generate and manage driver pay statements</p>
         </div>
-        <Button onClick={() => setShowGenerate(true)} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => setShowGenerate(true)} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" />
           Generate Settlements
         </Button>
@@ -105,7 +105,7 @@ export default function SettlementsPage() {
             ) : (
               filtered.map(s => (
                 <TableRow key={s.id} onClick={() => setSelectedSettlement(s)} className="cursor-pointer group">
-                  <TableCell className="font-semibold group-hover:text-amber-600 transition-colors">{s.settlement_number}</TableCell>
+                  <TableCell className="font-semibold theme-brand-group-hover transition-colors">{s.settlement_number}</TableCell>
                   <TableCell className="text-muted-foreground">{s.driver_name}</TableCell>
                   <TableCell className="text-muted-foreground">{s.period_start} &mdash; {s.period_end}</TableCell>
                   <TableCell>

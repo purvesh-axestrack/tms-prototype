@@ -36,14 +36,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-navy-900 flex items-center justify-center px-4">
+    <div className="min-h-screen theme-sidebar flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500 mb-5 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl theme-logo mb-5 shadow-lg">
             <Map className="w-8 h-8 text-white" />
           </div>
           <h1 className="font-display text-3xl font-bold text-white mb-2">TMS Dispatch</h1>
-          <p className="text-slate-400 text-sm">Transportation Management System</p>
+          <p className="theme-sidebar-text text-sm">Transportation Management System</p>
         </div>
 
         <Card>
@@ -85,7 +85,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-600">
+              <Button type="submit" disabled={loading} className="w-full theme-brand-bg text-white">
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -98,10 +98,10 @@ export default function LoginPage() {
         </Card>
 
         <div className="mt-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-navy-800 rounded-lg border border-slate-700">
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-            <p className="text-xs text-slate-400">
-              Demo: <span className="text-slate-300 font-medium">admin@tms.com</span> / <span className="text-slate-300 font-medium">password123</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2.5 theme-sidebar-light rounded-lg border" style={{ borderColor: 'var(--theme-sidebar-border)' }}>
+            <Info className="w-3.5 h-3.5 theme-sidebar-text" />
+            <p className="text-xs theme-sidebar-text">
+              Demo: <span className="text-white/70 font-medium">admin@tms.com</span> / <span className="text-white/70 font-medium">password123</span>
             </p>
           </div>
         </div>

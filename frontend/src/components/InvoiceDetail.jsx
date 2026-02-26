@@ -91,13 +91,13 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
     <>
       <Sheet open={true} onOpenChange={(open) => !open && onClose()}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
-          <div className="bg-navy-900 text-white p-6">
+          <div className="theme-sidebar text-white p-6">
             <SheetHeader className="p-0">
               <div className="flex items-center gap-3 mb-1">
                 <SheetTitle className="text-2xl font-display font-bold text-white">{invoice.invoice_number}</SheetTitle>
                 <Badge className={STATUS_COLORS[invoice.status]}>{invoice.status}</Badge>
               </div>
-              <SheetDescription className="text-slate-400">{invoice.customer_name}</SheetDescription>
+              <SheetDescription className="theme-sidebar-text">{invoice.customer_name}</SheetDescription>
             </SheetHeader>
           </div>
 
@@ -113,7 +113,7 @@ export default function InvoiceDetail({ invoiceId, onClose, onUpdate }) {
               </div>
               <div className="flex gap-2">
                 {invoice.available_transitions?.map(t => (
-                  <Button key={t} size="sm" onClick={() => setConfirmStatus(t)} disabled={statusMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+                  <Button key={t} size="sm" onClick={() => setConfirmStatus(t)} disabled={statusMutation.isPending} className="theme-brand-bg text-white">
                     {statusMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                     {t}
                   </Button>

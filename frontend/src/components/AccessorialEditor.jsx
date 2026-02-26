@@ -130,7 +130,7 @@ export default function AccessorialEditor({ loadId }) {
             size="sm"
             onClick={handleAdd}
             disabled={!selectedType || !rate || addMutation.isPending}
-            className="bg-amber-500 hover:bg-amber-600"
+            className="theme-brand-bg text-white"
           >
             {addMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
           </Button>

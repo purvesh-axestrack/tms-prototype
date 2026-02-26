@@ -93,11 +93,11 @@ function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
-      <aside className={`${sidebarWidth} bg-navy-900 text-white flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-200`}>
+      <aside className={`${sidebarWidth} theme-sidebar text-white flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-200`}>
         {/* Logo + collapse toggle */}
         <div className={`h-16 flex items-center flex-shrink-0 ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
           <div className={`flex items-center ${collapsed ? '' : 'gap-2.5'}`}>
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shadow-sm flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg theme-logo flex items-center justify-center shadow-sm flex-shrink-0">
               <Map className="w-5 h-5 text-white" />
             </div>
             {!collapsed && <span className="font-display text-lg font-bold tracking-tight">TMS</span>}
@@ -107,7 +107,7 @@ function AppLayout() {
               variant="ghost"
               size="icon"
               onClick={toggleCollapsed}
-              className="text-slate-500 hover:text-white hover:bg-white/10 h-7 w-7"
+              className="theme-sidebar-text-muted hover:text-white theme-sidebar-hover h-7 w-7"
             >
               <PanelLeftClose className="w-4 h-4" />
             </Button>
@@ -121,7 +121,7 @@ function AppLayout() {
               variant="ghost"
               size="icon"
               onClick={toggleCollapsed}
-              className="text-slate-500 hover:text-white hover:bg-white/10 h-7 w-7"
+              className="theme-sidebar-text-muted hover:text-white theme-sidebar-hover h-7 w-7"
             >
               <PanelLeftOpen className="w-4 h-4" />
             </Button>
@@ -133,7 +133,7 @@ function AppLayout() {
           {NAV_SECTIONS.map(section => (
             <div key={section.label}>
               {!collapsed && (
-                <div className="px-2 mb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+                <div className="px-2 mb-1.5 text-[10px] font-semibold theme-sidebar-text-muted uppercase tracking-widest">
                   {section.label}
                 </div>
               )}
@@ -149,8 +149,8 @@ function AppLayout() {
                       className={({ isActive }) =>
                         `flex items-center ${collapsed ? 'justify-center px-2' : 'gap-2.5 px-2.5'} py-2 rounded-lg text-[13px] font-medium transition-all ${
                           isActive
-                            ? 'bg-slate-700/80 text-white'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            ? 'theme-sidebar-active text-white'
+                            : 'theme-sidebar-text hover:text-white theme-sidebar-hover'
                         }`
                       }
                     >
@@ -181,7 +181,7 @@ function AppLayout() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Avatar className="h-8 w-8 cursor-default">
-                    <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs font-bold">
+                    <AvatarFallback className="theme-avatar text-white text-xs font-bold">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
@@ -194,7 +194,7 @@ function AppLayout() {
                     variant="ghost"
                     size="icon"
                     onClick={logout}
-                    className="text-slate-500 hover:text-white hover:bg-white/10 h-8 w-8"
+                    className="theme-sidebar-text-muted hover:text-white theme-sidebar-hover h-8 w-8"
                   >
                     <LogOut className="w-4 h-4" />
                   </Button>
@@ -205,19 +205,19 @@ function AppLayout() {
           ) : (
             <div className="flex items-center gap-2.5 px-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs font-bold">
+                <AvatarFallback className="theme-avatar text-white text-xs font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-white truncate leading-tight">{user?.full_name}</div>
-                <div className="text-[11px] text-slate-500 capitalize">{user?.role?.toLowerCase()}</div>
+                <div className="text-[11px] theme-sidebar-text-muted capitalize">{user?.role?.toLowerCase()}</div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={logout}
-                className="text-slate-500 hover:text-white hover:bg-white/10 h-8 w-8 flex-shrink-0"
+                className="theme-sidebar-text-muted hover:text-white theme-sidebar-hover h-8 w-8 flex-shrink-0"
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4" />

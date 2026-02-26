@@ -115,7 +115,7 @@ export default function GmailConnectionCard() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleSync} disabled={syncing} className="bg-amber-500 hover:bg-amber-600">
+                <Button onClick={handleSync} disabled={syncing} className="theme-brand-bg text-white">
                   <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                   {syncing ? 'Syncing...' : 'Sync Now'}
                 </Button>
@@ -140,7 +140,7 @@ export default function GmailConnectionCard() {
                     className="flex-1"
                     onKeyDown={(e) => e.key === 'Enter' && handleAddSender()}
                   />
-                  <Button size="sm" onClick={handleAddSender} className="bg-amber-500 hover:bg-amber-600">
+                  <Button size="sm" onClick={handleAddSender} className="theme-brand-bg text-white">
                     <Plus className="w-4 h-4" /> Add
                   </Button>
                 </div>
@@ -169,7 +169,7 @@ export default function GmailConnectionCard() {
                 Connect your Gmail account to automatically detect incoming rate confirmations
                 and create draft loads.
               </p>
-              <Button onClick={handleConnect} className="bg-amber-500 hover:bg-amber-600">
+              <Button onClick={handleConnect} className="theme-brand-bg text-white">
                 Connect Gmail
               </Button>
             </div>

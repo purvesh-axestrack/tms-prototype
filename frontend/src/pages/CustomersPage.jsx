@@ -131,7 +131,7 @@ export default function CustomersPage() {
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{customers.length} active customers</p>
         </div>
-        <Button onClick={openCreate} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={openCreate} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Customer
         </Button>
       </div>
@@ -178,7 +178,7 @@ export default function CustomersPage() {
               filtered.map(c => (
                 <TableRow key={c.id} className="cursor-pointer group" onClick={() => setSelectedId(c.id)}>
                   <TableCell>
-                    <div className="font-semibold group-hover:text-amber-600 transition-colors">{c.company_name}</div>
+                    <div className="font-semibold theme-brand-group-hover transition-colors">{c.company_name}</div>
                     {c.city && c.state && <div className="text-xs text-muted-foreground">{c.city}, {c.state}</div>}
                   </TableCell>
                   <TableCell>
@@ -287,7 +287,7 @@ export default function CustomersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeForm}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleSubmit} disabled={isPending} className="theme-brand-bg text-white">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {editingCustomer ? 'Save Changes' : 'Create Customer'}
             </Button>
@@ -308,13 +308,13 @@ export default function CustomersPage() {
               </div>
             ) : (
               <>
-                <div className="bg-navy-900 text-white p-6">
+                <div className="theme-sidebar text-white p-6">
                   <SheetHeader className="p-0">
                     <div className="flex items-center gap-2">
                       <SheetTitle className="text-2xl font-display font-bold text-white">{detail.company_name}</SheetTitle>
-                      {detail.customer_type && <Badge className="bg-amber-500/20 text-amber-300">{detail.customer_type}</Badge>}
+                      {detail.customer_type && <Badge className="theme-brand-chip">{detail.customer_type}</Badge>}
                     </div>
-                    <SheetDescription className="text-slate-400">
+                    <SheetDescription className="theme-sidebar-text">
                       {detail.mc_number || 'No MC#'} &middot; Net {detail.payment_terms} days
                       {detail.credit_limit && <> &middot; Credit: ${Number(detail.credit_limit).toLocaleString()}</>}
                     </SheetDescription>

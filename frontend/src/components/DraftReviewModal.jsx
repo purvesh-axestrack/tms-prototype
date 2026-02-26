@@ -145,7 +145,7 @@ export default function DraftReviewModal({ emailImport, onClose }) {
           <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-xl font-display">
               {isDraft ? 'Review Draft Load' : 'Import Details'}
-              {load && <span className="ml-2 text-amber-500">#{load.id}</span>}
+              {load && <span className="ml-2 theme-brand-highlight">#{load.id}</span>}
             </DialogTitle>
             <DialogDescription>
               From: {importDetail?.from_address} &middot; Subject: {importDetail?.subject}

@@ -143,7 +143,7 @@ export default function FleetPage() {
           <Truck className="w-6 h-6" />
           Fleet
         </h2>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Vehicle
         </Button>
       </div>
@@ -251,7 +251,7 @@ export default function FleetPage() {
           <VehicleForm form={form} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={createMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleCreate} disabled={createMutation.isPending} className="theme-brand-bg text-white">
               {createMutation.isPending ? 'Creating...' : 'Create Vehicle'}
             </Button>
           </DialogFooter>
@@ -267,7 +267,7 @@ export default function FleetPage() {
           <VehicleForm form={form} setForm={setForm} showStatus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVehicle(null)}>Cancel</Button>
-            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="theme-brand-bg text-white">
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -354,7 +354,7 @@ export default function FleetPage() {
                           setAssignDriverId('');
                         }}
                         disabled={assignMutation.isPending}
-                        className="bg-amber-500 hover:bg-amber-600"
+                        className="theme-brand-bg text-white"
                       >
                         {assignMutation.isPending ? 'Saving...' : 'Assign'}
                       </Button>

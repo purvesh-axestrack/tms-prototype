@@ -8,6 +8,7 @@ import {
   getSamsaraStatus, connectSamsara, disconnectSamsara,
 } from '../services/api';
 import GmailConnectionCard from '../components/GmailConnectionCard';
+import ThemeSelector from '../components/ThemeSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,14 +36,19 @@ export default function SettingsPage() {
         Settings
       </h2>
 
-      <Tabs defaultValue="gmail">
+      <Tabs defaultValue="appearance">
         <TabsList>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
           {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accessorials">Accessorial Types</TabsTrigger>}
           {isAdmin && <TabsTrigger value="deductions">Deduction Types</TabsTrigger>}
           {isAdmin && <TabsTrigger value="samsara">Samsara</TabsTrigger>}
         </TabsList>
+
+        <TabsContent value="appearance" className="mt-4">
+          <ThemeSelector />
+        </TabsContent>
 
         <TabsContent value="gmail" className="mt-4">
           <GmailConnectionCard />
@@ -144,7 +150,7 @@ function UsersTab() {
     <>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">Manage user accounts and roles</p>
-        <Button onClick={() => { setForm({ email: '', full_name: '', role: 'DISPATCHER', password: '' }); setShowCreate(true); }} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => { setForm({ email: '', full_name: '', role: 'DISPATCHER', password: '' }); setShowCreate(true); }} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add User
         </Button>
       </div>
@@ -229,7 +235,7 @@ function UsersTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending} className="theme-brand-bg text-white">
               {createMutation.isPending ? 'Creating...' : 'Create User'}
             </Button>
           </DialogFooter>
@@ -277,7 +283,7 @@ function UsersTab() {
               if (form.password) updates.password = form.password;
               if (Object.keys(updates).length === 0) return toast.info('No changes');
               updateMutation.mutate({ id: editTarget.id, data: updates });
-            }} disabled={updateMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            }} disabled={updateMutation.isPending} className="theme-brand-bg text-white">
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
@@ -353,7 +359,7 @@ function AccessorialTypesTab() {
     <>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">Accessorial charge types applied to loads (detention, lumper, TONU, etc.)</p>
-        <Button onClick={() => setShowCreate(true)} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => setShowCreate(true)} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Type
         </Button>
       </div>
@@ -427,7 +433,7 @@ function AccessorialTypesTab() {
             <Button
               onClick={() => createMutation.mutate({ ...form, default_amount: parseFloat(form.default_amount) || 0 })}
               disabled={createMutation.isPending || !form.code || !form.name}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="theme-brand-bg text-white"
             >
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
@@ -467,7 +473,7 @@ function DeductionTypesTab() {
     <>
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-muted-foreground">Deduction types applied to driver settlements (insurance, advances, ELD, etc.)</p>
-        <Button onClick={() => setShowCreate(true)} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => setShowCreate(true)} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Type
         </Button>
       </div>
@@ -539,7 +545,7 @@ function DeductionTypesTab() {
             <Button
               onClick={() => createMutation.mutate({ ...form, default_amount: parseFloat(form.default_amount) || 0 })}
               disabled={createMutation.isPending || !form.code || !form.name}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="theme-brand-bg text-white"
             >
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
@@ -655,7 +661,7 @@ function SamsaraTab() {
                   placeholder="Enter Samsara API key"
                   onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
                 />
-                <Button onClick={handleConnect} disabled={connecting} className="bg-amber-500 hover:bg-amber-600">
+                <Button onClick={handleConnect} disabled={connecting} className="theme-brand-bg text-white">
                   {connecting ? <><Loader2 className="w-4 h-4 animate-spin" /> Connecting...</> : 'Connect'}
                 </Button>
               </div>

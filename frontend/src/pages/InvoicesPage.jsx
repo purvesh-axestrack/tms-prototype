@@ -56,7 +56,7 @@ export default function InvoicesPage() {
             <BarChart3 className="w-4 h-4" />
             Aging Report
           </Button>
-          <Button onClick={() => setShowCreate(true)} className="bg-amber-500 hover:bg-amber-600">
+          <Button onClick={() => setShowCreate(true)} className="theme-brand-bg text-white">
             <Plus className="w-4 h-4" />
             Create Invoice
           </Button>
@@ -123,7 +123,7 @@ export default function InvoicesPage() {
             ) : (
               filtered.map(inv => (
                 <TableRow key={inv.id} onClick={() => setSelectedInvoice(inv)} className="cursor-pointer group">
-                  <TableCell className="font-semibold group-hover:text-amber-600 transition-colors">{inv.invoice_number}</TableCell>
+                  <TableCell className="font-semibold theme-brand-group-hover transition-colors">{inv.invoice_number}</TableCell>
                   <TableCell className="text-muted-foreground">{inv.customer_name}</TableCell>
                   <TableCell>
                     <Badge className={STATUS_COLORS[inv.status]}>{inv.status}</Badge>

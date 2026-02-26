@@ -171,7 +171,7 @@ export default function CarriersPage() {
           <Building className="w-6 h-6" />
           Carriers
         </h2>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Carrier
         </Button>
       </div>
@@ -275,7 +275,7 @@ export default function CarriersPage() {
           <CarrierForm form={form} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={createMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleCreate} disabled={createMutation.isPending} className="theme-brand-bg text-white">
               {createMutation.isPending ? 'Creating...' : 'Create Carrier'}
             </Button>
           </DialogFooter>
@@ -291,7 +291,7 @@ export default function CarriersPage() {
           <CarrierForm form={form} setForm={setForm} showStatus />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCarrier(null)}>Cancel</Button>
-            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="theme-brand-bg text-white">
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -499,7 +499,7 @@ export default function CarriersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddInsurance(false)}>Cancel</Button>
-            <Button onClick={handleAddInsurance} disabled={addInsuranceMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleAddInsurance} disabled={addInsuranceMutation.isPending} className="theme-brand-bg text-white">
               {addInsuranceMutation.isPending ? 'Adding...' : 'Add Policy'}
             </Button>
           </DialogFooter>

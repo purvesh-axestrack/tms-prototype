@@ -216,7 +216,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
     <>
       <Sheet open={true} onOpenChange={(open) => !open && onClose()}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
-          <div className="bg-navy-900 text-white p-6">
+          <div className="theme-sidebar text-white p-6">
             <SheetHeader className="p-0">
               <div className="flex items-center gap-3 mb-1">
                 <SheetTitle className="text-2xl font-display font-bold text-white">Load #{load.id}</SheetTitle>
@@ -224,13 +224,13 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   {load.status.replaceAll('_', ' ')}
                 </Badge>
               </div>
-              <SheetDescription className="text-slate-400">
+              <SheetDescription className="theme-sidebar-text">
                 {editing ? (
                   <Input
                     value={editData.reference_number}
                     onChange={(e) => setEditData({ ...editData, reference_number: e.target.value })}
                     placeholder="Reference number"
-                    className="h-7 text-sm bg-navy-800 border-navy-700 text-white mt-1"
+                    className="h-7 text-sm theme-sidebar-light text-white mt-1" style={{ borderColor: 'var(--theme-sidebar-border)' }}
                   />
                 ) : (
                   load.reference_number
@@ -251,7 +251,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                         size="sm"
                         onClick={() => handleStatusChange(transition)}
                         disabled={statusMutation.isPending}
-                        className="bg-amber-500 hover:bg-amber-600"
+                        className="theme-brand-bg text-white"
                       >
                         {statusMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
                         {transition.replaceAll('_', ' ')}
@@ -312,7 +312,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Driver</div>
                     {!load.driver_id && (
-                      <Button size="xs" onClick={() => setShowDriverModal(true)} className="bg-amber-500 hover:bg-amber-600">
+                      <Button size="xs" onClick={() => setShowDriverModal(true)} className="theme-brand-bg text-white">
                         <UserPlus className="w-3 h-3" />
                         Assign
                       </Button>
@@ -321,7 +321,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   {load.driver_name ? (
                     <div className="flex items-center gap-2">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs font-bold bg-amber-100 text-amber-700">
+                        <AvatarFallback className="text-xs font-bold theme-brand-badge">
                           {load.driver_name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
@@ -340,15 +340,15 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             </div>
 
             {load.carrier_id && (
-              <Card className="py-4 border-amber-200 bg-amber-50/50">
+              <Card className="py-4 theme-brand-alert">
                 <CardContent>
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Brokered Carrier</div>
-                    <Badge className="bg-amber-100 text-amber-700">BROKERED</Badge>
+                    <Badge className="theme-brand-badge">BROKERED</Badge>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Building className="w-5 h-5 text-amber-700" />
+                    <div className="w-9 h-9 rounded-lg theme-brand-icon-box flex items-center justify-center">
+                      <Building className="w-5 h-5 theme-brand-icon-color" />
                     </div>
                     <div className="flex-1">
                       <div className="font-bold">{load.carrier_name || 'Unknown Carrier'}</div>
@@ -685,9 +685,9 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 <span className="text-sm text-green-700 font-medium">Invoiced (Invoice #{load.invoice_id})</span>
               </div>
             ) : load.status === 'COMPLETED' ? (
-              <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span className="text-sm text-amber-700 font-medium">Uninvoiced &mdash; Ready for billing</span>
+              <div className="flex items-center gap-2 p-3 theme-brand-alert rounded-xl">
+                <AlertTriangle className="w-4 h-4 theme-brand-icon" />
+                <span className="text-sm theme-brand-alert-text font-medium">Uninvoiced &mdash; Ready for billing</span>
               </div>
             ) : null}
 
@@ -912,7 +912,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBrokerDialog(false)}>Cancel</Button>
-            <Button onClick={handleBrokerSubmit} disabled={statusMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleBrokerSubmit} disabled={statusMutation.isPending} className="theme-brand-bg text-white">
               {statusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Broker Load
             </Button>

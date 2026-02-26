@@ -147,7 +147,7 @@ export default function ImportQueueTable({ onViewImport }) {
                   </TableCell>
                   <TableCell>
                     {imp.load ? (
-                      <span className="text-amber-600 font-semibold">#{imp.load.id}</span>
+                      <span className="theme-brand-icon font-semibold">#{imp.load.id}</span>
                     ) : (
                       <span className="text-muted-foreground">&mdash;</span>
                     )}
@@ -155,7 +155,7 @@ export default function ImportQueueTable({ onViewImport }) {
                   <TableCell className="text-right">
                     <div className="flex gap-1.5 justify-end opacity-60 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                       {imp.processing_status === 'DRAFT_CREATED' && (
-                        <Button size="xs" variant="secondary" onClick={() => onViewImport(imp)} className="bg-amber-100 text-amber-700 hover:bg-amber-200">
+                        <Button size="xs" variant="secondary" onClick={() => onViewImport(imp)} className="theme-brand-badge">
                           Review
                         </Button>
                       )}

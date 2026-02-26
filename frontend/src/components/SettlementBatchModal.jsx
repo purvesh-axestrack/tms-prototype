@@ -102,7 +102,7 @@ export default function SettlementBatchModal({ onClose }) {
                 </Card>
               )}
               <DialogFooter className="mt-5">
-                <Button onClick={onClose} className="bg-amber-500 hover:bg-amber-600">Done</Button>
+                <Button onClick={onClose} className="theme-brand-bg text-white">Done</Button>
               </DialogFooter>
             </div>
           ) : (
@@ -127,7 +127,7 @@ export default function SettlementBatchModal({ onClose }) {
                     <label
                       key={driver.id}
                       className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
-                        selectedDriverIds.includes(driver.id) ? 'border-amber-400 bg-amber-50' : 'border-input hover:bg-muted'
+                        selectedDriverIds.includes(driver.id) ? 'theme-brand-selected' : 'border-input hover:bg-muted'
                       }`}
                     >
                       <Checkbox
@@ -148,7 +148,7 @@ export default function SettlementBatchModal({ onClose }) {
                 <Button
                   onClick={handleGenerate}
                   disabled={!periodStart || !periodEnd || generateMutation.isPending}
-                  className="bg-amber-500 hover:bg-amber-600"
+                  className="theme-brand-bg text-white"
                 >
                   {generateMutation.isPending ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>

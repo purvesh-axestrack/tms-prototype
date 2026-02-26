@@ -179,7 +179,7 @@ export default function DriverAssignModal({ load, onClose, onAssigned }) {
             <Button
               onClick={handleAssign}
               disabled={!selectedDriverId || conflicts?.length > 0 || assignMutation.isPending}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="theme-brand-bg text-white"
             >
               {assignMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Assigning...</>

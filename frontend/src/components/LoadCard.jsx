@@ -66,7 +66,7 @@ export default function LoadCard({ load, onClick }) {
           <div className="mt-2.5 pt-2 border-t">
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px] font-bold bg-amber-100 text-amber-700">
+                <AvatarFallback className="text-[10px] font-bold theme-brand-badge">
                   {load.driver_name.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>

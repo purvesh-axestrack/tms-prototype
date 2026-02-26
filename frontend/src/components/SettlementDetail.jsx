@@ -83,13 +83,13 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
     <>
     <Sheet open={true} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
-        <div className="bg-navy-900 text-white p-6">
+        <div className="theme-sidebar text-white p-6">
           <SheetHeader className="p-0">
             <div className="flex items-center gap-3 mb-1">
               <SheetTitle className="text-2xl font-display font-bold text-white">{settlement.settlement_number}</SheetTitle>
               <Badge className={STATUS_COLORS[settlement.status]}>{settlement.status}</Badge>
             </div>
-            <SheetDescription className="text-slate-400">
+            <SheetDescription className="theme-sidebar-text">
               {settlement.driver_name} &middot; {settlement.period_start} &mdash; {settlement.period_end}
             </SheetDescription>
           </SheetHeader>
@@ -98,7 +98,7 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
         <div className="p-6 space-y-5">
           <div className="flex items-center justify-end gap-2">
             {settlement.status === 'DRAFT' && (
-              <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending} className="bg-amber-500 hover:bg-amber-600">
+              <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending} className="theme-brand-bg text-white">
                 {approveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {approveMutation.isPending ? 'Approving...' : 'Approve'}
               </Button>
@@ -147,7 +147,7 @@ export default function SettlementDetail({ settlementId, onClose, onUpdate }) {
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Driver Details</div>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-amber-100 text-amber-700 font-bold">
+                    <AvatarFallback className="theme-brand-badge font-bold">
                       {settlement.driver_name?.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>

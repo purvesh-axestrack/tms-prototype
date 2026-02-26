@@ -255,7 +255,7 @@ export default function DispatchBoard() {
             />
           </div>
 
-          <Button onClick={() => setShowCreateModal(true)} size="sm" className="bg-amber-500 hover:bg-amber-600 h-8">
+          <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
             <Plus className="w-4 h-4" />
             New Load
           </Button>

@@ -105,7 +105,7 @@ export default function InvoiceCreateModal({ onClose }) {
               <div className="flex items-center justify-between mb-2">
                 <Label>Delivered Loads ({uninvoicedLoads.length} available)</Label>
                 {uninvoicedLoads.length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={selectAll} className="text-amber-600 hover:text-amber-700">
+                  <Button variant="ghost" size="sm" onClick={selectAll} className="theme-brand-text">
                     {selectedLoadIds.length === uninvoicedLoads.length ? 'Deselect All' : 'Select All'}
                   </Button>
                 )}
@@ -129,7 +129,7 @@ export default function InvoiceCreateModal({ onClose }) {
                     <label
                       key={load.id}
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        selectedLoadIds.includes(load.id) ? 'border-amber-400 bg-amber-50' : 'border-input hover:bg-muted'
+                        selectedLoadIds.includes(load.id) ? 'theme-brand-selected' : 'border-input hover:bg-muted'
                       }`}
                     >
                       <Checkbox
@@ -154,7 +154,7 @@ export default function InvoiceCreateModal({ onClose }) {
           )}
 
           {selectedLoadIds.length > 0 && (
-            <Card className="py-4 bg-amber-50 border-amber-100">
+            <Card className="py-4 theme-brand-alert">
               <CardContent className="flex items-center justify-between">
                 <span className="text-sm font-medium text-muted-foreground">{selectedLoadIds.length} load(s) selected</span>
                 <span className="text-lg font-bold">Total: ${previewTotal.toFixed(2)}</span>
@@ -178,7 +178,7 @@ export default function InvoiceCreateModal({ onClose }) {
           <Button
             onClick={handleSubmit}
             disabled={!customerId || selectedLoadIds.length === 0 || createMutation.isPending}
-            className="bg-amber-500 hover:bg-amber-600"
+            className="theme-brand-bg text-white"
           >
             {createMutation.isPending ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>

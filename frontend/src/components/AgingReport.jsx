@@ -57,7 +57,7 @@ export default function AgingReport() {
           target="_blank"
           rel="noreferrer"
         >
-          <Button variant="ghost" size="xs" className="text-amber-600 hover:text-amber-700">
+          <Button variant="ghost" size="xs" className="theme-brand-text">
             <Download className="w-3.5 h-3.5" /> Export CSV
           </Button>
         </a>

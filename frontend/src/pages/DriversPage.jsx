@@ -147,7 +147,7 @@ export default function DriversPage() {
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">{drivers.length} drivers</p>
         </div>
-        <Button onClick={openCreate} className="bg-amber-500 hover:bg-amber-600">
+        <Button onClick={openCreate} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Driver
         </Button>
       </div>
@@ -197,12 +197,12 @@ export default function DriversPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs font-bold bg-amber-100 text-amber-700">
+                        <AvatarFallback className="text-xs font-bold theme-brand-badge">
                           {d.full_name?.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-semibold group-hover:text-amber-600 transition-colors">{d.full_name}</div>
+                        <div className="font-semibold theme-brand-group-hover transition-colors">{d.full_name}</div>
                         {d.driver_type && <div className="text-xs text-muted-foreground">{d.driver_type.replaceAll('_', ' ')}</div>}
                       </div>
                     </div>
@@ -340,7 +340,7 @@ export default function DriversPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeForm}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isPending} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleSubmit} disabled={isPending} className="theme-brand-bg text-white">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {editingDriver ? 'Save Changes' : 'Create Driver'}
             </Button>
@@ -361,17 +361,17 @@ export default function DriversPage() {
               </div>
             ) : (
               <>
-                <div className="bg-navy-900 text-white p-6">
+                <div className="theme-sidebar text-white p-6">
                   <SheetHeader className="p-0">
                     <div className="flex items-center gap-3 mb-1">
                       <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-amber-500 text-white font-bold text-lg">
+                        <AvatarFallback className="theme-brand-dot text-white font-bold text-lg">
                           {detail.full_name?.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <SheetTitle className="text-2xl font-display font-bold text-white">{detail.full_name}</SheetTitle>
-                        <SheetDescription className="text-slate-400 flex items-center gap-3 flex-wrap">
+                        <SheetDescription className="theme-sidebar-text flex items-center gap-3 flex-wrap">
                           <Badge className={STATUS_COLORS[detail.status]}>{detail.status.replaceAll('_', ' ')}</Badge>
                           {detail.driver_type && <Badge className="bg-white/10 text-slate-300">{detail.driver_type.replaceAll('_', ' ')}</Badge>}
                           {detail.route_type && <Badge className="bg-white/10 text-slate-300">{detail.route_type}</Badge>}
