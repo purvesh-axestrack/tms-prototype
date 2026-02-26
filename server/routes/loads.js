@@ -33,6 +33,8 @@ export default function loadsRouter(db) {
     const driver = load.driver_id ? await db('drivers').where({ id: load.driver_id }).first() : null;
     const driver2 = load.driver2_id ? await db('drivers').where({ id: load.driver2_id }).first() : null;
     const carrier = load.carrier_id ? await db('carriers').where({ id: load.carrier_id }).first() : null;
+    const bookingAuthority = load.booking_authority_id ? await db('carriers').where({ id: load.booking_authority_id }).first() : null;
+    const salesAgent = load.sales_agent_id ? await db('users').where({ id: load.sales_agent_id }).first() : null;
     const truck = load.truck_id ? await db('vehicles').where({ id: load.truck_id }).first() : null;
     const trailer = load.trailer_id ? await db('vehicles').where({ id: load.trailer_id }).first() : null;
 
@@ -77,6 +79,8 @@ export default function loadsRouter(db) {
       driver_name: driver?.full_name,
       driver2_name: driver2?.full_name || null,
       carrier_name: carrier?.company_name,
+      booking_authority_name: bookingAuthority?.company_name || null,
+      sales_agent_name: salesAgent?.full_name || null,
       truck_unit: truck?.unit_number || null,
       truck_info: truck ? `${truck.year || ''} ${truck.make || ''} ${truck.model || ''}`.trim() : null,
       trailer_unit: trailer?.unit_number || null,
@@ -146,6 +150,10 @@ export default function loadsRouter(db) {
       pickup_number,
       delivery_number,
       is_ltl = false,
+      // New load metadata
+      booking_authority_id,
+      sales_agent_id,
+      customer_ref_number,
     } = req.body;
 
     if (!customer_id || !rate_amount || !stops || stops.length < 2) {
@@ -185,6 +193,9 @@ export default function loadsRouter(db) {
       pickup_number: pickup_number || null,
       delivery_number: delivery_number || null,
       is_ltl: !!is_ltl,
+      booking_authority_id: booking_authority_id || null,
+      sales_agent_id: sales_agent_id || null,
+      customer_ref_number: customer_ref_number || null,
     }).returning('*');
 
     // Insert stops
@@ -202,6 +213,17 @@ export default function loadsRouter(db) {
       appointment_end: stop.appointment_end || null,
       action_type: stop.action_type || null,
       free_time_minutes: stop.free_time_minutes ?? 120,
+      appointment_type: stop.appointment_type || 'APPOINTMENT',
+      quantity: stop.quantity || null,
+      quantity_type: stop.quantity_type || null,
+      commodity: stop.commodity || null,
+      weight: stop.weight || null,
+      stop_reefer_mode: stop.stop_reefer_mode || null,
+      stop_set_temp: stop.stop_set_temp || null,
+      bol_number: stop.bol_number || null,
+      po_number: stop.po_number || null,
+      ref_number: stop.ref_number || null,
+      instructions: stop.instructions || null,
     }));
 
     await db('stops').insert(stopRows);
@@ -342,6 +364,7 @@ export default function loadsRouter(db) {
       'is_reefer', 'reefer_mode', 'set_temp', 'reefer_fuel_pct',
       'bol_number', 'po_number', 'pro_number', 'pickup_number', 'delivery_number',
       'is_ltl', 'exclude_from_settlement', 'driver2_id',
+      'booking_authority_id', 'sales_agent_id', 'customer_ref_number',
     ];
 
     const updates = {};
@@ -375,6 +398,17 @@ export default function loadsRouter(db) {
         trailer_id: stop.trailer_id || null,
         trailer_dropped: !!stop.trailer_dropped,
         stop_status: stop.stop_status || null,
+        appointment_type: stop.appointment_type || 'APPOINTMENT',
+        quantity: stop.quantity || null,
+        quantity_type: stop.quantity_type || null,
+        commodity: stop.commodity || null,
+        weight: stop.weight || null,
+        stop_reefer_mode: stop.stop_reefer_mode || null,
+        stop_set_temp: stop.stop_set_temp || null,
+        bol_number: stop.bol_number || null,
+        po_number: stop.po_number || null,
+        ref_number: stop.ref_number || null,
+        instructions: stop.instructions || null,
       }));
       await db('stops').insert(stopRows);
       await autoSaveLocations(req.body.stops);

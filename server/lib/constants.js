@@ -14,6 +14,14 @@ export const STOP_TYPES = ['PICKUP', 'DELIVERY'];
 export const REEFER_MODES = ['CONTINUOUS', 'CYCLE_SENTRY', 'OFF'];
 export const STOP_ACTION_TYPES = ['LIVE_LOAD', 'LIVE_UNLOAD', 'DROP_TRAILER', 'HOOK_TRAILER'];
 export const STOP_STATUSES = ['PENDING', 'EN_ROUTE', 'AT_FACILITY', 'LOADING', 'UNLOADING', 'COMPLETED'];
+export const APPOINTMENT_TYPES = ['FCFS', 'APPOINTMENT'];
+export const STOP_REEFER_MODES = ['CONTINUOUS', 'CYCLE', 'SPECIAL_SETTING'];
+export const QUANTITY_TYPES = [
+  'PALLETS','BOXES','BUSHELS','CASES','CRATES','GALLONS','PIECES',
+  'TRAILER','ROLLS','DRUMS','BAG','BARREL','CARTON','PACKAGE','SKID','TANK',
+  'HAZMAT','POUND','LINEAR_FEET','BULK','MIXED','TON','HOURS','DAYS',
+  'FEET','METERS','INCHES','CENTIMETERS','YARDS','TOTES',
+];
 
 // ── Drivers ────────────────────────────────────────────────────────────
 export const DRIVER_STATUSES = ['AVAILABLE', 'EN_ROUTE', 'OUT_OF_SERVICE', 'INACTIVE'];
@@ -54,6 +62,16 @@ export const SETTLEMENT_LINE_TYPES = ['LOAD_PAY', 'BONUS', 'FUEL_ADVANCE', 'DEDU
 // ── Display labels ─────────────────────────────────────────────────────
 export const PAY_MODEL_LABELS = { CPM: 'Per Mile', PERCENTAGE: '% of Load', FLAT: 'Flat Rate' };
 export const INSURANCE_TYPE_LABELS = { AUTO_LIABILITY: 'Auto Liability', CARGO: 'Cargo', GENERAL: 'General Liability' };
+export const APPOINTMENT_TYPE_LABELS = { FCFS: 'FCFS', APPOINTMENT: 'Appointment' };
+export const STOP_REEFER_MODE_LABELS = { CONTINUOUS: 'Continuous', CYCLE: 'Cycle', SPECIAL_SETTING: 'Special Setting' };
+export const QUANTITY_TYPE_LABELS = {
+  PALLETS: 'Pallets', BOXES: 'Boxes', BUSHELS: 'Bushels', CASES: 'Cases', CRATES: 'Crates',
+  GALLONS: 'Gallons', PIECES: 'Pieces', TRAILER: 'Trailer', ROLLS: 'Rolls', DRUMS: 'Drums',
+  BAG: 'Bag', BARREL: 'Barrel', CARTON: 'Carton', PACKAGE: 'Package', SKID: 'Skid', TANK: 'Tank',
+  HAZMAT: 'Hazmat', POUND: 'Pound', LINEAR_FEET: 'Linear Feet', BULK: 'Bulk', MIXED: 'Mixed',
+  TON: 'Ton', HOURS: 'Hours', DAYS: 'Days', FEET: 'Feet', METERS: 'Meters', INCHES: 'Inches',
+  CENTIMETERS: 'Centimeters', YARDS: 'Yards', TOTES: 'Totes',
+};
 
 // ── US States ──────────────────────────────────────────────────────────
 export const US_STATES = [
@@ -175,4 +193,10 @@ export const ALL_ENUMS = {
   CARRIER_STATUS_COLORS,
   INVOICE_STATUS_COLORS,
   SETTLEMENT_STATUS_COLORS,
+  APPOINTMENT_TYPES,
+  APPOINTMENT_TYPE_LABELS,
+  STOP_REEFER_MODES,
+  STOP_REEFER_MODE_LABELS,
+  QUANTITY_TYPES,
+  QUANTITY_TYPE_LABELS,
 };

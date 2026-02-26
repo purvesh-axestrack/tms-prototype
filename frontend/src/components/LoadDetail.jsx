@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad } from '../services/api';
+import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad, getUsers } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
+import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye, Thermometer, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
 import LocationAutocomplete from './LocationAutocomplete';
-import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS } from '@/lib/constants';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS } from '@/lib/constants';
 
 export default function LoadDetail({ load, onClose, onUpdate }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
@@ -48,7 +48,13 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   const { data: carriers = [] } = useQuery({
     queryKey: ['carriers'],
     queryFn: getCarriers,
-    enabled: showBrokerDialog || !!load.carrier_id,
+    enabled: showBrokerDialog || !!load.carrier_id || editing || !!load.booking_authority_id,
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    enabled: editing || !!load.sales_agent_id,
   });
 
   const { data: vehicles = [] } = useQuery({
@@ -200,6 +206,9 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
       is_ltl: load.is_ltl || false,
       exclude_from_settlement: load.exclude_from_settlement || false,
       driver2_id: load.driver2_id || '',
+      booking_authority_id: load.booking_authority_id || '',
+      sales_agent_id: load.sales_agent_id || '',
+      customer_ref_number: load.customer_ref_number || '',
     });
     setEditing(true);
   };
@@ -398,74 +407,60 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </Card>
             )}
 
-            {/* Reference Numbers */}
-            {(editing || load.bol_number || load.po_number || load.pro_number || load.pickup_number || load.delivery_number) && (
+            {/* Booking Authority / Sales Agent / Customer Ref */}
+            {(editing || load.booking_authority_name || load.sales_agent_name || load.customer_ref_number) && (
               <Card className="py-4">
                 <CardContent>
-                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reference Numbers</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Load Metadata</div>
                   {editing ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {[['bol_number', 'BOL #'], ['po_number', 'PO #'], ['pro_number', 'PRO #'], ['pickup_number', 'Pickup #'], ['delivery_number', 'Delivery #']].map(([field, label]) => (
-                        <div key={field} className="space-y-1">
-                          <Label className="text-xs">{label}</Label>
-                          <Input value={editData[field] || ''} onChange={(e) => setEditData({ ...editData, [field]: e.target.value })} className="h-8" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                      {[['bol_number', 'BOL #'], ['po_number', 'PO #'], ['pro_number', 'PRO #'], ['pickup_number', 'Pickup #'], ['delivery_number', 'Delivery #']].map(([field, label]) => (
-                        load[field] && (
-                          <div key={field} className="flex items-center gap-2">
-                            <span className="text-muted-foreground text-xs w-16 flex-shrink-0">{label}</span>
-                            <span className="font-medium">{load[field]}</span>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Reefer */}
-            {(editing || load.is_reefer) && (
-              <Card className="py-4 border-l-4 border-l-sky-400">
-                <CardContent>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Snowflake className="w-4 h-4 text-sky-500" />
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Reefer</div>
-                    {editing && (
-                      <Switch checked={editData.is_reefer} onCheckedChange={(v) => setEditData({ ...editData, is_reefer: v })} className="ml-auto" />
-                    )}
-                  </div>
-                  {editing && editData.is_reefer ? (
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-xs">Mode</Label>
-                        <Select value={editData.reefer_mode || undefined} onValueChange={(v) => setEditData({ ...editData, reefer_mode: v })}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                        <Label className="text-xs">Booking Authority</Label>
+                        <Select value={editData.booking_authority_id ? String(editData.booking_authority_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, booking_authority_id: v === 'NONE' ? null : v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Select carrier" /></SelectTrigger>
                           <SelectContent>
-                            {REEFER_MODES.map(m => <SelectItem key={m} value={m}>{REEFER_MODE_LABELS[m]}</SelectItem>)}
+                            <SelectItem value="NONE">None</SelectItem>
+                            {carriers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Set Temp (&deg;F)</Label>
-                        <Input type="number" step="0.1" value={editData.set_temp} onChange={(e) => setEditData({ ...editData, set_temp: e.target.value })} className="h-8" />
+                        <Label className="text-xs">Sales Agent</Label>
+                        <Select value={editData.sales_agent_id ? String(editData.sales_agent_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, sales_agent_id: v === 'NONE' ? null : v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Select user" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            {users.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Fuel %</Label>
-                        <Input type="number" step="0.1" value={editData.reefer_fuel_pct} onChange={(e) => setEditData({ ...editData, reefer_fuel_pct: e.target.value })} className="h-8" />
+                        <Label className="text-xs">Customer Ref #</Label>
+                        <Input value={editData.customer_ref_number || ''} onChange={(e) => setEditData({ ...editData, customer_ref_number: e.target.value })} className="h-8" />
                       </div>
                     </div>
-                  ) : load.is_reefer ? (
+                  ) : (
                     <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div><span className="text-muted-foreground text-xs">Mode</span><div className="font-medium">{REEFER_MODE_LABELS[load.reefer_mode] || '\u2014'}</div></div>
-                      <div><span className="text-muted-foreground text-xs">Set Temp</span><div className="font-medium">{load.set_temp != null ? `${load.set_temp}\u00b0F` : '\u2014'}</div></div>
-                      <div><span className="text-muted-foreground text-xs">Fuel %</span><div className="font-medium">{load.reefer_fuel_pct != null ? `${load.reefer_fuel_pct}%` : '\u2014'}</div></div>
+                      {load.booking_authority_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Book Auth</span>
+                          <span className="font-medium">{load.booking_authority_name}</span>
+                        </div>
+                      )}
+                      {load.sales_agent_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Sales Agent</span>
+                          <span className="font-medium">{load.sales_agent_name}</span>
+                        </div>
+                      )}
+                      {load.customer_ref_number && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Cust Ref #</span>
+                          <span className="font-medium">{load.customer_ref_number}</span>
+                        </div>
+                      )}
                     </div>
-                  ) : null}
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -605,81 +600,160 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                             <Input type="number" value={stop.free_time_minutes ?? 120} onChange={(e) => updateStop(index, 'free_time_minutes', parseInt(e.target.value) || 0)} className="h-7 text-sm" />
                           </div>
                         </div>
+                        <Separator className="my-2" />
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Appt Type</Label>
+                            <Select value={stop.appointment_type || 'APPOINTMENT'} onValueChange={(v) => updateStop(index, 'appointment_type', v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {APPOINTMENT_TYPES.map(t => <SelectItem key={t} value={t}>{APPOINTMENT_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Quantity</Label>
+                            <Input type="number" step="0.01" value={stop.quantity || ''} onChange={(e) => updateStop(index, 'quantity', e.target.value)} className="h-7 text-sm" placeholder="0" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Qty Type</Label>
+                            <Select value={stop.quantity_type || 'NONE'} onValueChange={(v) => updateStop(index, 'quantity_type', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {QUANTITY_TYPES.map(t => <SelectItem key={t} value={t}>{QUANTITY_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Commodity</Label>
+                            <Input value={stop.commodity || ''} onChange={(e) => updateStop(index, 'commodity', e.target.value)} className="h-7 text-sm" placeholder="e.g. General Freight" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Weight (lbs)</Label>
+                            <Input type="number" step="0.01" value={stop.weight || ''} onChange={(e) => updateStop(index, 'weight', e.target.value)} className="h-7 text-sm" placeholder="0" />
+                          </div>
+                        </div>
+                        {stop.stop_type === 'PICKUP' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground flex items-center gap-1"><Snowflake className="w-3 h-3 text-sky-500" /> Reefer Mode</Label>
+                              <Select value={stop.stop_reefer_mode || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_reefer_mode', v === 'NONE' ? null : v)}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="NONE">None</SelectItem>
+                                  {STOP_REEFER_MODES.map(m => <SelectItem key={m} value={m}>{STOP_REEFER_MODE_LABELS[m]}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Set Temp (&deg;F)</Label>
+                              <Input type="number" step="0.1" value={stop.stop_set_temp || ''} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-7 text-sm" placeholder="e.g. -10" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">BOL #</Label>
+                            <Input value={stop.bol_number || ''} onChange={(e) => updateStop(index, 'bol_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">PO #</Label>
+                            <Input value={stop.po_number || ''} onChange={(e) => updateStop(index, 'po_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">{stop.stop_type === 'PICKUP' ? 'PU #' : 'DEL #'}</Label>
+                            <Input value={stop.ref_number || ''} onChange={(e) => updateStop(index, 'ref_number', e.target.value)} className="h-7 text-sm" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-muted-foreground">Instructions</Label>
+                          <Input value={stop.instructions || ''} onChange={(e) => updateStop(index, 'instructions', e.target.value)} className="h-7 text-sm" placeholder="Stop-specific instructions" />
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Appointment</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {load.stops?.map((stop, index) => {
-                        const detentionMin = (stop.arrival_time && stop.departure_time)
-                          ? Math.max(0, Math.round((new Date(stop.departure_time) - new Date(stop.arrival_time)) / 60000) - (stop.free_time_minutes || 120))
-                          : null;
-                        return (
-                          <TableRow key={stop.id}>
-                            <TableCell>
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                                stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                              }`}>
-                                {index + 1}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <Badge className={stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
-                                  {stop.stop_type}
-                                </Badge>
-                                {stop.action_type && (
-                                  <Badge className={`block w-fit ${STOP_ACTION_TYPE_COLORS[stop.action_type] || 'bg-slate-100 text-slate-600'}`}>
-                                    {STOP_ACTION_TYPE_LABELS[stop.action_type]}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
-                                <div className="text-muted-foreground">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
+                  <div className="space-y-3">
+                    {load.stops?.map((stop, index) => {
+                      const detentionMin = (stop.arrival_time && stop.departure_time)
+                        ? Math.max(0, Math.round((new Date(stop.departure_time) - new Date(stop.arrival_time)) / 60000) - (stop.free_time_minutes || 120))
+                        : null;
+                      return (
+                        <div key={stop.id} className={`border rounded-lg p-3 border-l-4 ${stop.stop_type === 'PICKUP' ? 'border-l-blue-400' : 'border-l-green-400'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                            }`}>{index + 1}</div>
+                            <Badge className={stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
+                              {stop.stop_type}
+                            </Badge>
+                            {stop.action_type && (
+                              <Badge className={STOP_ACTION_TYPE_COLORS[stop.action_type] || 'bg-slate-100 text-slate-600'}>
+                                {STOP_ACTION_TYPE_LABELS[stop.action_type]}
+                              </Badge>
+                            )}
+                            <Badge className={stop.appointment_type === 'FCFS' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}>
+                              {APPOINTMENT_TYPE_LABELS[stop.appointment_type] || 'Appt'}
+                            </Badge>
+                            {stop.stop_status && (
+                              <Badge className={STOP_STATUS_COLORS[stop.stop_status] || 'bg-slate-100 text-slate-600'}>
+                                {stop.stop_status.replaceAll('_', ' ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <div>
+                              {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
+                              <div className="text-muted-foreground text-xs">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
+                            </div>
+                            <div className="text-muted-foreground text-xs">
                               {stop.appointment_start && (
-                                <>
-                                  {new Date(stop.appointment_start).toLocaleString()}
-                                  {stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}
-                                </>
+                                <div>{new Date(stop.appointment_start).toLocaleString()}{stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}</div>
                               )}
                               {stop.arrival_time && (
-                                <div className="text-xs mt-1">
-                                  Arr: {new Date(stop.arrival_time).toLocaleString()}
-                                  {stop.departure_time && <> &middot; Dep: {new Date(stop.departure_time).toLocaleTimeString()}</>}
-                                </div>
+                                <div>Arr: {new Date(stop.arrival_time).toLocaleString()}{stop.departure_time && <> &middot; Dep: {new Date(stop.departure_time).toLocaleTimeString()}</>}</div>
                               )}
                               {detentionMin != null && detentionMin > 0 && (
-                                <div className="text-xs text-red-600 font-medium mt-0.5">Detention: {Math.floor(detentionMin / 60)}h {detentionMin % 60}m</div>
+                                <div className="text-red-600 font-medium">Detention: {Math.floor(detentionMin / 60)}h {detentionMin % 60}m</div>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              {stop.stop_status && (
-                                <Badge className={STOP_STATUS_COLORS[stop.stop_status] || 'bg-slate-100 text-slate-600'}>
-                                  {stop.stop_status.replaceAll('_', ' ')}
-                                </Badge>
+                            </div>
+                          </div>
+                          {/* Stop-level domain fields */}
+                          {(stop.commodity || stop.weight || stop.quantity || stop.bol_number || stop.po_number || stop.ref_number || stop.stop_reefer_mode || stop.instructions) && (
+                            <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              {(stop.quantity || stop.commodity || stop.weight) && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  {stop.commodity && <span><span className="text-muted-foreground">Commodity:</span> {stop.commodity}</span>}
+                                  {stop.quantity && <span><span className="text-muted-foreground">Qty:</span> {stop.quantity} {stop.quantity_type ? QUANTITY_TYPE_LABELS[stop.quantity_type] : ''}</span>}
+                                  {stop.weight && <span><span className="text-muted-foreground">Weight:</span> {stop.weight} lbs</span>}
+                                </div>
                               )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              {stop.stop_reefer_mode && (
+                                <div className="flex items-center gap-1">
+                                  <Snowflake className="w-3 h-3 text-sky-500" />
+                                  <span>{STOP_REEFER_MODE_LABELS[stop.stop_reefer_mode]}</span>
+                                  {stop.stop_set_temp != null && <span>@ {stop.stop_set_temp}&deg;F</span>}
+                                </div>
+                              )}
+                              {(stop.bol_number || stop.po_number || stop.ref_number) && (
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  {stop.bol_number && <span><span className="text-muted-foreground">BOL:</span> {stop.bol_number}</span>}
+                                  {stop.po_number && <span><span className="text-muted-foreground">PO:</span> {stop.po_number}</span>}
+                                  {stop.ref_number && <span><span className="text-muted-foreground">{stop.stop_type === 'PICKUP' ? 'PU#' : 'DEL#'}:</span> {stop.ref_number}</span>}
+                                </div>
+                              )}
+                              {stop.instructions && (
+                                <div className="col-span-2 text-muted-foreground italic">{stop.instructions}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
