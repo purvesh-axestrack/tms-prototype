@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -259,6 +260,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <ThemeProvider>
           <TooltipProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
@@ -270,6 +272,7 @@ function App() {
             </Routes>
             <Toaster richColors position="top-right" />
           </TooltipProvider>
+          </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

@@ -21,8 +21,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Users, Receipt, Minus, Link2, Plus, KeyRound, Loader2 } from 'lucide-react';
+import { Settings, Users, Receipt, Minus, Link2, Plus, KeyRound, Loader2, Palette } from 'lucide-react';
 import { toast } from 'sonner';
+import ThemeSelector from '../components/ThemeSelector';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -35,14 +36,19 @@ export default function SettingsPage() {
         Settings
       </h2>
 
-      <Tabs defaultValue="gmail">
+      <Tabs defaultValue="appearance">
         <TabsList>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
           {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
           {isAdmin && <TabsTrigger value="accessorials">Accessorial Types</TabsTrigger>}
           {isAdmin && <TabsTrigger value="deductions">Deduction Types</TabsTrigger>}
           {isAdmin && <TabsTrigger value="samsara">Samsara</TabsTrigger>}
         </TabsList>
+
+        <TabsContent value="appearance" className="mt-4">
+          <ThemeSelector />
+        </TabsContent>
 
         <TabsContent value="gmail" className="mt-4">
           <GmailConnectionCard />
