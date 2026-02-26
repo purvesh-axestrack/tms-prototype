@@ -385,6 +385,42 @@ export const assignVehicleDriver = async (vehicleId, driverId) => {
   return response.data;
 };
 
+// Carriers
+export const getCarriers = async (params = {}) => {
+  const response = await api.get('/carriers', { params });
+  return response.data;
+};
+
+export const getCarrierById = async (id) => {
+  const response = await api.get(`/carriers/${id}`);
+  return response.data;
+};
+
+export const createCarrier = async (data) => {
+  const response = await api.post('/carriers', data);
+  return response.data;
+};
+
+export const updateCarrier = async (id, data) => {
+  const response = await api.patch(`/carriers/${id}`, data);
+  return response.data;
+};
+
+export const deleteCarrier = async (id) => {
+  const response = await api.delete(`/carriers/${id}`);
+  return response.data;
+};
+
+export const addCarrierInsurance = async (carrierId, data) => {
+  const response = await api.post(`/carriers/${carrierId}/insurance`, data);
+  return response.data;
+};
+
+export const removeCarrierInsurance = async (carrierId, insuranceId) => {
+  const response = await api.delete(`/carriers/${carrierId}/insurance/${insuranceId}`);
+  return response.data;
+};
+
 // Users
 export const getUsers = async () => {
   const response = await api.get('/users');

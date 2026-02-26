@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LayoutGrid, Mail, FileText, Wallet, Settings, LogOut, Map, Building2, User, Truck } from 'lucide-react';
+import { LayoutGrid, Mail, FileText, Wallet, Settings, LogOut, Map, Building2, User, Truck, Building } from 'lucide-react';
 import DispatchBoard from './components/DispatchBoard';
 import StatsBar from './components/StatsBar';
 import EmailImportsPage from './pages/EmailImportsPage';
@@ -18,6 +18,7 @@ import SettlementsPage from './pages/SettlementsPage';
 import CustomersPage from './pages/CustomersPage';
 import DriversPage from './pages/DriversPage';
 import FleetPage from './pages/FleetPage';
+import CarriersPage from './pages/CarriersPage';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const NAV_SECTIONS = [
       { to: '/customers', label: 'Customers', icon: Building2 },
       { to: '/drivers', label: 'Drivers', icon: User },
       { to: '/fleet', label: 'Fleet', icon: Truck },
+      { to: '/carriers', label: 'Carriers', icon: Building },
     ],
   },
   {
@@ -162,6 +164,7 @@ function AppLayout() {
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/drivers" element={<DriversPage />} />
             <Route path="/fleet" element={<FleetPage />} />
+            <Route path="/carriers" element={<CarriersPage />} />
             <Route path="/imports" element={<EmailImportsPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
             <Route path="/settlements" element={<SettlementsPage />} />
