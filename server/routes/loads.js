@@ -31,6 +31,7 @@ export default function loadsRouter(db) {
     const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
     const customer = await db('customers').where({ id: load.customer_id }).first();
     const driver = load.driver_id ? await db('drivers').where({ id: load.driver_id }).first() : null;
+    const driver2 = load.driver2_id ? await db('drivers').where({ id: load.driver2_id }).first() : null;
     const carrier = load.carrier_id ? await db('carriers').where({ id: load.carrier_id }).first() : null;
     const truck = load.truck_id ? await db('vehicles').where({ id: load.truck_id }).first() : null;
     const trailer = load.trailer_id ? await db('vehicles').where({ id: load.trailer_id }).first() : null;
@@ -51,6 +52,22 @@ export default function loadsRouter(db) {
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
 
+    // Split load references
+    let parent_load = null;
+    let child_loads = [];
+    if (load.parent_load_id) {
+      const parentRow = await db('loads').where({ id: load.parent_load_id }).first();
+      if (parentRow) parent_load = { id: parentRow.id, reference_number: parentRow.reference_number };
+    }
+    // Check for children (this load is a parent if others reference it)
+    const children = await db('loads').where({ parent_load_id: load.id }).select('id', 'reference_number', 'status', 'loaded_miles', 'driver_id');
+    if (children.length > 0) {
+      child_loads = await Promise.all(children.map(async (child) => {
+        const childDriver = child.driver_id ? await db('drivers').where({ id: child.driver_id }).first() : null;
+        return { ...child, driver_name: childDriver?.full_name || null };
+      }));
+    }
+
     return {
       ...load,
       stops,
@@ -58,6 +75,7 @@ export default function loadsRouter(db) {
       total_amount: totalAmount,
       customer_name: customer?.company_name,
       driver_name: driver?.full_name,
+      driver2_name: driver2?.full_name || null,
       carrier_name: carrier?.company_name,
       truck_unit: truck?.unit_number || null,
       truck_info: truck ? `${truck.year || ''} ${truck.make || ''} ${truck.model || ''}`.trim() : null,
@@ -70,6 +88,8 @@ export default function loadsRouter(db) {
       delivery_state: lastStop?.state,
       delivery_date: lastStop?.appointment_end || lastStop?.appointment_start || null,
       available_transitions: getAvailableTransitions(load.status),
+      parent_load,
+      child_loads,
     };
   }
 
@@ -114,6 +134,18 @@ export default function loadsRouter(db) {
       confidence_score,
       special_instructions,
       fuel_surcharge_amount = 0,
+      // New domain fields
+      parent_load_id,
+      is_reefer = false,
+      reefer_mode,
+      set_temp,
+      reefer_fuel_pct,
+      bol_number,
+      po_number,
+      pro_number,
+      pickup_number,
+      delivery_number,
+      is_ltl = false,
     } = req.body;
 
     if (!customer_id || !rate_amount || !stops || stops.length < 2) {
@@ -142,6 +174,17 @@ export default function loadsRouter(db) {
       special_instructions: special_instructions || null,
       fuel_surcharge_amount,
       total_amount: totalAmount,
+      parent_load_id: parent_load_id || null,
+      is_reefer: !!is_reefer,
+      reefer_mode: is_reefer ? (reefer_mode || null) : null,
+      set_temp: is_reefer ? (set_temp || null) : null,
+      reefer_fuel_pct: is_reefer ? (reefer_fuel_pct || null) : null,
+      bol_number: bol_number || null,
+      po_number: po_number || null,
+      pro_number: pro_number || null,
+      pickup_number: pickup_number || null,
+      delivery_number: delivery_number || null,
+      is_ltl: !!is_ltl,
     }).returning('*');
 
     // Insert stops
@@ -157,6 +200,8 @@ export default function loadsRouter(db) {
       zip: stop.zip || '',
       appointment_start: stop.appointment_start || null,
       appointment_end: stop.appointment_end || null,
+      action_type: stop.action_type || null,
+      free_time_minutes: stop.free_time_minutes ?? 120,
     }));
 
     await db('stops').insert(stopRows);
@@ -294,6 +339,9 @@ export default function loadsRouter(db) {
       'reference_number', 'customer_id', 'rate_amount', 'loaded_miles',
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
       'carrier_id', 'carrier_rate', 'truck_id', 'trailer_id',
+      'is_reefer', 'reefer_mode', 'set_temp', 'reefer_fuel_pct',
+      'bol_number', 'po_number', 'pro_number', 'pickup_number', 'delivery_number',
+      'is_ltl', 'exclude_from_settlement', 'driver2_id',
     ];
 
     const updates = {};
@@ -320,6 +368,13 @@ export default function loadsRouter(db) {
         appointment_end: stop.appointment_end || null,
         arrived_at: stop.arrived_at || null,
         departed_at: stop.departed_at || null,
+        action_type: stop.action_type || null,
+        arrival_time: stop.arrival_time || null,
+        departure_time: stop.departure_time || null,
+        free_time_minutes: stop.free_time_minutes ?? 120,
+        trailer_id: stop.trailer_id || null,
+        trailer_dropped: !!stop.trailer_dropped,
+        stop_status: stop.stop_status || null,
       }));
       await db('stops').insert(stopRows);
       await autoSaveLocations(req.body.stops);
@@ -332,6 +387,44 @@ export default function loadsRouter(db) {
     const updatedLoad = await db('loads').where({ id: load.id }).first();
     const enriched = await enrichLoad(updatedLoad);
     res.json(enriched);
+  }));
+
+  // POST /api/loads/:id/split — create a child split load
+  router.post('/:id/split', asyncHandler(async (req, res) => {
+    const parent = await db('loads').where({ id: req.params.id }).first();
+    if (!parent) return res.status(404).json({ error: 'Load not found' });
+
+    if (parent.parent_load_id) {
+      return res.status(400).json({ error: 'Cannot split a child load. Only parent/standalone loads can be split.' });
+    }
+
+    const [child] = await db('loads').insert({
+      reference_number: `${parent.reference_number}-S${Date.now().toString(36).slice(-4).toUpperCase()}`,
+      customer_id: parent.customer_id,
+      parent_load_id: parent.id,
+      dispatcher_id: req.user.id,
+      status: 'OPEN',
+      rate_amount: 0,
+      rate_type: parent.rate_type,
+      loaded_miles: 0,
+      empty_miles: 0,
+      commodity: parent.commodity,
+      weight: 0,
+      equipment_type: parent.equipment_type,
+      is_reefer: parent.is_reefer,
+      reefer_mode: parent.reefer_mode,
+      fuel_surcharge_amount: 0,
+      total_amount: 0,
+    }).returning('*');
+
+    // Create 2 empty stops for the child
+    await db('stops').insert([
+      { id: `s${Date.now()}-0`, load_id: child.id, sequence_order: 1, stop_type: 'PICKUP', facility_name: '', address: '', city: '', state: '', zip: '' },
+      { id: `s${Date.now()}-1`, load_id: child.id, sequence_order: 2, stop_type: 'DELIVERY', facility_name: '', address: '', city: '', state: '', zip: '' },
+    ]);
+
+    const enriched = await enrichLoad(child);
+    res.status(201).json(enriched);
   }));
 
   // DELETE /api/loads/:id

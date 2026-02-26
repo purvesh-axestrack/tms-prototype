@@ -11,9 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, X, Loader2, AlertTriangle, ChevronDown, Snowflake } from 'lucide-react';
 import { toast } from 'sonner';
-import { EQUIPMENT_TYPES } from '@/lib/constants';
+import { EQUIPMENT_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_ACTION_TYPE_LABELS, REEFER_MODE_LABELS } from '@/lib/constants';
 import LocationAutocomplete from './LocationAutocomplete';
 
 const emptyStop = () => ({
@@ -25,11 +27,14 @@ const emptyStop = () => ({
   zip: '',
   appointment_start: '',
   appointment_end: '',
+  action_type: '',
 });
 
 export default function LoadCreateModal({ onClose }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
+
+  const [showRefNumbers, setShowRefNumbers] = useState(false);
 
   const [form, setForm] = useState({
     reference_number: '',
@@ -43,6 +48,17 @@ export default function LoadCreateModal({ onClose }) {
     empty_miles: '',
     fuel_surcharge_pct: '',
     special_instructions: '',
+    // Domain depth fields
+    is_reefer: false,
+    reefer_mode: '',
+    set_temp: '',
+    reefer_fuel_pct: '',
+    bol_number: '',
+    po_number: '',
+    pro_number: '',
+    pickup_number: '',
+    delivery_number: '',
+    is_ltl: false,
     stops: [
       { ...emptyStop(), stop_type: 'PICKUP' },
       { ...emptyStop(), stop_type: 'DELIVERY' },
@@ -118,6 +134,16 @@ export default function LoadCreateModal({ onClose }) {
       empty_miles: form.empty_miles ? parseInt(form.empty_miles) : 0,
       fuel_surcharge_amount: fuelSurchargeAmount,
       special_instructions: form.special_instructions || null,
+      is_reefer: form.is_reefer,
+      reefer_mode: form.is_reefer ? (form.reefer_mode || null) : null,
+      set_temp: form.is_reefer && form.set_temp ? parseFloat(form.set_temp) : null,
+      reefer_fuel_pct: form.is_reefer && form.reefer_fuel_pct ? parseFloat(form.reefer_fuel_pct) : null,
+      bol_number: form.bol_number || null,
+      po_number: form.po_number || null,
+      pro_number: form.pro_number || null,
+      pickup_number: form.pickup_number || null,
+      delivery_number: form.delivery_number || null,
+      is_ltl: form.is_ltl,
       stops: form.stops.map(stop => ({
         stop_type: stop.stop_type,
         facility_name: stop.facility_name,
@@ -127,6 +153,7 @@ export default function LoadCreateModal({ onClose }) {
         zip: stop.zip,
         appointment_start: stop.appointment_start || null,
         appointment_end: stop.appointment_end || null,
+        action_type: stop.action_type || null,
       })),
     });
   };
@@ -184,8 +211,58 @@ export default function LoadCreateModal({ onClose }) {
                 <Label>Weight (lbs)</Label>
                 <Input type="number" value={form.weight} onChange={(e) => updateField('weight', e.target.value)} placeholder="0" />
               </div>
+              <div className="flex items-center gap-2 pt-5">
+                <Checkbox id="is_ltl" checked={form.is_ltl} onCheckedChange={(v) => updateField('is_ltl', !!v)} />
+                <Label htmlFor="is_ltl" className="text-sm cursor-pointer">LTL (Less Than Truckload)</Label>
+              </div>
             </div>
           </div>
+
+          {/* Reference Numbers (collapsible) */}
+          <div>
+            <button type="button" className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3" onClick={() => setShowRefNumbers(!showRefNumbers)}>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showRefNumbers ? '' : '-rotate-90'}`} />
+              Reference Numbers
+            </button>
+            {showRefNumbers && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                {[['bol_number', 'BOL #'], ['po_number', 'PO #'], ['pro_number', 'PRO #'], ['pickup_number', 'Pickup #'], ['delivery_number', 'Delivery #']].map(([field, label]) => (
+                  <div key={field} className="space-y-2">
+                    <Label>{label}</Label>
+                    <Input value={form[field]} onChange={(e) => updateField(field, e.target.value)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reefer */}
+          <div className="flex items-center gap-3 p-3 border rounded-lg">
+            <Snowflake className="w-4 h-4 text-sky-500" />
+            <Label className="text-sm font-medium">Reefer Load</Label>
+            <Switch checked={form.is_reefer} onCheckedChange={(v) => updateField('is_reefer', v)} className="ml-auto" />
+          </div>
+          {form.is_reefer && (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Reefer Mode</Label>
+                <Select value={form.reefer_mode || undefined} onValueChange={(v) => updateField('reefer_mode', v)}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                  <SelectContent>
+                    {REEFER_MODES.map(m => <SelectItem key={m} value={m}>{REEFER_MODE_LABELS[m]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Set Temp (&deg;F)</Label>
+                <Input type="number" step="0.1" value={form.set_temp} onChange={(e) => updateField('set_temp', e.target.value)} placeholder="e.g. -10" />
+              </div>
+              <div className="space-y-2">
+                <Label>Reefer Fuel %</Label>
+                <Input type="number" step="0.1" value={form.reefer_fuel_pct} onChange={(e) => updateField('reefer_fuel_pct', e.target.value)} placeholder="e.g. 85" />
+              </div>
+            </div>
+          )}
 
           <Separator />
 
@@ -248,6 +325,15 @@ export default function LoadCreateModal({ onClose }) {
                           <SelectContent>
                             <SelectItem value="PICKUP">PICKUP</SelectItem>
                             <SelectItem value="DELIVERY">DELIVERY</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={stop.action_type || 'NONE'} onValueChange={(v) => updateStop(index, 'action_type', v === 'NONE' ? '' : v)}>
+                          <SelectTrigger className="h-7 w-auto px-2 text-xs">
+                            <SelectValue placeholder="Action" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">No Action</SelectItem>
+                            {STOP_ACTION_TYPES.map(t => <SelectItem key={t} value={t}>{STOP_ACTION_TYPE_LABELS[t]}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>

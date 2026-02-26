@@ -19,7 +19,10 @@ export async function generateSettlement(db, driverId, periodStart, periodEnd, c
     .whereIn('status', ['COMPLETED', 'INVOICED'])
     .whereNull('settlement_id')
     .where('delivered_at', '>=', periodStart)
-    .where('delivered_at', '<=', periodEnd + 'T23:59:59Z');
+    .where('delivered_at', '<=', periodEnd + 'T23:59:59Z')
+    .where(function () {
+      this.where('exclude_from_settlement', false).orWhereNull('exclude_from_settlement');
+    });
 
   if (loads.length === 0) return null;
 

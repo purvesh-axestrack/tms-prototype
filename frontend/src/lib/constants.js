@@ -11,6 +11,9 @@ export const LOAD_STATUSES = ['OPEN', 'SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT
 export const RATE_TYPES = ['FLAT', 'CPM', 'PERCENTAGE'];
 export const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'LOWBOY', 'HOTSHOT', 'CONTAINER', 'POWER_ONLY', 'TANKER', 'STRAIGHT_TRUCK', 'SPRINTER_VAN', 'CARGO_VAN'];
 export const STOP_TYPES = ['PICKUP', 'DELIVERY'];
+export const REEFER_MODES = ['CONTINUOUS', 'CYCLE_SENTRY', 'OFF'];
+export const STOP_ACTION_TYPES = ['LIVE_LOAD', 'LIVE_UNLOAD', 'DROP_TRAILER', 'HOOK_TRAILER'];
+export const STOP_STATUSES = ['PENDING', 'EN_ROUTE', 'AT_FACILITY', 'LOADING', 'UNLOADING', 'COMPLETED'];
 
 // ── Drivers ────────────────────────────────────────────────────────────
 export const DRIVER_STATUSES = ['AVAILABLE', 'EN_ROUTE', 'OUT_OF_SERVICE', 'INACTIVE'];
@@ -106,6 +109,35 @@ export const SETTLEMENT_STATUS_COLORS = {
   DRAFT: 'bg-yellow-100 text-yellow-700',
   APPROVED: 'bg-blue-100 text-blue-700',
   PAID: 'bg-green-100 text-green-700',
+};
+
+export const STOP_STATUS_COLORS = {
+  PENDING: 'bg-slate-100 text-slate-600',
+  EN_ROUTE: 'bg-blue-100 text-blue-700',
+  AT_FACILITY: 'bg-purple-100 text-purple-700',
+  LOADING: 'bg-amber-100 text-amber-700',
+  UNLOADING: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+};
+
+export const STOP_ACTION_TYPE_LABELS = {
+  LIVE_LOAD: 'Live Load',
+  LIVE_UNLOAD: 'Live Unload',
+  DROP_TRAILER: 'Drop Trailer',
+  HOOK_TRAILER: 'Hook Trailer',
+};
+
+export const STOP_ACTION_TYPE_COLORS = {
+  LIVE_LOAD: 'bg-blue-100 text-blue-700',
+  LIVE_UNLOAD: 'bg-green-100 text-green-700',
+  DROP_TRAILER: 'bg-amber-100 text-amber-700',
+  HOOK_TRAILER: 'bg-purple-100 text-purple-700',
+};
+
+export const REEFER_MODE_LABELS = {
+  CONTINUOUS: 'Continuous',
+  CYCLE_SENTRY: 'Cycle Sentry',
+  OFF: 'Off',
 };
 
 // ── Load status config (for filters, timeline, etc.) ──────────────────

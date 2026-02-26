@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl } from '../services/api';
+import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
 import LocationAutocomplete from './LocationAutocomplete';
-import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES } from '@/lib/constants';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS } from '@/lib/constants';
 
 export default function LoadDetail({ load, onClose, onUpdate }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
@@ -65,6 +67,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadDocType, setUploadDocType] = useState('OTHER');
+  const [previewDoc, setPreviewDoc] = useState(null);
+
+  const splitMutation = useMutation({
+    mutationFn: () => createSplitLoad(load.id),
+    onSuccess: () => {
+      toast.success('Split load created');
+      queryClient.invalidateQueries({ queryKey: ['loads'] });
+      onUpdate();
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Failed to create split');
+    },
+  });
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -172,6 +187,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
       truck_id: load.truck_id || '',
       trailer_id: load.trailer_id || '',
       stops: (load.stops || []).map(s => ({ ...s })),
+      // Domain depth fields
+      is_reefer: load.is_reefer || false,
+      reefer_mode: load.reefer_mode || '',
+      set_temp: load.set_temp || '',
+      reefer_fuel_pct: load.reefer_fuel_pct || '',
+      bol_number: load.bol_number || '',
+      po_number: load.po_number || '',
+      pro_number: load.pro_number || '',
+      pickup_number: load.pickup_number || '',
+      delivery_number: load.delivery_number || '',
+      is_ltl: load.is_ltl || false,
+      exclude_from_settlement: load.exclude_from_settlement || false,
+      driver2_id: load.driver2_id || '',
     });
     setEditing(true);
   };
@@ -223,6 +251,9 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 <Badge className={statusColors[load.status]}>
                   {load.status.replaceAll('_', ' ')}
                 </Badge>
+                {load.parent_load_id && <Badge className="bg-orange-100 text-orange-700">SPLIT LEG</Badge>}
+                {load.child_loads?.length > 0 && <Badge className="bg-purple-100 text-purple-700">SPLIT PARENT</Badge>}
+                {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
               </div>
               <SheetDescription className="theme-sidebar-text">
                 {editing ? (
@@ -367,6 +398,78 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </Card>
             )}
 
+            {/* Reference Numbers */}
+            {(editing || load.bol_number || load.po_number || load.pro_number || load.pickup_number || load.delivery_number) && (
+              <Card className="py-4">
+                <CardContent>
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Reference Numbers</div>
+                  {editing ? (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[['bol_number', 'BOL #'], ['po_number', 'PO #'], ['pro_number', 'PRO #'], ['pickup_number', 'Pickup #'], ['delivery_number', 'Delivery #']].map(([field, label]) => (
+                        <div key={field} className="space-y-1">
+                          <Label className="text-xs">{label}</Label>
+                          <Input value={editData[field] || ''} onChange={(e) => setEditData({ ...editData, [field]: e.target.value })} className="h-8" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      {[['bol_number', 'BOL #'], ['po_number', 'PO #'], ['pro_number', 'PRO #'], ['pickup_number', 'Pickup #'], ['delivery_number', 'Delivery #']].map(([field, label]) => (
+                        load[field] && (
+                          <div key={field} className="flex items-center gap-2">
+                            <span className="text-muted-foreground text-xs w-16 flex-shrink-0">{label}</span>
+                            <span className="font-medium">{load[field]}</span>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Reefer */}
+            {(editing || load.is_reefer) && (
+              <Card className="py-4 border-l-4 border-l-sky-400">
+                <CardContent>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Snowflake className="w-4 h-4 text-sky-500" />
+                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Reefer</div>
+                    {editing && (
+                      <Switch checked={editData.is_reefer} onCheckedChange={(v) => setEditData({ ...editData, is_reefer: v })} className="ml-auto" />
+                    )}
+                  </div>
+                  {editing && editData.is_reefer ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Mode</Label>
+                        <Select value={editData.reefer_mode || undefined} onValueChange={(v) => setEditData({ ...editData, reefer_mode: v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                          <SelectContent>
+                            {REEFER_MODES.map(m => <SelectItem key={m} value={m}>{REEFER_MODE_LABELS[m]}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Set Temp (&deg;F)</Label>
+                        <Input type="number" step="0.1" value={editData.set_temp} onChange={(e) => setEditData({ ...editData, set_temp: e.target.value })} className="h-8" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Fuel %</Label>
+                        <Input type="number" step="0.1" value={editData.reefer_fuel_pct} onChange={(e) => setEditData({ ...editData, reefer_fuel_pct: e.target.value })} className="h-8" />
+                      </div>
+                    </div>
+                  ) : load.is_reefer ? (
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div><span className="text-muted-foreground text-xs">Mode</span><div className="font-medium">{REEFER_MODE_LABELS[load.reefer_mode] || '\u2014'}</div></div>
+                      <div><span className="text-muted-foreground text-xs">Set Temp</span><div className="font-medium">{load.set_temp != null ? `${load.set_temp}\u00b0F` : '\u2014'}</div></div>
+                      <div><span className="text-muted-foreground text-xs">Fuel %</span><div className="font-medium">{load.reefer_fuel_pct != null ? `${load.reefer_fuel_pct}%` : '\u2014'}</div></div>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="py-4">
               <CardContent>
                 <div className="flex items-center justify-between mb-3">
@@ -476,6 +579,32 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Action Type</Label>
+                            <Select value={stop.action_type || 'NONE'} onValueChange={(v) => updateStop(index, 'action_type', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {STOP_ACTION_TYPES.map(t => <SelectItem key={t} value={t}>{STOP_ACTION_TYPE_LABELS[t]}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Stop Status</Label>
+                            <Select value={stop.stop_status || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_status', v === 'NONE' ? null : v)}>
+                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="NONE">None</SelectItem>
+                                {STOP_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replaceAll('_', ' ')}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Free Time (min)</Label>
+                            <Input type="number" value={stop.free_time_minutes ?? 120} onChange={(e) => updateStop(index, 'free_time_minutes', parseInt(e.target.value) || 0)} className="h-7 text-sm" />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -487,44 +616,133 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                         <TableHead>Type</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Appointment</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {load.stops?.map((stop, index) => (
-                        <TableRow key={stop.id}>
-                          <TableCell>
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                              stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                            }`}>
-                              {index + 1}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
-                              {stop.stop_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
-                              <div className="text-muted-foreground">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {stop.appointment_start && (
-                              <>
-                                {new Date(stop.appointment_start).toLocaleString()}
-                                {stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}
-                              </>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {load.stops?.map((stop, index) => {
+                        const detentionMin = (stop.arrival_time && stop.departure_time)
+                          ? Math.max(0, Math.round((new Date(stop.departure_time) - new Date(stop.arrival_time)) / 60000) - (stop.free_time_minutes || 120))
+                          : null;
+                        return (
+                          <TableRow key={stop.id}>
+                            <TableCell>
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                                stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                              }`}>
+                                {index + 1}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <Badge className={stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
+                                  {stop.stop_type}
+                                </Badge>
+                                {stop.action_type && (
+                                  <Badge className={`block w-fit ${STOP_ACTION_TYPE_COLORS[stop.action_type] || 'bg-slate-100 text-slate-600'}`}>
+                                    {STOP_ACTION_TYPE_LABELS[stop.action_type]}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {stop.facility_name && <div className="font-medium">{stop.facility_name}</div>}
+                                <div className="text-muted-foreground">{stop.address}, {stop.city}, {stop.state} {stop.zip}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {stop.appointment_start && (
+                                <>
+                                  {new Date(stop.appointment_start).toLocaleString()}
+                                  {stop.appointment_end && <> - {new Date(stop.appointment_end).toLocaleTimeString()}</>}
+                                </>
+                              )}
+                              {stop.arrival_time && (
+                                <div className="text-xs mt-1">
+                                  Arr: {new Date(stop.arrival_time).toLocaleString()}
+                                  {stop.departure_time && <> &middot; Dep: {new Date(stop.departure_time).toLocaleTimeString()}</>}
+                                </div>
+                              )}
+                              {detentionMin != null && detentionMin > 0 && (
+                                <div className="text-xs text-red-600 font-medium mt-0.5">Detention: {Math.floor(detentionMin / 60)}h {detentionMin % 60}m</div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {stop.stop_status && (
+                                <Badge className={STOP_STATUS_COLORS[stop.stop_status] || 'bg-slate-100 text-slate-600'}>
+                                  {stop.stop_status.replaceAll('_', ' ')}
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
               </CardContent>
             </Card>
+
+            {/* Split Loads */}
+            {(load.parent_load || load.child_loads?.length > 0 || !load.parent_load_id) && (load.parent_load || load.child_loads?.length > 0) && (
+              <Card className="py-4 border-l-4 border-l-purple-400">
+                <CardContent>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-purple-500" />
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Split Loads</div>
+                    </div>
+                    {!load.parent_load_id && (
+                      <Button size="sm" variant="outline" onClick={() => splitMutation.mutate()} disabled={splitMutation.isPending}>
+                        {splitMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        Create Split
+                      </Button>
+                    )}
+                  </div>
+                  {load.parent_load && (
+                    <div className="flex items-center gap-2 mb-3 p-2 bg-orange-50 rounded-lg text-sm">
+                      <Link2 className="w-4 h-4 text-orange-500" />
+                      <span>Parent Load: <span className="font-bold">#{load.parent_load.id}</span> ({load.parent_load.reference_number})</span>
+                    </div>
+                  )}
+                  {load.child_loads?.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Miles</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {load.child_loads.map(child => (
+                          <TableRow key={child.id}>
+                            <TableCell className="font-medium">#{child.id}</TableCell>
+                            <TableCell className="text-sm">{child.reference_number}</TableCell>
+                            <TableCell className="text-sm">{child.driver_name || '\u2014'}</TableCell>
+                            <TableCell><Badge className={statusColors[child.status]}>{child.status.replaceAll('_', ' ')}</Badge></TableCell>
+                            <TableCell className="text-sm">{child.loaded_miles || 0}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Create Split button for standalone loads with no children yet */}
+            {!load.parent_load_id && !load.child_loads?.length && (
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" onClick={() => splitMutation.mutate()} disabled={splitMutation.isPending}>
+                  {splitMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <GitBranch className="w-3.5 h-3.5" />}
+                  Create Split Load
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-4">
               <Card className="py-4">
@@ -648,16 +866,19 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   <div className="space-y-2">
                     {documents.map(doc => (
                       <div key={doc.id} className="flex items-center justify-between p-2 border rounded-lg">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 cursor-pointer" onClick={() => setPreviewDoc(doc)}>
                           <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{doc.filename}</div>
+                            <div className="text-sm font-medium truncate hover:underline">{doc.filename}</div>
                             <div className="text-xs text-muted-foreground">
                               {doc.doc_type.replace(/_/g, ' ')} &middot; {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : ''}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setPreviewDoc(doc)} title="Preview">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
                             <a href={getDocumentUrl(doc.id)} target="_blank" rel="noopener noreferrer">
                               <Download className="w-3.5 h-3.5" />
@@ -765,6 +986,28 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                         rows={2}
                       />
                     </div>
+                    <Separator className="col-span-2" />
+                    <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Flags</div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Team Driver</Label>
+                      <Select value={editData.driver2_id || 'NONE'} onValueChange={(v) => setEditData({ ...editData, driver2_id: v === 'NONE' ? null : v })}>
+                        <SelectTrigger className="h-8"><SelectValue placeholder="Select driver" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">None</SelectItem>
+                          {drivers.filter(d => d.id !== load.driver_id).map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-6 pt-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={editData.is_ltl} onCheckedChange={(v) => setEditData({ ...editData, is_ltl: !!v })} />
+                        LTL
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={editData.exclude_from_settlement} onCheckedChange={(v) => setEditData({ ...editData, exclude_from_settlement: !!v })} />
+                        Exclude from Settlement
+                      </label>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -792,10 +1035,22 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                       <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Trailer</span>
                       <span className="font-medium">{load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : '\u2014'}</span>
                     </div>
+                    {load.driver2_name && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Team Driver</span>
+                        <span className="font-medium">{load.driver2_name}</span>
+                      </div>
+                    )}
                     {load.special_instructions && (
                       <div className="col-span-2 flex items-start gap-2">
                         <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Instructions</span>
                         <span className="font-medium">{load.special_instructions}</span>
+                      </div>
+                    )}
+                    {(load.is_ltl || load.exclude_from_settlement) && (
+                      <div className="col-span-2 flex gap-2 pt-1">
+                        {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
+                        {load.exclude_from_settlement && <Badge className="bg-red-100 text-red-700">Excluded from Settlement</Badge>}
                       </div>
                     )}
                   </div>
@@ -917,6 +1172,44 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               Broker Load
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.filename}</DialogTitle>
+            <DialogDescription>
+              {previewDoc?.doc_type?.replace(/_/g, ' ')} &middot; {previewDoc?.file_size ? `${(previewDoc.file_size / 1024).toFixed(0)} KB` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-[60vh]">
+            {previewDoc && (() => {
+              const url = getDocumentUrl(previewDoc.id);
+              const ext = previewDoc.filename?.split('.').pop()?.toLowerCase();
+              const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+              const isPdf = ext === 'pdf';
+
+              if (isPdf) {
+                return <iframe src={url} className="w-full h-[60vh] rounded-lg border" title={previewDoc.filename} />;
+              }
+              if (isImage) {
+                return <img src={url} alt={previewDoc.filename} className="max-w-full max-h-[60vh] mx-auto rounded-lg object-contain" />;
+              }
+              return (
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-muted-foreground">
+                  <FileText className="w-12 h-12" />
+                  <p>Preview not available for this file type</p>
+                  <Button asChild>
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <Download className="w-4 h-4" /> Download File
+                    </a>
+                  </Button>
+                </div>
+              );
+            })()}
+          </div>
         </DialogContent>
       </Dialog>
     </>
