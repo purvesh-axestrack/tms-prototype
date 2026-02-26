@@ -4,10 +4,16 @@ import { themes, defaultThemeId, getTheme } from '@/lib/themes';
 const ThemeContext = createContext();
 
 function applyTheme(theme) {
-  const root = document.documentElement;
-  Object.entries(theme.variables).forEach(([key, value]) => {
-    root.style.setProperty(key, value);
-  });
+  let styleEl = document.getElementById('tms-theme-vars');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'tms-theme-vars';
+    document.head.appendChild(styleEl);
+  }
+  const rules = Object.entries(theme.variables)
+    .map(([k, v]) => `  ${k}: ${v} !important;`)
+    .join('\n');
+  styleEl.textContent = `:root {\n${rules}\n}`;
 }
 
 export function ThemeProvider({ children }) {
