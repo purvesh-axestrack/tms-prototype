@@ -36,7 +36,7 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
     empty_miles: 0,
     commodity: data.commodity?.value || '',
     weight: data.weight?.value || 0,
-    equipment_type: data.equipment_type?.value || 'Dry Van',
+    equipment_type: data.equipment_type?.value || 'DRY_VAN',
     special_instructions: data.special_instructions?.value || null,
   }).returning('*');
 

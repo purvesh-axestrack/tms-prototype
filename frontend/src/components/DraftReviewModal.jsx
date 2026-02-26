@@ -70,7 +70,7 @@ export default function DraftReviewModal({ emailImport, onClose }) {
         loaded_miles: load.loaded_miles || 0,
         commodity: load.commodity || '',
         weight: load.weight || 0,
-        equipment_type: load.equipment_type || 'Dry Van',
+        equipment_type: load.equipment_type || 'DRY_VAN',
         special_instructions: load.special_instructions || '',
         stops: load.stops || [],
       });

@@ -30,7 +30,7 @@ const statusColors = {
   BROKERED: 'bg-amber-100 text-amber-700',
 };
 
-const EQUIPMENT_TYPES = ['Dry Van', 'Reefer', 'Flatbed', 'Step Deck', 'Power Only', 'Box Truck'];
+const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
 
 export default function LoadDetail({ load, onClose, onUpdate }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
@@ -91,7 +91,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
       empty_miles: load.empty_miles || 0,
       commodity: load.commodity || '',
       weight: load.weight || 0,
-      equipment_type: load.equipment_type || 'Dry Van',
+      equipment_type: load.equipment_type || 'DRY_VAN',
       fuel_surcharge_amount: load.fuel_surcharge_amount || 0,
       special_instructions: load.special_instructions || '',
     });

@@ -34,7 +34,7 @@ const STATUSES = [
   { key: 'BROKERED', label: 'Brokered', dot: '#f59e0b' },
 ];
 
-const EQUIPMENT_TYPES = ['Dry Van', 'Reefer', 'Flatbed', 'Step Deck', 'Power Only', 'Box Truck'];
+const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'POWER_ONLY', 'STRAIGHT_TRUCK'];
 const ALL_STATUS_KEYS = STATUSES.map(s => s.key);
 
 // ──── Reusable multi-select ────
