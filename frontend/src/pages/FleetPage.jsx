@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Truck, Plus, Search, MapPin, Gauge, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { VEHICLE_TYPES, VEHICLE_STATUSES, VEHICLE_STATUS_COLORS as statusColors } from '@/lib/constants';
@@ -379,17 +380,13 @@ export default function FleetPage() {
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Primary Driver</div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select
-                          value={assignDriverId || undefined}
-                          onValueChange={(v) => setAssignDriverId(v)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="No driver assigned" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {drivers.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          value={assignDriverId || null}
+                          onValueChange={(v) => setAssignDriverId(v || '')}
+                          options={drivers.map(d => ({ value: String(d.id), label: d.full_name }))}
+                          placeholder="No driver assigned"
+                          searchPlaceholder="Search drivers..."
+                        />
                       </div>
                       <Button
                         size="sm"
@@ -406,17 +403,13 @@ export default function FleetPage() {
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-4">Team Driver</div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select
-                          value={assignDriver2Id || undefined}
-                          onValueChange={(v) => setAssignDriver2Id(v)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="No team driver assigned" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {drivers.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          value={assignDriver2Id || null}
+                          onValueChange={(v) => setAssignDriver2Id(v || '')}
+                          options={drivers.map(d => ({ value: String(d.id), label: d.full_name }))}
+                          placeholder="No team driver assigned"
+                          searchPlaceholder="Search drivers..."
+                        />
                       </div>
                       <Button
                         size="sm"
@@ -574,15 +567,14 @@ function VehicleForm({ form, setForm, showStatus, carriers = [] }) {
       {carriers.length > 0 && (
         <div className="space-y-1.5">
           <Label>Carrier</Label>
-          <Select value={form.carrier_id ? String(form.carrier_id) : 'NONE'} onValueChange={(v) => setForm(prev => ({ ...prev, carrier_id: v === 'NONE' ? '' : parseInt(v) }))}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Own fleet" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="NONE">Own fleet</SelectItem>
-              {carriers.filter(c => c.status !== 'INACTIVE').map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={form.carrier_id ? String(form.carrier_id) : null}
+            onValueChange={(v) => setForm(prev => ({ ...prev, carrier_id: v ? parseInt(v) : '' }))}
+            options={carriers.filter(c => c.status !== 'INACTIVE').map(c => ({ value: String(c.id), label: c.company_name }))}
+            placeholder="Own fleet"
+            searchPlaceholder="Search carriers..."
+            allowClear
+          />
         </div>
       )}
       <div className="col-span-2 space-y-1.5">

@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Plus, User, Search, Pencil, Trash2, Loader2, Phone, CreditCard, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverDeductionsEditor from '../components/DriverDeductionsEditor';
@@ -331,23 +332,25 @@ export default function DriversPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Carrier</Label>
-                <Select value={formData.carrier_id ? String(formData.carrier_id) : 'NONE'} onValueChange={(v) => setFormData({ ...formData, carrier_id: v === 'NONE' ? '' : v })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Own fleet" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">Own fleet</SelectItem>
-                    {carriers.filter(c => c.status !== 'INACTIVE').map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={formData.carrier_id ? String(formData.carrier_id) : null}
+                  onValueChange={(v) => setFormData({ ...formData, carrier_id: v || '' })}
+                  options={carriers.filter(c => c.status !== 'INACTIVE').map(c => ({ value: String(c.id), label: c.company_name }))}
+                  placeholder="Own fleet"
+                  searchPlaceholder="Search carriers..."
+                  allowClear
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Team Partner</Label>
-                <Select value={formData.team_driver_id || 'NONE'} onValueChange={(v) => setFormData({ ...formData, team_driver_id: v === 'NONE' ? '' : v })}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">None</SelectItem>
-                    {drivers.filter(d => d.id !== editingDriver?.id && d.status !== 'INACTIVE').map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={formData.team_driver_id || null}
+                  onValueChange={(v) => setFormData({ ...formData, team_driver_id: v || '' })}
+                  options={drivers.filter(d => d.id !== editingDriver?.id && d.status !== 'INACTIVE').map(d => ({ value: String(d.id), label: d.full_name }))}
+                  placeholder="None"
+                  searchPlaceholder="Search drivers..."
+                  allowClear
+                />
               </div>
             </div>
             <Separator />

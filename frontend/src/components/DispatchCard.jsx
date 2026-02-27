@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
-import EditableSelect from './EditableSelect';
+import { EditableCombobox } from '@/components/ui/combobox';
 
 export default function DispatchCard({ load, drivers, trucks, trailers, carriers, saveField, saveFields, isSaving, disabled = false }) {
   const [checking, setChecking] = useState(false);
@@ -167,12 +167,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           {carriers && carriers.length > 0 && (
             <div className="space-y-1">
               <label className="text-[10px] text-muted-foreground">Carrier</label>
-              <EditableSelect
+              <EditableCombobox
                 value={load.carrier_id ? String(load.carrier_id) : null}
                 displayValue={load.carrier_name}
                 onSave={(v) => saveField('carrier_id', v ? parseInt(v) : null)}
                 options={carrierOpts}
                 placeholder="Own fleet"
+                searchPlaceholder="Search carriers..."
                 allowNone
                 disabled={disabled}
               />
@@ -185,12 +186,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           {/* Driver */}
           <div className="space-y-1">
             <label className="text-[10px] text-muted-foreground">Driver</label>
-            <EditableSelect
+            <EditableCombobox
               value={load.driver_id ? String(load.driver_id) : null}
               displayValue={load.driver_name}
               onSave={handleDriverSelect}
               options={driverOpts}
               placeholder="Select driver..."
+              searchPlaceholder="Search drivers..."
               allowNone
               disabled={disabled}
             />
@@ -219,12 +221,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           {/* Truck */}
           <div className="space-y-1">
             <label className="text-[10px] text-muted-foreground">Truck</label>
-            <EditableSelect
+            <EditableCombobox
               value={load.truck_id ? String(load.truck_id) : null}
               displayValue={load.truck_unit ? `${load.truck_unit} ${load.truck_info ? `(${load.truck_info})` : ''}` : null}
               onSave={handleTruckSelect}
               options={truckOpts}
               placeholder="None"
+              searchPlaceholder="Search trucks..."
               allowNone
               disabled={disabled}
             />
@@ -233,12 +236,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           {/* Trailer */}
           <div className="space-y-1">
             <label className="text-[10px] text-muted-foreground">Trailer</label>
-            <EditableSelect
+            <EditableCombobox
               value={load.trailer_id ? String(load.trailer_id) : null}
               displayValue={load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : null}
               onSave={(v) => saveField('trailer_id', v)}
               options={trailerOpts}
               placeholder="None"
+              searchPlaceholder="Search trailers..."
               allowNone
               disabled={disabled}
             />
@@ -247,12 +251,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           {/* Team Driver */}
           <div className="space-y-1">
             <label className="text-[10px] text-muted-foreground">Team Driver</label>
-            <EditableSelect
+            <EditableCombobox
               value={load.driver2_id ? String(load.driver2_id) : null}
               displayValue={load.driver2_name}
               onSave={(v) => saveField('driver2_id', v)}
               options={driver2Opts}
               placeholder="None"
+              searchPlaceholder="Search drivers..."
               allowNone
               disabled={disabled}
             />

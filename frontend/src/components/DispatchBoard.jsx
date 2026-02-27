@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Package, Search, LayoutGrid, List, GanttChart, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Package, Search, LayoutGrid, List, GanttChart, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
 import LoadCard from './LoadCard';
 import LoadDetail from './LoadDetail';
 import DraftReviewModal from './DraftReviewModal';
@@ -168,7 +168,7 @@ export default function DispatchBoard() {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: loads = [], isLoading } = useQuery({
+  const { data: loads = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['loads'],
     queryFn: getLoads,
   });
@@ -254,6 +254,10 @@ export default function DispatchBoard() {
               />
             </div>
 
+            <Button onClick={() => refetch()} size="sm" variant="outline" className="h-8" disabled={isFetching}>
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+
             <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
               <Plus className="w-4 h-4" />
               New Load
@@ -304,6 +308,10 @@ export default function DispatchBoard() {
                   className="pl-9 w-52 h-8 text-xs"
                 />
               </div>
+
+              <Button onClick={() => refetch()} size="sm" variant="outline" className="h-8" disabled={isFetching}>
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+              </Button>
 
               <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
                 <Plus className="w-4 h-4" />

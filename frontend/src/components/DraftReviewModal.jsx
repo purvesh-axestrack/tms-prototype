@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -175,14 +176,14 @@ export default function DraftReviewModal({ emailImport, onClose }) {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Customer</Label><ConfidenceDot score={getFieldConfidence('broker_name')} /></div>
-                  <Select value={form.customer_id ? String(form.customer_id) : undefined} onValueChange={(v) => updateField('customer_id', v)} disabled={!isDraft}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="-- Select Customer --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    value={form.customer_id ? String(form.customer_id) : null}
+                    onValueChange={(v) => updateField('customer_id', v)}
+                    options={customers.map(c => ({ value: String(c.id), label: c.company_name }))}
+                    placeholder="-- Select Customer --"
+                    searchPlaceholder="Search customers..."
+                    disabled={!isDraft}
+                  />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-1"><Label className="text-xs">Rate ($)</Label><ConfidenceDot score={getFieldConfidence('rate_amount')} /></div>

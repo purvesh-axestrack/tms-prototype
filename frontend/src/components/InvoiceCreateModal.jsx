@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Loader2, AlertTriangle, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -87,17 +87,13 @@ export default function InvoiceCreateModal({ onClose }) {
 
           <div className="space-y-2">
             <Label>Customer</Label>
-            <Select
-              value={customerId || undefined}
+            <Combobox
+              value={customerId || null}
               onValueChange={(v) => { setCustomerId(v); setSelectedLoadIds([]); }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select customer..." />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+              options={customers.map(c => ({ value: String(c.id), label: c.company_name }))}
+              placeholder="Select customer..."
+              searchPlaceholder="Search customers..."
+            />
           </div>
 
           {customerId && (

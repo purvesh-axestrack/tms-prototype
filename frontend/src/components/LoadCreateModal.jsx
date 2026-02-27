@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
@@ -204,14 +205,14 @@ export default function LoadCreateModal({ onClose }) {
               <div className="space-y-2">
                 <Label>Customer <span className="text-red-400">*</span></Label>
                 <div className="flex gap-1.5">
-                  <Select value={form.customer_id || undefined} onValueChange={(v) => updateField('customer_id', v)}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select customer..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    value={form.customer_id || null}
+                    onValueChange={(v) => updateField('customer_id', v)}
+                    options={customers.map(c => ({ value: String(c.id), label: c.company_name }))}
+                    placeholder="Select customer..."
+                    searchPlaceholder="Search customers..."
+                    className="h-9"
+                  />
                   <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowCustomerForm(true)} title="New Customer">
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -252,12 +253,14 @@ export default function LoadCreateModal({ onClose }) {
               </div>
               <div className="space-y-2">
                 <Label>Booking Authority</Label>
-                <Select value={form.booking_authority_id || undefined} onValueChange={(v) => updateField('booking_authority_id', v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select carrier..." /></SelectTrigger>
-                  <SelectContent>
-                    {carriers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={form.booking_authority_id || null}
+                  onValueChange={(v) => updateField('booking_authority_id', v)}
+                  options={carriers.map(c => ({ value: String(c.id), label: c.company_name }))}
+                  placeholder="Select carrier..."
+                  searchPlaceholder="Search carriers..."
+                  allowClear
+                />
               </div>
               <div className="space-y-2">
                 <Label>Sales Agent</Label>

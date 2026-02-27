@@ -63,15 +63,19 @@ export default function LoadCard({ load, onClick }) {
           </div>
         </div>
 
-        {load.driver_name && (
+        {(load.driver_name || load.truck_unit || load.trailer_unit || (load.is_reefer && load.set_temp)) && (
           <div className="mt-2.5 pt-2 border-t">
             <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px] font-bold theme-brand-badge">
-                  {load.driver_name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs font-medium text-muted-foreground truncate">{load.driver_name}</span>
+              {load.driver_name && (
+                <>
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-[10px] font-bold theme-brand-badge">
+                      {load.driver_name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-medium text-muted-foreground truncate">{load.driver_name}</span>
+                </>
+              )}
               <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
                 {load.truck_unit && (
                   <span className="text-[10px] text-muted-foreground/70">T{load.truck_unit}</span>

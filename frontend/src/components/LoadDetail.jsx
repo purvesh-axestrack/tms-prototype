@@ -22,6 +22,7 @@ import LocationAutocomplete from './LocationAutocomplete';
 import LoadNotes from './LoadNotes';
 import EditableField from './EditableField';
 import EditableSelect from './EditableSelect';
+import { EditableCombobox, Combobox } from '@/components/ui/combobox';
 import useInlineLoadSave from '../hooks/useInlineLoadSave';
 import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS, RATE_TYPES } from '@/lib/constants';
 
@@ -255,12 +256,13 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
             <Card className="py-4">
               <CardContent>
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer</div>
-                <EditableSelect
+                <EditableCombobox
                   value={load.customer_id ? String(load.customer_id) : null}
                   displayValue={load.customer_name}
                   onSave={(v) => saveField('customer_id', v)}
                   options={customerOpts}
                   placeholder="Select customer"
+                  searchPlaceholder="Search customers..."
                   disabled={!editing}
                 />
               </CardContent>
@@ -315,24 +317,26 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Booking Authority</Label>
-                    <EditableSelect
+                    <EditableCombobox
                       value={load.booking_authority_id ? String(load.booking_authority_id) : null}
                       displayValue={load.booking_authority_name}
                       onSave={(v) => saveField('booking_authority_id', v)}
                       options={carrierOpts}
                       placeholder="None"
+                      searchPlaceholder="Search carriers..."
                       allowNone
                       disabled={!editing}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Sales Agent</Label>
-                    <EditableSelect
+                    <EditableCombobox
                       value={load.sales_agent_id ? String(load.sales_agent_id) : null}
                       displayValue={load.sales_agent_name}
                       onSave={(v) => saveField('sales_agent_id', v)}
                       options={userOpts}
                       placeholder="None"
+                      searchPlaceholder="Search users..."
                       allowNone
                       disabled={!editing}
                     />
@@ -816,12 +820,13 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Equipment</Label>
-                    <EditableSelect
+                    <EditableCombobox
                       value={load.equipment_type}
                       displayValue={load.equipment_type?.replaceAll('_', ' ')}
                       onSave={(v) => saveField('equipment_type', v)}
                       options={equipmentOpts}
                       placeholder="None"
+                      searchPlaceholder="Search equipment..."
                       allowNone
                       disabled={!editing}
                     />
@@ -904,16 +909,16 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Carrier *</Label>
-              <Select value={brokerCarrierId} onValueChange={setBrokerCarrierId}>
-                <SelectTrigger><SelectValue placeholder="Select a carrier..." /></SelectTrigger>
-                <SelectContent>
-                  {carriers.filter(c => c.status !== 'INACTIVE').map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.company_name} {c.mc_number ? `(MC# ${c.mc_number})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={brokerCarrierId}
+                onValueChange={(v) => setBrokerCarrierId(v || '')}
+                options={carriers.filter(c => c.status !== 'INACTIVE').map(c => ({
+                  value: c.id,
+                  label: `${c.company_name}${c.mc_number ? ` (MC# ${c.mc_number})` : ''}`,
+                }))}
+                placeholder="Select a carrier..."
+                searchPlaceholder="Search carriers..."
+              />
             </div>
             <div className="space-y-2">
               <Label>Carrier Rate ($)</Label>
