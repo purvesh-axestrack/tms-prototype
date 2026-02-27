@@ -12,6 +12,7 @@ export default function EditableField({
   suffix,
   formatDisplay,
   className,
+  disabled = false,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? '');
@@ -72,6 +73,18 @@ export default function EditableField({
   const display = formatDisplay
     ? formatDisplay(value)
     : (value != null && value !== '' ? String(value) : null);
+
+  if (disabled) {
+    return (
+      <div className={cn('flex items-center gap-1 px-1.5 py-0.5 -mx-1.5 min-w-0', className)}>
+        {prefix && <span className="text-muted-foreground text-xs shrink-0">{prefix}</span>}
+        <span className={cn('font-medium truncate', !display && 'text-muted-foreground italic')}>
+          {display || placeholder}
+        </span>
+        {suffix && <span className="text-muted-foreground text-xs shrink-0">{suffix}</span>}
+      </div>
+    );
+  }
 
   return (
     <button

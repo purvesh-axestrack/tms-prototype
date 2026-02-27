@@ -8,7 +8,7 @@ import { Loader2, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import EditableSelect from './EditableSelect';
 
-export default function DispatchCard({ load, drivers, trucks, trailers, carriers, saveField, saveFields, isSaving }) {
+export default function DispatchCard({ load, drivers, trucks, trailers, carriers, saveField, saveFields, isSaving, disabled = false }) {
   const [checking, setChecking] = useState(false);
   const [conflicts, setConflicts] = useState(null);
   const queryClient = useQueryClient();
@@ -75,8 +75,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
   const handleDriverSelect = async (driverId) => {
     if (!driverId) {
       setConflicts(null);
+      // Unassign driver
+      if (load.driver_id) saveField('driver_id', null);
       return;
     }
+
+    // Skip if selecting the same driver
+    if (String(driverId) === String(load.driver_id)) return;
 
     setChecking(true);
     setConflicts(null);
@@ -169,6 +174,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
                 options={carrierOpts}
                 placeholder="Own fleet"
                 allowNone
+                disabled={disabled}
               />
               {isBrokered && (
                 <Badge variant="outline" className="text-[10px] mt-1">Brokered</Badge>
@@ -177,34 +183,20 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
           )}
 
           {/* Driver */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 space-y-1">
-              <label className="text-[10px] text-muted-foreground">Driver</label>
-              {load.driver_id ? (
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-[10px] font-bold theme-brand-badge">
-                      {load.driver_name?.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-semibold text-sm">{load.driver_name}</div>
-                    {currentDriver && (
-                      <div className="text-[11px] text-muted-foreground">{currentDriver.phone} &middot; {currentDriver.pay_model}</div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <EditableSelect
-                  value={null}
-                  displayValue={null}
-                  onSave={handleDriverSelect}
-                  options={driverOpts}
-                  placeholder="Select driver..."
-                  allowNone
-                />
-              )}
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-muted-foreground">Driver</label>
+            <EditableSelect
+              value={load.driver_id ? String(load.driver_id) : null}
+              displayValue={load.driver_name}
+              onSave={handleDriverSelect}
+              options={driverOpts}
+              placeholder="Select driver..."
+              allowNone
+              disabled={disabled}
+            />
+            {currentDriver && load.driver_id && (
+              <div className="text-[11px] text-muted-foreground ml-1">{currentDriver.phone} &middot; {currentDriver.pay_model}</div>
+            )}
           </div>
 
           {/* Conflicts */}
@@ -234,6 +226,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
               options={truckOpts}
               placeholder="None"
               allowNone
+              disabled={disabled}
             />
           </div>
 
@@ -247,6 +240,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
               options={trailerOpts}
               placeholder="None"
               allowNone
+              disabled={disabled}
             />
           </div>
 
@@ -260,6 +254,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
               options={driver2Opts}
               placeholder="None"
               allowNone
+              disabled={disabled}
             />
           </div>
         </div>

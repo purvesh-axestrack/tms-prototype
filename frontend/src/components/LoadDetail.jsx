@@ -31,6 +31,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
   const [brokerCarrierId, setBrokerCarrierId] = useState('');
   const [brokerRate, setBrokerRate] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [editingStops, setEditingStops] = useState(false);
   const [stopDraft, setStopDraft] = useState([]);
   const queryClient = useQueryClient();
@@ -202,6 +203,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                   onSave={(v) => saveField('reference_number', v)}
                   placeholder="Reference number"
                   className="text-white/90 hover:bg-white/10 [&_svg]:text-white/50"
+                  disabled={!editing}
                 />
               </SheetDescription>
             </SheetHeader>
@@ -229,11 +231,22 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                   </>
                 )}
               </div>
-              {['OPEN', 'CANCELLED'].includes(load.status) && (
-                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {editing ? (
+                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                    <CheckCircle className="w-3.5 h-3.5" /> Done
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                    <Pencil className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                )}
+                {['OPEN', 'CANCELLED'].includes(load.status) && (
+                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Customer */}
@@ -246,6 +259,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                   onSave={(v) => saveField('customer_id', v)}
                   options={customerOpts}
                   placeholder="Select customer"
+                  disabled={!editing}
                 />
               </CardContent>
             </Card>
@@ -260,6 +274,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
               saveField={saveField}
               saveFields={saveFields}
               isSaving={isSaving}
+              disabled={!editing}
             />
 
             {/* Brokered carrier */}
@@ -305,6 +320,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       options={carrierOpts}
                       placeholder="None"
                       allowNone
+                      disabled={!editing}
                     />
                   </div>
                   <div className="space-y-1">
@@ -316,6 +332,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       options={userOpts}
                       placeholder="None"
                       allowNone
+                      disabled={!editing}
                     />
                   </div>
                   <div className="space-y-1">
@@ -324,6 +341,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       value={load.customer_ref_number}
                       onSave={(v) => saveField('customer_ref_number', v)}
                       placeholder="—"
+                      disabled={!editing}
                     />
                   </div>
                 </div>
@@ -349,7 +367,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       </Button>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={startEditStops}>
+                    <Button size="sm" variant="outline" onClick={startEditStops} disabled={!editing}>
                       <Pencil className="w-3.5 h-3.5" /> Edit Stops
                     </Button>
                   )}
@@ -477,10 +495,12 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] text-muted-foreground">Set Temp (&deg;F)</Label>
-                              <Input type="number" step="0.1" value={stop.stop_set_temp || ''} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-7 text-sm" placeholder="e.g. -10" />
-                            </div>
+                            {stop.stop_reefer_mode && (
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Set Temp (&deg;F)</Label>
+                                <Input type="number" step="0.1" value={stop.stop_set_temp || ''} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-7 text-sm" placeholder="e.g. -10" />
+                              </div>
+                            )}
                           </div>
                         )}
                         <div className="grid grid-cols-3 gap-2">
@@ -658,6 +678,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                     prefix="$"
                     formatDisplay={(v) => v != null ? Number(v).toLocaleString() : null}
                     className="text-2xl font-bold"
+                    disabled={!editing}
                   />
                   <EditableSelect
                     value={load.rate_type}
@@ -665,6 +686,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                     onSave={(v) => saveField('rate_type', v)}
                     options={rateTypeOpts}
                     className="mt-1"
+                    disabled={!editing}
                   />
                 </CardContent>
               </Card>
@@ -680,6 +702,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       type="number"
                       prefix="$"
                       formatDisplay={(v) => v != null && v > 0 ? Number(v).toFixed(2) : '0.00'}
+                      disabled={!editing}
                     />
                   </div>
                 </CardContent>
@@ -693,6 +716,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                     type="number"
                     suffix="mi"
                     className="text-lg font-bold"
+                    disabled={!editing}
                   />
                   <EditableField
                     value={load.weight}
@@ -701,6 +725,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                     suffix="lbs"
                     formatDisplay={(v) => v != null ? Number(v).toLocaleString() : null}
                     className="text-xs text-muted-foreground"
+                    disabled={!editing}
                   />
                 </CardContent>
               </Card>
@@ -785,7 +810,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Commodity</Label>
-                    <EditableField value={load.commodity} onSave={(v) => saveField('commodity', v)} placeholder="—" />
+                    <EditableField value={load.commodity} onSave={(v) => saveField('commodity', v)} placeholder="—" disabled={!editing} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Equipment</Label>
@@ -796,21 +821,23 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       options={equipmentOpts}
                       placeholder="None"
                       allowNone
+                      disabled={!editing}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Empty Miles</Label>
-                    <EditableField value={load.empty_miles} onSave={(v) => saveField('empty_miles', v)} type="number" />
+                    <EditableField value={load.empty_miles} onSave={(v) => saveField('empty_miles', v)} type="number" disabled={!editing} />
                   </div>
                   <div className="col-span-2 space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Special Instructions</Label>
-                    <EditableField value={load.special_instructions} onSave={(v) => saveField('special_instructions', v)} placeholder="—" />
+                    <EditableField value={load.special_instructions} onSave={(v) => saveField('special_instructions', v)} placeholder="—" disabled={!editing} />
                   </div>
                   <div className="col-span-2 flex gap-6 pt-1">
                     <label className="flex items-center gap-2 text-sm">
                       <Checkbox
                         checked={!!load.is_ltl}
                         onCheckedChange={(v) => saveField('is_ltl', !!v)}
+                        disabled={!editing}
                       />
                       LTL
                     </label>
@@ -818,6 +845,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       <Checkbox
                         checked={!!load.exclude_from_settlement}
                         onCheckedChange={(v) => saveField('exclude_from_settlement', !!v)}
+                        disabled={!editing}
                       />
                       Exclude from Settlement
                     </label>

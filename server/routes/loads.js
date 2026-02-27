@@ -286,9 +286,10 @@ export default function loadsRouter(db) {
     const pickupDate = stops[0]?.appointment_start;
     const deliveryDate = stops[stops.length - 1]?.appointment_end;
 
-    // Get driver's other loads with stop info for conflict check
+    // Get driver's other loads with stop info for conflict check (exclude current load)
     const driverLoads = await db('loads')
       .where({ driver_id })
+      .whereNot({ id: load.id })
       .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
       .select('loads.*');
 
@@ -325,6 +326,29 @@ export default function loadsRouter(db) {
     // Auto-transition to SCHEDULED if currently OPEN
     if (load.status === 'OPEN') {
       updates.status = 'SCHEDULED';
+    }
+
+    // Release old driver(s) if reassigning
+    if (load.driver_id && load.driver_id !== driver_id) {
+      const oldDriverOtherLoads = await db('loads')
+        .where({ driver_id: load.driver_id })
+        .whereNot({ id: load.id })
+        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+        .first();
+      if (!oldDriverOtherLoads) {
+        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      }
+    }
+    if (load.driver2_id && driver2_id !== undefined && load.driver2_id !== driver2_id) {
+      const oldD2OtherLoads = await db('loads')
+        .where({ driver_id: load.driver2_id })
+        .orWhere({ driver2_id: load.driver2_id })
+        .whereNot({ id: load.id })
+        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+        .first();
+      if (!oldD2OtherLoads) {
+        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+      }
     }
 
     await db('loads').where({ id: load.id }).update(updates);
@@ -408,7 +432,7 @@ export default function loadsRouter(db) {
     const allowedUpdates = [
       'reference_number', 'customer_id', 'rate_amount', 'loaded_miles',
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
-      'carrier_id', 'carrier_rate', 'truck_id', 'trailer_id',
+      'carrier_id', 'carrier_rate', 'driver_id', 'truck_id', 'trailer_id',
       'is_reefer', 'reefer_mode', 'set_temp', 'reefer_fuel_pct',
       'bol_number', 'po_number', 'pro_number', 'pickup_number', 'delivery_number',
       'is_ltl', 'exclude_from_settlement', 'driver2_id',

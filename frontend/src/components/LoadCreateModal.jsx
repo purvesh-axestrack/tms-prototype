@@ -444,10 +444,12 @@ export default function LoadCreateModal({ onClose }) {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Set Temp (&deg;F)</Label>
-                          <Input type="number" step="0.1" value={stop.stop_set_temp} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-8 text-sm" placeholder="e.g. -10" />
-                        </div>
+                        {stop.stop_reefer_mode && (
+                          <div className="space-y-1">
+                            <Label className="text-xs">Set Temp (&deg;F)</Label>
+                            <Input type="number" step="0.1" value={stop.stop_set_temp} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-8 text-sm" placeholder="e.g. -10" />
+                          </div>
+                        )}
                       </div>
                     )}
                     <div className="grid grid-cols-3 gap-3">

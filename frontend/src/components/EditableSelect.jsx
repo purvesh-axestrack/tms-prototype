@@ -10,6 +10,7 @@ export default function EditableSelect({
   placeholder = 'Select...',
   allowNone = false,
   className,
+  disabled = false,
 }) {
   const handleChange = (newVal) => {
     const result = newVal === '__NONE__' ? null : newVal;
@@ -27,6 +28,14 @@ export default function EditableSelect({
 
   const hasValue = value != null && value !== '';
   const selectVal = hasValue ? String(value) : (allowNone ? '__NONE__' : undefined);
+
+  if (disabled) {
+    return (
+      <div className={cn('flex items-center px-1.5 py-0.5 h-7 text-sm font-medium', !hasValue && 'text-muted-foreground italic', className)}>
+        {displayValue || (hasValue ? (options.find(o => String(o.value) === String(value))?.label || value) : placeholder)}
+      </div>
+    );
+  }
 
   return (
     <div className="relative group flex items-center">
