@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
 import { Plus, Building2, Search, Pencil, Trash2, Phone, Mail, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomerFormDialog from '../components/CustomerFormDialog';
@@ -314,6 +315,16 @@ export default function CustomersPage() {
                       </Table>
                     </div>
                   )}
+
+                  <Separator />
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { openEdit(detail); setSelectedId(null); }}>Edit Customer</Button>
+                    {detail.status !== 'INACTIVE' && (
+                      <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => { setConfirmDelete(detail); setSelectedId(null); }}>
+                        Deactivate
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </>
             )}

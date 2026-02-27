@@ -560,6 +560,16 @@ export default function DriversPage() {
                       </Table>
                     </div>
                   )}
+
+                  <Separator />
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { openEdit(detail); setSelectedId(null); }}>Edit Driver</Button>
+                    {detail.status !== 'INACTIVE' && (
+                      <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => { setConfirmDelete(detail); setSelectedId(null); }}>
+                        Deactivate
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </>
             )}
