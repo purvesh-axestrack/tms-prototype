@@ -270,6 +270,27 @@ export const deleteDocument = async (docId) => {
   return response.data;
 };
 
+// Load Notes
+export const getLoadNotes = async (loadId) => {
+  const response = await api.get(`/loads/${loadId}/notes`);
+  return response.data;
+};
+
+export const createLoadNote = async (loadId, note) => {
+  const response = await api.post(`/loads/${loadId}/notes`, { note });
+  return response.data;
+};
+
+export const updateLoadNote = async (loadId, noteId, note) => {
+  const response = await api.patch(`/loads/${loadId}/notes/${noteId}`, { note });
+  return response.data;
+};
+
+export const deleteLoadNote = async (loadId, noteId) => {
+  const response = await api.delete(`/loads/${loadId}/notes/${noteId}`);
+  return response.data;
+};
+
 // Helpers
 export const getApiBaseUrl = () => API_BASE_URL;
 

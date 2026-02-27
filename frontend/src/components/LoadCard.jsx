@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { MessageSquare } from 'lucide-react';
 import { LOAD_STATUS_COLORS as statusColors } from '@/lib/constants';
 
 function ConfidenceDot({ score }) {
@@ -77,7 +78,23 @@ export default function LoadCard({ load, onClick }) {
 
         <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t">
           <span className="text-muted-foreground font-medium">{load.loaded_miles} mi</span>
-          <span className="font-bold text-green-700">${Number(load.rate_amount || 0).toLocaleString()}</span>
+          <div className="flex items-center gap-2">
+            {load.notes_count > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-0.5 text-muted-foreground">
+                    <MessageSquare className="w-3 h-3" />
+                    <span className="text-[10px] font-medium">{load.notes_count}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  <p className="font-semibold">{load.latest_note?.user_name}</p>
+                  <p className="line-clamp-2 text-muted-foreground">{load.latest_note?.note}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <span className="font-bold text-green-700">${Number(load.rate_amount || 0).toLocaleString()}</span>
+          </div>
         </div>
       </CardContent>
     </Card>

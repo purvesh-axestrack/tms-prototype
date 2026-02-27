@@ -54,6 +54,21 @@ export default function loadsRouter(db) {
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
 
+    // Notes summary (count + latest note for card preview)
+    const notesAgg = await db('load_notes')
+      .where({ load_id: load.id })
+      .count('id as count')
+      .first();
+    const notes_count = parseInt(notesAgg?.count || 0);
+    const latest_note = notes_count > 0
+      ? await db('load_notes')
+          .join('users', 'load_notes.user_id', 'users.id')
+          .where({ 'load_notes.load_id': load.id })
+          .orderBy('load_notes.created_at', 'desc')
+          .select('load_notes.note', 'users.full_name as user_name', 'load_notes.created_at')
+          .first()
+      : null;
+
     // Split load references
     let parent_load = null;
     let child_loads = [];
@@ -94,6 +109,8 @@ export default function loadsRouter(db) {
       available_transitions: getAvailableTransitions(load.status),
       parent_load,
       child_loads,
+      notes_count,
+      latest_note,
     };
   }
 
@@ -459,6 +476,68 @@ export default function loadsRouter(db) {
 
     const enriched = await enrichLoad(child);
     res.status(201).json(enriched);
+  }));
+
+  // ── Load Notes CRUD ────────────────────────────────────────────────────
+
+  // GET /api/loads/:id/notes
+  router.get('/:id/notes', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const notes = await db('load_notes')
+      .join('users', 'load_notes.user_id', 'users.id')
+      .where({ 'load_notes.load_id': load.id })
+      .select('load_notes.*', 'users.full_name as user_name')
+      .orderBy('load_notes.created_at', 'desc');
+
+    res.json(notes);
+  }));
+
+  // POST /api/loads/:id/notes
+  router.post('/:id/notes', asyncHandler(async (req, res) => {
+    const load = await db('loads').where({ id: req.params.id }).first();
+    if (!load) return res.status(404).json({ error: 'Load not found' });
+
+    const { note } = req.body;
+    if (!note?.trim()) return res.status(400).json({ error: 'note is required' });
+
+    const [created] = await db('load_notes').insert({
+      load_id: load.id,
+      user_id: req.user.id,
+      note: note.trim(),
+    }).returning('*');
+
+    const user = await db('users').where({ id: req.user.id }).first();
+    res.status(201).json({ ...created, user_name: user?.full_name });
+  }));
+
+  // PATCH /api/loads/:id/notes/:noteId
+  router.patch('/:id/notes/:noteId', asyncHandler(async (req, res) => {
+    const existing = await db('load_notes').where({ id: req.params.noteId, load_id: req.params.id }).first();
+    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (existing.user_id !== req.user.id) return res.status(403).json({ error: 'Can only edit your own notes' });
+
+    const { note } = req.body;
+    if (!note?.trim()) return res.status(400).json({ error: 'note is required' });
+
+    await db('load_notes').where({ id: existing.id }).update({ note: note.trim() });
+    const updated = await db('load_notes')
+      .join('users', 'load_notes.user_id', 'users.id')
+      .where({ 'load_notes.id': existing.id })
+      .select('load_notes.*', 'users.full_name as user_name')
+      .first();
+    res.json(updated);
+  }));
+
+  // DELETE /api/loads/:id/notes/:noteId
+  router.delete('/:id/notes/:noteId', asyncHandler(async (req, res) => {
+    const existing = await db('load_notes').where({ id: req.params.noteId, load_id: req.params.id }).first();
+    if (!existing) return res.status(404).json({ error: 'Note not found' });
+    if (existing.user_id !== req.user.id) return res.status(403).json({ error: 'Can only delete your own notes' });
+
+    await db('load_notes').where({ id: existing.id }).del();
+    res.json({ message: 'Note deleted' });
   }));
 
   // DELETE /api/loads/:id

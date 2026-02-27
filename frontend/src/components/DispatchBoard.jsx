@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Package, Search, LayoutGrid, List, GanttChart } from 'lucide-react';
+import { Plus, Package, Search, LayoutGrid, List, GanttChart, ChevronUp, ChevronDown } from 'lucide-react';
 import LoadCard from './LoadCard';
 import LoadDetail from './LoadDetail';
 import DraftReviewModal from './DraftReviewModal';
@@ -165,6 +165,7 @@ export default function DispatchBoard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [view, setView] = useState('board');
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: loads = [], isLoading } = useQuery({
@@ -222,55 +223,117 @@ export default function DispatchBoard() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-display font-bold">Dispatch Board</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {filteredLoads.length} load{filteredLoads.length !== 1 ? 's' : ''}
-            {filteredLoads.length !== loads.length ? ` of ${loads.length}` : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v)} variant="outline" size="sm">
-            {VIEWS.map(v => {
-              const Icon = v.icon;
-              return (
-                <ToggleGroupItem key={v.key} value={v.key} className="text-xs gap-1.5 px-2.5 h-8">
-                  <Icon className="w-3.5 h-3.5" />
-                  {v.label}
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
+      {headerCollapsed ? (
+        /* ── Collapsed header: compact single-line bar ── */
+        <div className="mb-3 flex items-center justify-between gap-3 py-1">
+          <div className="flex items-center gap-3 min-w-0">
+            <h2 className="text-lg font-display font-bold whitespace-nowrap">Dispatch Board</h2>
+            <Badge variant="secondary" className="text-xs shrink-0">
+              {filteredLoads.length} load{filteredLoads.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v)} variant="outline" size="sm">
+              {VIEWS.map(v => {
+                const Icon = v.icon;
+                return (
+                  <ToggleGroupItem key={v.key} value={v.key} className="text-xs gap-1.5 px-2.5 h-8">
+                    <Icon className="w-3.5 h-3.5" />
+                    {v.label}
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
 
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={filters.search}
-              onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-              placeholder="Search loads..."
-              className="pl-9 w-52 h-8 text-xs"
-            />
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={filters.search}
+                onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                placeholder="Search loads..."
+                className="pl-9 w-44 h-8 text-xs"
+              />
+            </div>
+
+            <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
+              <Plus className="w-4 h-4" />
+              New Load
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => setHeaderCollapsed(false)}
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+              Show Filters
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* ── Expanded header: full header + filters ── */
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-display font-bold">Dispatch Board</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {filteredLoads.length} load{filteredLoads.length !== 1 ? 's' : ''}
+                {filteredLoads.length !== loads.length ? ` of ${loads.length}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v)} variant="outline" size="sm">
+                {VIEWS.map(v => {
+                  const Icon = v.icon;
+                  return (
+                    <ToggleGroupItem key={v.key} value={v.key} className="text-xs gap-1.5 px-2.5 h-8">
+                      <Icon className="w-3.5 h-3.5" />
+                      {v.label}
+                    </ToggleGroupItem>
+                  );
+                })}
+              </ToggleGroup>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={filters.search}
+                  onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                  placeholder="Search loads..."
+                  className="pl-9 w-52 h-8 text-xs"
+                />
+              </div>
+
+              <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
+                <Plus className="w-4 h-4" />
+                New Load
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-muted-foreground"
+                onClick={() => setHeaderCollapsed(true)}
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+                Collapse
+              </Button>
+            </div>
           </div>
 
-          <Button onClick={() => setShowCreateModal(true)} size="sm" className="theme-brand-bg text-white h-8">
-            <Plus className="w-4 h-4" />
-            New Load
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter bar */}
-      <LoadFilters
-        filters={filters}
-        onChange={setFilters}
-        loads={loads}
-        drivers={drivers}
-        customers={customers}
-        vehicles={vehicles}
-      />
+          {/* Filter bar */}
+          <LoadFilters
+            filters={filters}
+            onChange={setFilters}
+            loads={loads}
+            drivers={drivers}
+            customers={customers}
+            vehicles={vehicles}
+          />
+        </>
+      )}
 
       {/* Board view */}
       {view === 'board' && colCount > 0 && (
@@ -324,9 +387,9 @@ export default function DispatchBoard() {
 
       {selectedLoad && (
         <LoadDetail
-          load={selectedLoad}
+          loadId={selectedLoad.id}
+          initialData={selectedLoad}
           onClose={() => setSelectedLoad(null)}
-          onUpdate={() => { queryClient.invalidateQueries({ queryKey: ['loads'] }); setSelectedLoad(null); }}
         />
       )}
 

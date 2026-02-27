@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad, getUsers } from '../services/api';
+import { updateLoadStatus, updateLoad, deleteLoad, getDrivers, getCustomers, getCarriers, getVehicles, getLoadDocuments, uploadDocument, deleteDocument, getDocumentUrl, createSplitLoad, getUsers, getLoadById } from '../services/api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,61 +14,52 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, GripVertical, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye, Thermometer, ClipboardList } from 'lucide-react';
+import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAssignModal from './DriverAssignModal';
 import AccessorialEditor from './AccessorialEditor';
 import LocationAutocomplete from './LocationAutocomplete';
-import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS } from '@/lib/constants';
+import LoadNotes from './LoadNotes';
+import EditableField from './EditableField';
+import EditableSelect from './EditableSelect';
+import useInlineLoadSave from '../hooks/useInlineLoadSave';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS, RATE_TYPES } from '@/lib/constants';
 
-export default function LoadDetail({ load, onClose, onUpdate }) {
+export default function LoadDetail({ loadId, initialData, onClose }) {
   const [showDriverModal, setShowDriverModal] = useState(false);
   const [confirmTransition, setConfirmTransition] = useState(null);
   const [showBrokerDialog, setShowBrokerDialog] = useState(false);
   const [brokerCarrierId, setBrokerCarrierId] = useState('');
   const [brokerRate, setBrokerRate] = useState('');
-  const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingStops, setEditingStops] = useState(false);
+  const [stopDraft, setStopDraft] = useState([]);
   const queryClient = useQueryClient();
 
-  const { data: drivers = [] } = useQuery({
-    queryKey: ['drivers'],
-    queryFn: getDrivers,
+  // Self-fetch with initialData for instant display
+  const { data: load } = useQuery({
+    queryKey: ['loads', loadId],
+    queryFn: () => getLoadById(loadId),
+    initialData,
+    enabled: !!loadId,
   });
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
-    queryFn: getCustomers,
-    enabled: editing,
-  });
+  const { saveField, saveFields, isSaving } = useInlineLoadSave(loadId);
 
-  const { data: carriers = [] } = useQuery({
-    queryKey: ['carriers'],
-    queryFn: getCarriers,
-    enabled: showBrokerDialog || !!load.carrier_id || editing || !!load.booking_authority_id,
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: getUsers,
-    enabled: editing || !!load.sales_agent_id,
-  });
-
-  const { data: vehicles = [] } = useQuery({
-    queryKey: ['vehicles'],
-    queryFn: getVehicles,
-    enabled: editing,
-  });
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers });
+  const { data: carriers = [] } = useQuery({ queryKey: ['carriers'], queryFn: getCarriers });
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: getUsers });
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
 
   const tractors = vehicles.filter(v => v.type === 'TRACTOR' && v.status === 'ACTIVE');
   const trailers = vehicles.filter(v => v.type === 'TRAILER' && v.status === 'ACTIVE');
 
   const { data: documents = [], refetch: refetchDocs } = useQuery({
-    queryKey: ['documents', 'load', load.id],
-    queryFn: () => getLoadDocuments(load.id),
+    queryKey: ['documents', 'load', loadId],
+    queryFn: () => getLoadDocuments(loadId),
+    enabled: !!loadId,
   });
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -76,15 +67,12 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   const [previewDoc, setPreviewDoc] = useState(null);
 
   const splitMutation = useMutation({
-    mutationFn: () => createSplitLoad(load.id),
+    mutationFn: () => createSplitLoad(loadId),
     onSuccess: () => {
       toast.success('Split load created');
       queryClient.invalidateQueries({ queryKey: ['loads'] });
-      onUpdate();
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.error || 'Failed to create split');
-    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create split'),
   });
 
   const handleFileUpload = async (e) => {
@@ -92,7 +80,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
     if (!file) return;
     setUploadingDoc(true);
     try {
-      await uploadDocument(load.id, file, uploadDocType);
+      await uploadDocument(loadId, file, uploadDocType);
       toast.success('Document uploaded');
       refetchDocs();
       setUploadDocType('OTHER');
@@ -115,43 +103,35 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   };
 
   const statusMutation = useMutation({
-    mutationFn: (newStatus) => updateLoadStatus(load.id, newStatus),
+    mutationFn: (newStatus) => updateLoadStatus(loadId, newStatus),
     onSuccess: () => {
       toast.success('Status updated successfully');
       queryClient.invalidateQueries({ queryKey: ['loads'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
-      onUpdate();
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.error || 'Failed to update status');
-    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update status'),
   });
 
-  const editMutation = useMutation({
-    mutationFn: (updates) => updateLoad(load.id, updates),
+  const stopSaveMutation = useMutation({
+    mutationFn: (stops) => updateLoad(loadId, { stops }),
     onSuccess: () => {
-      toast.success('Load updated');
-      setEditing(false);
+      toast.success('Stops updated');
+      setEditingStops(false);
       queryClient.invalidateQueries({ queryKey: ['loads'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      onUpdate();
+      queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.error || 'Failed to update load');
-    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update stops'),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteLoad(load.id),
+    mutationFn: () => deleteLoad(loadId),
     onSuccess: () => {
       toast.success('Load deleted');
       queryClient.invalidateQueries({ queryKey: ['loads'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       onClose();
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.error || 'Failed to delete load');
-    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to delete load'),
   });
 
   const handleStatusChange = (newStatus) => {
@@ -165,10 +145,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
   };
 
   const handleBrokerSubmit = () => {
-    if (!brokerCarrierId) {
-      toast.error('Please select a carrier');
-      return;
-    }
+    if (!brokerCarrierId) { toast.error('Please select a carrier'); return; }
     statusMutation.mutate({
       status: 'BROKERED',
       carrier_id: brokerCarrierId,
@@ -177,77 +154,38 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
     setShowBrokerDialog(false);
   };
 
-  const startEditing = () => {
-    setEditData({
-      reference_number: load.reference_number || '',
-      customer_id: load.customer_id || '',
-      rate_amount: load.rate_amount || '',
-      rate_type: load.rate_type || 'FLAT',
-      loaded_miles: load.loaded_miles || 0,
-      empty_miles: load.empty_miles || 0,
-      commodity: load.commodity || '',
-      weight: load.weight || 0,
-      equipment_type: load.equipment_type || 'DRY_VAN',
-      fuel_surcharge_amount: load.fuel_surcharge_amount || 0,
-      special_instructions: load.special_instructions || '',
-      truck_id: load.truck_id || '',
-      trailer_id: load.trailer_id || '',
-      stops: (load.stops || []).map(s => ({ ...s })),
-      // Domain depth fields
-      is_reefer: load.is_reefer || false,
-      reefer_mode: load.reefer_mode || '',
-      set_temp: load.set_temp || '',
-      reefer_fuel_pct: load.reefer_fuel_pct || '',
-      bol_number: load.bol_number || '',
-      po_number: load.po_number || '',
-      pro_number: load.pro_number || '',
-      pickup_number: load.pickup_number || '',
-      delivery_number: load.delivery_number || '',
-      is_ltl: load.is_ltl || false,
-      exclude_from_settlement: load.exclude_from_settlement || false,
-      driver2_id: load.driver2_id || '',
-      booking_authority_id: load.booking_authority_id || '',
-      sales_agent_id: load.sales_agent_id || '',
-      customer_ref_number: load.customer_ref_number || '',
-    });
-    setEditing(true);
+  // ── Stop editing helpers ──
+  const startEditStops = () => {
+    setStopDraft((load.stops || []).map(s => ({ ...s })));
+    setEditingStops(true);
   };
-
-  const handleSave = () => {
-    const { stops, ...fields } = editData;
-    editMutation.mutate({ ...fields, stops });
-  };
-
   const updateStop = (index, field, value) => {
-    const newStops = [...editData.stops];
-    newStops[index] = { ...newStops[index], [field]: value };
-    setEditData({ ...editData, stops: newStops });
+    const updated = [...stopDraft];
+    updated[index] = { ...updated[index], [field]: value };
+    setStopDraft(updated);
   };
-
-  const addStop = () => {
-    const newStops = [...editData.stops, {
-      stop_type: 'DELIVERY',
-      facility_name: '',
-      address: '',
-      city: '',
-      state: '',
-      zip: '',
-      appointment_start: null,
-      appointment_end: null,
-    }];
-    setEditData({ ...editData, stops: newStops });
-  };
-
+  const addStop = () => setStopDraft([...stopDraft, {
+    stop_type: 'DELIVERY', facility_name: '', address: '', city: '', state: '', zip: '',
+    appointment_start: null, appointment_end: null,
+  }]);
   const removeStop = (index) => {
-    if (editData.stops.length <= 2) {
-      toast.error('A load must have at least 2 stops');
-      return;
-    }
-    const newStops = editData.stops.filter((_, i) => i !== index);
-    setEditData({ ...editData, stops: newStops });
+    if (stopDraft.length <= 2) { toast.error('A load must have at least 2 stops'); return; }
+    setStopDraft(stopDraft.filter((_, i) => i !== index));
   };
+
+  if (!load) return null;
 
   const currentDriver = drivers.find(d => d.id === load.driver_id);
+
+  // ── Build option arrays for EditableSelect ──
+  const customerOpts = customers.map(c => ({ value: String(c.id), label: c.company_name }));
+  const equipmentOpts = EQUIPMENT_TYPES.map(t => ({ value: t, label: t.replaceAll('_', ' ') }));
+  const rateTypeOpts = RATE_TYPES.map(t => ({ value: t, label: t === 'CPM' ? 'Per Mile' : t.charAt(0) + t.slice(1).toLowerCase() }));
+  const tractorOpts = tractors.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
+  const trailerOpts = trailers.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
+  const carrierOpts = carriers.map(c => ({ value: String(c.id), label: c.company_name }));
+  const userOpts = users.map(u => ({ value: String(u.id), label: u.full_name }));
+  const driver2Opts = drivers.filter(d => d.id !== load.driver_id).map(d => ({ value: String(d.id), label: d.full_name }));
 
   return (
     <>
@@ -263,26 +201,24 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                 {load.parent_load_id && <Badge className="bg-orange-100 text-orange-700">SPLIT LEG</Badge>}
                 {load.child_loads?.length > 0 && <Badge className="bg-purple-100 text-purple-700">SPLIT PARENT</Badge>}
                 {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
+                {isSaving && <Loader2 className="w-4 h-4 animate-spin text-white/60" />}
               </div>
               <SheetDescription className="theme-sidebar-text">
-                {editing ? (
-                  <Input
-                    value={editData.reference_number}
-                    onChange={(e) => setEditData({ ...editData, reference_number: e.target.value })}
-                    placeholder="Reference number"
-                    className="h-7 text-sm theme-sidebar-light text-white mt-1" style={{ borderColor: 'var(--theme-sidebar-border)' }}
-                  />
-                ) : (
-                  load.reference_number
-                )}
+                <EditableField
+                  value={load.reference_number}
+                  onSave={(v) => saveField('reference_number', v)}
+                  placeholder="Reference number"
+                  className="text-white/90 hover:bg-white/10 [&_svg]:text-white/50"
+                />
               </SheetDescription>
             </SheetHeader>
           </div>
 
           <div className="p-6 space-y-5">
+            {/* Actions bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-1">
-                {!editing && load.available_transitions?.length > 0 && (
+                {load.available_transitions?.length > 0 && (
                   <>
                     <span className="text-xs font-medium text-muted-foreground mr-1">Actions:</span>
                     {load.available_transitions.map(transition => (
@@ -300,51 +236,25 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   </>
                 )}
               </div>
-              {editing ? (
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-                    <X className="w-3.5 h-3.5" /> Cancel
-                  </Button>
-                  <Button size="sm" onClick={handleSave} disabled={editMutation.isPending} className="bg-green-600 hover:bg-green-700">
-                    {editMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    Save
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={startEditing}>
-                    <Pencil className="w-3.5 h-3.5" /> Edit
-                  </Button>
-                  {['OPEN', 'CANCELLED'].includes(load.status) && (
-                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </Button>
-                  )}
-                </div>
+              {['OPEN', 'CANCELLED'].includes(load.status) && (
+                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </Button>
               )}
             </div>
 
+            {/* Customer + Driver */}
             <div className="grid grid-cols-2 gap-4">
               <Card className="py-4">
                 <CardContent>
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer</div>
-                  {editing ? (
-                    <Select
-                      value={editData.customer_id ? String(editData.customer_id) : undefined}
-                      onValueChange={(v) => setEditData({ ...editData, customer_id: v })}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map(c => (
-                          <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="text-lg font-bold">{load.customer_name}</div>
-                  )}
+                  <EditableSelect
+                    value={load.customer_id ? String(load.customer_id) : null}
+                    displayValue={load.customer_name}
+                    onSave={(v) => saveField('customer_id', v)}
+                    options={customerOpts}
+                    placeholder="Select customer"
+                  />
                 </CardContent>
               </Card>
               <Card className="py-4">
@@ -353,8 +263,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Driver</div>
                     {!load.driver_id && (
                       <Button size="xs" onClick={() => setShowDriverModal(true)} className="theme-brand-bg text-white">
-                        <UserPlus className="w-3 h-3" />
-                        Assign
+                        <UserPlus className="w-3 h-3" /> Assign
                       </Button>
                     )}
                   </div>
@@ -379,6 +288,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </Card>
             </div>
 
+            {/* Brokered carrier */}
             {load.carrier_id && (
               <Card className="py-4 theme-brand-alert">
                 <CardContent>
@@ -408,103 +318,86 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             )}
 
             {/* Booking Authority / Sales Agent / Customer Ref */}
-            {(editing || load.booking_authority_name || load.sales_agent_name || load.customer_ref_number) && (
-              <Card className="py-4">
-                <CardContent>
-                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Load Metadata</div>
-                  {editing ? (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Booking Authority</Label>
-                        <Select value={editData.booking_authority_id ? String(editData.booking_authority_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, booking_authority_id: v === 'NONE' ? null : v })}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="Select carrier" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NONE">None</SelectItem>
-                            {carriers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Sales Agent</Label>
-                        <Select value={editData.sales_agent_id ? String(editData.sales_agent_id) : 'NONE'} onValueChange={(v) => setEditData({ ...editData, sales_agent_id: v === 'NONE' ? null : v })}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="Select user" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NONE">None</SelectItem>
-                            {users.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Customer Ref #</Label>
-                        <Input value={editData.customer_ref_number || ''} onChange={(e) => setEditData({ ...editData, customer_ref_number: e.target.value })} className="h-8" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      {load.booking_authority_name && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Book Auth</span>
-                          <span className="font-medium">{load.booking_authority_name}</span>
-                        </div>
-                      )}
-                      {load.sales_agent_name && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Sales Agent</span>
-                          <span className="font-medium">{load.sales_agent_name}</span>
-                        </div>
-                      )}
-                      {load.customer_ref_number && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Cust Ref #</span>
-                          <span className="font-medium">{load.customer_ref_number}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card className="py-4">
+              <CardContent>
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Load Metadata</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Booking Authority</Label>
+                    <EditableSelect
+                      value={load.booking_authority_id ? String(load.booking_authority_id) : null}
+                      displayValue={load.booking_authority_name}
+                      onSave={(v) => saveField('booking_authority_id', v)}
+                      options={carrierOpts}
+                      placeholder="None"
+                      allowNone
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Sales Agent</Label>
+                    <EditableSelect
+                      value={load.sales_agent_id ? String(load.sales_agent_id) : null}
+                      displayValue={load.sales_agent_name}
+                      onSave={(v) => saveField('sales_agent_id', v)}
+                      options={userOpts}
+                      placeholder="None"
+                      allowNone
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Customer Ref #</Label>
+                    <EditableField
+                      value={load.customer_ref_number}
+                      onSave={(v) => saveField('customer_ref_number', v)}
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Route Details / Stops */}
             <Card className="py-4">
               <CardContent>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Route Details</div>
-                  {editing && (
-                    <Button size="sm" variant="outline" onClick={addStop}>
-                      <Plus className="w-3.5 h-3.5" /> Add Stop
+                  {editingStops ? (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={addStop}>
+                        <Plus className="w-3.5 h-3.5" /> Add Stop
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingStops(false)}>
+                        <X className="w-3.5 h-3.5" /> Cancel
+                      </Button>
+                      <Button size="sm" onClick={() => stopSaveMutation.mutate(stopDraft)} disabled={stopSaveMutation.isPending} className="bg-green-600 hover:bg-green-700 text-white">
+                        {stopSaveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        Save Stops
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={startEditStops}>
+                      <Pencil className="w-3.5 h-3.5" /> Edit Stops
                     </Button>
                   )}
                 </div>
-                {editing ? (
+                {editingStops ? (
                   <div className="space-y-3">
-                    {editData.stops?.map((stop, index) => (
+                    {stopDraft.map((stop, index) => (
                       <div key={index} className="border rounded-lg p-3 space-y-2 relative">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                               stop.stop_type === 'PICKUP' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <Select
-                              value={stop.stop_type}
-                              onValueChange={(v) => updateStop(index, 'stop_type', v)}
-                            >
-                              <SelectTrigger className="h-7 w-32">
-                                <SelectValue />
-                              </SelectTrigger>
+                            }`}>{index + 1}</div>
+                            <Select value={stop.stop_type} onValueChange={(v) => updateStop(index, 'stop_type', v)}>
+                              <SelectTrigger className="h-7 w-32"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="PICKUP">Pickup</SelectItem>
                                 <SelectItem value="DELIVERY">Delivery</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => removeStop(index)}
-                          >
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removeStop(index)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -513,65 +406,27 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                             value={stop.facility_name || ''}
                             onChange={(val) => updateStop(index, 'facility_name', val)}
                             onSelect={(loc) => {
-                              const newStops = [...editData.stops];
-                              newStops[index] = {
-                                ...newStops[index],
-                                facility_name: loc.facility_name,
-                                address: loc.address || '',
-                                city: loc.city || '',
-                                state: loc.state || '',
-                                zip: loc.zip || '',
-                              };
-                              setEditData({ ...editData, stops: newStops });
+                              const newStops = [...stopDraft];
+                              newStops[index] = { ...newStops[index], facility_name: loc.facility_name, address: loc.address || '', city: loc.city || '', state: loc.state || '', zip: loc.zip || '' };
+                              setStopDraft(newStops);
                             }}
                             className="h-7 text-sm"
                           />
-                          <Input
-                            value={stop.address || ''}
-                            onChange={(e) => updateStop(index, 'address', e.target.value)}
-                            placeholder="Address"
-                            className="h-7 text-sm"
-                          />
-                          <Input
-                            value={stop.city || ''}
-                            onChange={(e) => updateStop(index, 'city', e.target.value)}
-                            placeholder="City"
-                            className="h-7 text-sm"
-                          />
+                          <Input value={stop.address || ''} onChange={(e) => updateStop(index, 'address', e.target.value)} placeholder="Address" className="h-7 text-sm" />
+                          <Input value={stop.city || ''} onChange={(e) => updateStop(index, 'city', e.target.value)} placeholder="City" className="h-7 text-sm" />
                           <div className="grid grid-cols-2 gap-2">
-                            <Input
-                              value={stop.state || ''}
-                              onChange={(e) => updateStop(index, 'state', e.target.value)}
-                              placeholder="ST"
-                              maxLength={2}
-                              className="h-7 text-sm"
-                            />
-                            <Input
-                              value={stop.zip || ''}
-                              onChange={(e) => updateStop(index, 'zip', e.target.value)}
-                              placeholder="ZIP"
-                              className="h-7 text-sm"
-                            />
+                            <Input value={stop.state || ''} onChange={(e) => updateStop(index, 'state', e.target.value)} placeholder="ST" maxLength={2} className="h-7 text-sm" />
+                            <Input value={stop.zip || ''} onChange={(e) => updateStop(index, 'zip', e.target.value)} placeholder="ZIP" className="h-7 text-sm" />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <Label className="text-[10px] text-muted-foreground">Appt Start</Label>
-                            <Input
-                              type="datetime-local"
-                              value={stop.appointment_start ? stop.appointment_start.slice(0, 16) : ''}
-                              onChange={(e) => updateStop(index, 'appointment_start', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                              className="h-7 text-sm"
-                            />
+                            <Input type="datetime-local" value={stop.appointment_start ? stop.appointment_start.slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_start', e.target.value ? new Date(e.target.value).toISOString() : null)} className="h-7 text-sm" />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[10px] text-muted-foreground">Appt End</Label>
-                            <Input
-                              type="datetime-local"
-                              value={stop.appointment_end ? stop.appointment_end.slice(0, 16) : ''}
-                              onChange={(e) => updateStop(index, 'appointment_end', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                              className="h-7 text-sm"
-                            />
+                            <Input type="datetime-local" value={stop.appointment_end ? stop.appointment_end.slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_end', e.target.value ? new Date(e.target.value).toISOString() : null)} className="h-7 text-sm" />
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
@@ -721,7 +576,6 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                               )}
                             </div>
                           </div>
-                          {/* Stop-level domain fields */}
                           {(stop.commodity || stop.weight || stop.quantity || stop.bol_number || stop.po_number || stop.ref_number || stop.stop_reefer_mode || stop.instructions) && (
                             <div className="mt-2 pt-2 border-t grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                               {(stop.quantity || stop.commodity || stop.weight) && (
@@ -759,7 +613,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             </Card>
 
             {/* Split Loads */}
-            {(load.parent_load || load.child_loads?.length > 0 || !load.parent_load_id) && (load.parent_load || load.child_loads?.length > 0) && (
+            {(load.parent_load || load.child_loads?.length > 0) && (
               <Card className="py-4 border-l-4 border-l-purple-400">
                 <CardContent>
                   <div className="flex items-center justify-between mb-3">
@@ -808,7 +662,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </Card>
             )}
 
-            {/* Create Split button for standalone loads with no children yet */}
+            {/* Create Split button for standalone loads */}
             {!load.parent_load_id && !load.child_loads?.length && (
               <div className="flex justify-end">
                 <Button size="sm" variant="outline" onClick={() => splitMutation.mutate()} disabled={splitMutation.isPending}>
@@ -818,88 +672,62 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </div>
             )}
 
+            {/* Rate / Revenue / Miles — inline editable */}
             <div className="grid grid-cols-3 gap-4">
               <Card className="py-4">
                 <CardContent>
                   <div className="text-xs text-muted-foreground mb-1">Line Haul</div>
-                  {editing ? (
-                    <div className="space-y-2">
-                      <Input
-                        type="number"
-                        value={editData.rate_amount}
-                        onChange={(e) => setEditData({ ...editData, rate_amount: e.target.value })}
-                        step="0.01"
-                        className="h-8"
-                      />
-                      <Select
-                        value={editData.rate_type}
-                        onValueChange={(v) => setEditData({ ...editData, rate_type: v })}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select rate type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FLAT">Flat</SelectItem>
-                          <SelectItem value="CPM">Per Mile</SelectItem>
-                          <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">${Number(load.rate_amount).toLocaleString()}</div>
-                      {load.fuel_surcharge_amount > 0 && (
-                        <div className="text-xs text-muted-foreground mt-1">+ ${Number(load.fuel_surcharge_amount).toFixed(2)} FSC</div>
-                      )}
-                    </>
-                  )}
+                  <EditableField
+                    value={load.rate_amount}
+                    onSave={(v) => saveField('rate_amount', v)}
+                    type="number"
+                    prefix="$"
+                    formatDisplay={(v) => v != null ? Number(v).toLocaleString() : null}
+                    className="text-2xl font-bold"
+                  />
+                  <EditableSelect
+                    value={load.rate_type}
+                    displayValue={load.rate_type === 'CPM' ? 'Per Mile' : load.rate_type}
+                    onSave={(v) => saveField('rate_type', v)}
+                    options={rateTypeOpts}
+                    className="mt-1"
+                  />
                 </CardContent>
               </Card>
               <Card className="py-4 bg-green-50">
                 <CardContent>
                   <div className="text-xs text-muted-foreground mb-1">Total Revenue</div>
-                  {editing ? (
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Fuel Surcharge</Label>
-                      <Input
-                        type="number"
-                        value={editData.fuel_surcharge_amount}
-                        onChange={(e) => setEditData({ ...editData, fuel_surcharge_amount: e.target.value })}
-                        step="0.01"
-                        className="h-8"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-2xl font-bold text-green-700">${Number(load.total_amount || load.rate_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                  )}
+                  <div className="text-2xl font-bold text-green-700">${Number(load.total_amount || load.rate_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                  <div className="mt-1">
+                    <Label className="text-[10px] text-muted-foreground">Fuel Surcharge</Label>
+                    <EditableField
+                      value={load.fuel_surcharge_amount}
+                      onSave={(v) => saveField('fuel_surcharge_amount', v)}
+                      type="number"
+                      prefix="$"
+                      formatDisplay={(v) => v != null && v > 0 ? Number(v).toFixed(2) : '0.00'}
+                    />
+                  </div>
                 </CardContent>
               </Card>
               <Card className="py-4">
                 <CardContent>
                   <div className="text-xs text-muted-foreground mb-1">Miles / Weight</div>
-                  {editing ? (
-                    <div className="space-y-2">
-                      <Input
-                        type="number"
-                        value={editData.loaded_miles}
-                        onChange={(e) => setEditData({ ...editData, loaded_miles: e.target.value })}
-                        placeholder="Loaded miles"
-                        className="h-8"
-                      />
-                      <Input
-                        type="number"
-                        value={editData.weight}
-                        onChange={(e) => setEditData({ ...editData, weight: e.target.value })}
-                        placeholder="Weight (lbs)"
-                        className="h-8"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="text-lg font-bold">{load.loaded_miles} mi</div>
-                      <div className="text-xs text-muted-foreground">{load.weight?.toLocaleString()} lbs</div>
-                    </>
-                  )}
+                  <EditableField
+                    value={load.loaded_miles}
+                    onSave={(v) => saveField('loaded_miles', v)}
+                    type="number"
+                    suffix="mi"
+                    className="text-lg font-bold"
+                  />
+                  <EditableField
+                    value={load.weight}
+                    onSave={(v) => saveField('weight', v)}
+                    type="number"
+                    suffix="lbs"
+                    formatDisplay={(v) => v != null ? Number(v).toLocaleString() : null}
+                    className="text-xs text-muted-foreground"
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -913,24 +741,15 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Documents</div>
                   <div className="flex items-center gap-2">
                     <Select value={uploadDocType} onValueChange={setUploadDocType}>
-                      <SelectTrigger className="h-7 w-[120px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {DOC_TYPES.map(t => (
-                          <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
-                        ))}
+                        {DOC_TYPES.map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Button size="sm" variant="outline" className="h-7 text-xs relative" disabled={uploadingDoc}>
                       {uploadingDoc ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
                       Upload
-                      <input
-                        type="file"
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={handleFileUpload}
-                        disabled={uploadingDoc}
-                      />
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} disabled={uploadingDoc} />
                     </Button>
                   </div>
                 </div>
@@ -958,12 +777,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
                               <Download className="w-3.5 h-3.5" />
                             </a>
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteDoc(doc.id)}
-                          >
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteDoc(doc.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -974,6 +788,10 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </CardContent>
             </Card>
 
+            {/* Load Notes */}
+            <LoadNotes loadId={load.id} />
+
+            {/* Invoice status */}
             {load.invoice_id ? (
               <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
                 <CheckCircle className="w-4 h-4 text-green-600" />
@@ -986,149 +804,82 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               </div>
             ) : null}
 
+            {/* Additional Details — inline editable */}
             <Card className="py-4">
               <CardContent>
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Additional Details</div>
-                {editing ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Commodity</Label>
-                      <Input
-                        value={editData.commodity}
-                        onChange={(e) => setEditData({ ...editData, commodity: e.target.value })}
-                        className="h-8"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Equipment</Label>
-                      <Select
-                        value={editData.equipment_type}
-                        onValueChange={(v) => setEditData({ ...editData, equipment_type: v })}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select equipment" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {EQUIPMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Empty Miles</Label>
-                      <Input
-                        type="number"
-                        value={editData.empty_miles}
-                        onChange={(e) => setEditData({ ...editData, empty_miles: e.target.value })}
-                        className="h-8"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Tractor</Label>
-                      <Select
-                        value={editData.truck_id || 'NONE'}
-                        onValueChange={(v) => setEditData({ ...editData, truck_id: v === 'NONE' ? null : v })}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select tractor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          {tractors.map(v => <SelectItem key={v.id} value={v.id}>{v.unit_number} - {v.make} {v.model}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Trailer</Label>
-                      <Select
-                        value={editData.trailer_id || 'NONE'}
-                        onValueChange={(v) => setEditData({ ...editData, trailer_id: v === 'NONE' ? null : v })}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Select trailer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          {trailers.map(v => <SelectItem key={v.id} value={v.id}>{v.unit_number} - {v.make} {v.model}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2 space-y-1">
-                      <Label className="text-xs">Special Instructions</Label>
-                      <Textarea
-                        value={editData.special_instructions}
-                        onChange={(e) => setEditData({ ...editData, special_instructions: e.target.value })}
-                        rows={2}
-                      />
-                    </div>
-                    <Separator className="col-span-2" />
-                    <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Flags</div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Team Driver</Label>
-                      <Select value={editData.driver2_id || 'NONE'} onValueChange={(v) => setEditData({ ...editData, driver2_id: v === 'NONE' ? null : v })}>
-                        <SelectTrigger className="h-8"><SelectValue placeholder="Select driver" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NONE">None</SelectItem>
-                          {drivers.filter(d => d.id !== load.driver_id).map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center gap-6 pt-3">
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox checked={editData.is_ltl} onCheckedChange={(v) => setEditData({ ...editData, is_ltl: !!v })} />
-                        LTL
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox checked={editData.exclude_from_settlement} onCheckedChange={(v) => setEditData({ ...editData, exclude_from_settlement: !!v })} />
-                        Exclude from Settlement
-                      </label>
-                    </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Commodity</Label>
+                    <EditableField value={load.commodity} onSave={(v) => saveField('commodity', v)} placeholder="—" />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Commodity</span>
-                      <span className="font-medium">{load.commodity || '\u2014'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Equipment</span>
-                      <span className="font-medium">{load.equipment_type || '\u2014'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Empty Miles</span>
-                      <span className="font-medium">{load.empty_miles}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Rate Type</span>
-                      <span className="font-medium">{load.rate_type}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Tractor</span>
-                      <span className="font-medium">{load.truck_unit ? `${load.truck_unit} ${load.truck_info ? `(${load.truck_info})` : ''}` : '\u2014'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Trailer</span>
-                      <span className="font-medium">{load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : '\u2014'}</span>
-                    </div>
-                    {load.driver2_name && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Team Driver</span>
-                        <span className="font-medium">{load.driver2_name}</span>
-                      </div>
-                    )}
-                    {load.special_instructions && (
-                      <div className="col-span-2 flex items-start gap-2">
-                        <span className="text-muted-foreground text-xs w-20 flex-shrink-0">Instructions</span>
-                        <span className="font-medium">{load.special_instructions}</span>
-                      </div>
-                    )}
-                    {(load.is_ltl || load.exclude_from_settlement) && (
-                      <div className="col-span-2 flex gap-2 pt-1">
-                        {load.is_ltl && <Badge className="bg-cyan-100 text-cyan-700">LTL</Badge>}
-                        {load.exclude_from_settlement && <Badge className="bg-red-100 text-red-700">Excluded from Settlement</Badge>}
-                      </div>
-                    )}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Equipment</Label>
+                    <EditableSelect
+                      value={load.equipment_type}
+                      displayValue={load.equipment_type?.replaceAll('_', ' ')}
+                      onSave={(v) => saveField('equipment_type', v)}
+                      options={equipmentOpts}
+                    />
                   </div>
-                )}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Empty Miles</Label>
+                    <EditableField value={load.empty_miles} onSave={(v) => saveField('empty_miles', v)} type="number" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Tractor</Label>
+                    <EditableSelect
+                      value={load.truck_id ? String(load.truck_id) : null}
+                      displayValue={load.truck_unit ? `${load.truck_unit} ${load.truck_info ? `(${load.truck_info})` : ''}` : null}
+                      onSave={(v) => saveField('truck_id', v)}
+                      options={tractorOpts}
+                      placeholder="None"
+                      allowNone
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Trailer</Label>
+                    <EditableSelect
+                      value={load.trailer_id ? String(load.trailer_id) : null}
+                      displayValue={load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : null}
+                      onSave={(v) => saveField('trailer_id', v)}
+                      options={trailerOpts}
+                      placeholder="None"
+                      allowNone
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Team Driver</Label>
+                    <EditableSelect
+                      value={load.driver2_id ? String(load.driver2_id) : null}
+                      displayValue={load.driver2_name}
+                      onSave={(v) => saveField('driver2_id', v)}
+                      options={driver2Opts}
+                      placeholder="None"
+                      allowNone
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Special Instructions</Label>
+                    <EditableField value={load.special_instructions} onSave={(v) => saveField('special_instructions', v)} placeholder="—" />
+                  </div>
+                  <div className="col-span-2 flex gap-6 pt-1">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={!!load.is_ltl}
+                        onCheckedChange={(v) => saveField('is_ltl', !!v)}
+                      />
+                      LTL
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={!!load.exclude_from_settlement}
+                        onCheckedChange={(v) => saveField('exclude_from_settlement', !!v)}
+                      />
+                      Exclude from Settlement
+                    </label>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1142,7 +893,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
           onAssigned={() => {
             setShowDriverModal(false);
             queryClient.invalidateQueries({ queryKey: ['loads'] });
-            onUpdate();
+            queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
           }}
         />
       )}
@@ -1157,11 +908,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
               {deleteMutation.isPending ? 'Deleting...' : 'Delete Load'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1178,10 +925,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              statusMutation.mutate(confirmTransition);
-              setConfirmTransition(null);
-            }}>
+            <AlertDialogAction onClick={() => { statusMutation.mutate(confirmTransition); setConfirmTransition(null); }}>
               Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1200,9 +944,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             <div className="space-y-2">
               <Label>Carrier *</Label>
               <Select value={brokerCarrierId} onValueChange={setBrokerCarrierId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a carrier..." />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select a carrier..." /></SelectTrigger>
                 <SelectContent>
                   {carriers.filter(c => c.status === 'ACTIVE').map(c => (
                     <SelectItem key={c.id} value={c.id}>
@@ -1214,13 +956,7 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
             </div>
             <div className="space-y-2">
               <Label>Carrier Rate ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={brokerRate}
-                onChange={(e) => setBrokerRate(e.target.value)}
-                placeholder="e.g. 2500.00"
-              />
+              <Input type="number" step="0.01" value={brokerRate} onChange={(e) => setBrokerRate(e.target.value)} placeholder="e.g. 2500.00" />
             </div>
             {brokerRate && (
               <Card className="py-3">
@@ -1264,22 +1000,13 @@ export default function LoadDetail({ load, onClose, onUpdate }) {
               const ext = previewDoc.filename?.split('.').pop()?.toLowerCase();
               const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
               const isPdf = ext === 'pdf';
-
-              if (isPdf) {
-                return <iframe src={url} className="w-full h-[60vh] rounded-lg border" title={previewDoc.filename} />;
-              }
-              if (isImage) {
-                return <img src={url} alt={previewDoc.filename} className="max-w-full max-h-[60vh] mx-auto rounded-lg object-contain" />;
-              }
+              if (isPdf) return <iframe src={url} className="w-full h-[60vh] rounded-lg border" title={previewDoc.filename} />;
+              if (isImage) return <img src={url} alt={previewDoc.filename} className="max-w-full max-h-[60vh] mx-auto rounded-lg object-contain" />;
               return (
                 <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-muted-foreground">
                   <FileText className="w-12 h-12" />
                   <p>Preview not available for this file type</p>
-                  <Button asChild>
-                    <a href={url} target="_blank" rel="noopener noreferrer">
-                      <Download className="w-4 h-4" /> Download File
-                    </a>
-                  </Button>
+                  <Button asChild><a href={url} target="_blank" rel="noopener noreferrer"><Download className="w-4 h-4" /> Download File</a></Button>
                 </div>
               );
             })()}
