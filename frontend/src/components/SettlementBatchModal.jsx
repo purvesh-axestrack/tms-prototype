@@ -72,9 +72,9 @@ export default function SettlementBatchModal({ onClose }) {
           )}
 
           {result ? (
-            <div>
+            <div className="space-y-4">
               {result.generated > 0 && (
-                <Card className="py-4 bg-green-50 border-green-100 mb-4">
+                <Card className="py-4 bg-green-50 border-green-100">
                   <CardContent>
                     <div className="flex items-center gap-2 font-semibold text-green-700 mb-3">
                       <CheckCircle className="w-5 h-5" />
@@ -91,6 +91,31 @@ export default function SettlementBatchModal({ onClose }) {
                   </CardContent>
                 </Card>
               )}
+              {result.generated === 0 && !result.errors?.length && (
+                <Card className="py-4 bg-amber-50 border-amber-100">
+                  <CardContent>
+                    <div className="flex items-center gap-2 font-semibold text-amber-700">
+                      <AlertTriangle className="w-5 h-5" />
+                      No settlements generated
+                    </div>
+                    <p className="text-sm text-amber-600 mt-1">
+                      No drivers had eligible completed/invoiced loads in this period. Check that loads are marked COMPLETED with a delivery date in the selected range.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              {result.skipped_drivers?.length > 0 && (
+                <Card className="py-4 bg-slate-50 border-slate-100">
+                  <CardContent>
+                    <div className="font-semibold text-muted-foreground text-sm mb-2">Skipped ({result.skipped} drivers — no loads in period):</div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      {result.skipped_drivers.map((s, i) => (
+                        <div key={i}>{s.driver_name}</div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               {result.errors?.length > 0 && (
                 <Card className="py-4 bg-red-50 border-red-100">
                   <CardContent>
@@ -101,7 +126,7 @@ export default function SettlementBatchModal({ onClose }) {
                   </CardContent>
                 </Card>
               )}
-              <DialogFooter className="mt-5">
+              <DialogFooter>
                 <Button onClick={onClose} className="theme-brand-bg text-white">Done</Button>
               </DialogFooter>
             </div>

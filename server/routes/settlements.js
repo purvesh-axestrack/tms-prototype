@@ -113,6 +113,7 @@ export default function settlementsRouter(db) {
     }
 
     const results = [];
+    const skipped = [];
     const errors = [];
 
     for (const driver of drivers) {
@@ -120,6 +121,8 @@ export default function settlementsRouter(db) {
         const settlement = await generateSettlement(db, driver.id, period_start, period_end, req.user.id);
         if (settlement) {
           results.push(settlement);
+        } else {
+          skipped.push({ driver_id: driver.id, driver_name: driver.full_name, reason: 'No eligible loads in period' });
         }
       } catch (err) {
         errors.push({ driver_id: driver.id, driver_name: driver.full_name, error: err.message });
@@ -128,7 +131,9 @@ export default function settlementsRouter(db) {
 
     res.json({
       generated: results.length,
+      skipped: skipped.length,
       settlements: results,
+      skipped_drivers: skipped.length > 0 ? skipped : undefined,
       errors: errors.length > 0 ? errors : undefined,
     });
   }));
