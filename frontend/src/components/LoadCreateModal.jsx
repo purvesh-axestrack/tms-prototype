@@ -17,6 +17,7 @@ import { Plus, X, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
 import { toast } from 'sonner';
 import { EQUIPMENT_TYPES, STOP_ACTION_TYPES, STOP_ACTION_TYPE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS } from '@/lib/constants';
 import LocationAutocomplete from './LocationAutocomplete';
+import CustomerFormDialog from './CustomerFormDialog';
 
 const emptyStop = () => ({
   stop_type: 'PICKUP',
@@ -44,6 +45,7 @@ const emptyStop = () => ({
 export default function LoadCreateModal({ onClose }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
 
   const [form, setForm] = useState({
     reference_number: '',
@@ -201,14 +203,19 @@ export default function LoadCreateModal({ onClose }) {
               </div>
               <div className="space-y-2">
                 <Label>Customer <span className="text-red-400">*</span></Label>
-                <Select value={form.customer_id || undefined} onValueChange={(v) => updateField('customer_id', v)}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select customer..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select value={form.customer_id || undefined} onValueChange={(v) => updateField('customer_id', v)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select customer..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setShowCustomerForm(true)} title="New Customer">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Equipment Type</Label>
@@ -487,6 +494,17 @@ export default function LoadCreateModal({ onClose }) {
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {showCustomerForm && (
+        <CustomerFormDialog
+          open={showCustomerForm}
+          onOpenChange={(open) => !open && setShowCustomerForm(false)}
+          onSuccess={(created) => {
+            if (created?.id) updateField('customer_id', String(created.id));
+            setShowCustomerForm(false);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

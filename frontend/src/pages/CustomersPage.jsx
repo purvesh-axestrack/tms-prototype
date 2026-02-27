@@ -1,27 +1,22 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCustomers, createCustomer, updateCustomer, deleteCustomer, getCustomerById } from '../services/api';
+import { getCustomers, deleteCustomer, getCustomerById } from '../services/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Building2, Search, Pencil, Trash2, Loader2, Phone, Mail, MapPin } from 'lucide-react';
+import { Plus, Building2, Search, Pencil, Trash2, Phone, Mail, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-
-const EMPTY_FORM = { company_name: '', customer_type: '', mc_number: '', dot_number: '', billing_email: '', payment_terms: 30, phone: '', contact_name: '', address: '', city: '', state: '', zip: '', credit_limit: '' };
+import CustomerFormDialog from '../components/CustomerFormDialog';
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
   const [selectedId, setSelectedId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const queryClient = useQueryClient();
@@ -47,27 +42,6 @@ export default function CustomersPage() {
     );
   }, [customers, search]);
 
-  const createMutation = useMutation({
-    mutationFn: createCustomer,
-    onSuccess: () => {
-      toast.success('Customer created');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      closeForm();
-    },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateCustomer(id, data),
-    onSuccess: () => {
-      toast.success('Customer updated');
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', editingCustomer?.id] });
-      closeForm();
-    },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update'),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: deleteCustomer,
     onSuccess: () => {
@@ -80,46 +54,18 @@ export default function CustomersPage() {
 
   const openCreate = () => {
     setEditingCustomer(null);
-    setFormData(EMPTY_FORM);
     setShowForm(true);
   };
 
   const openEdit = (customer) => {
     setEditingCustomer(customer);
-    setFormData({
-      company_name: customer.company_name || '',
-      customer_type: customer.customer_type || '',
-      mc_number: customer.mc_number || '',
-      dot_number: customer.dot_number || '',
-      billing_email: customer.billing_email || '',
-      payment_terms: customer.payment_terms || 30,
-      phone: customer.phone || '',
-      contact_name: customer.contact_name || '',
-      address: customer.address || '',
-      city: customer.city || '',
-      state: customer.state || '',
-      zip: customer.zip || '',
-      credit_limit: customer.credit_limit || '',
-    });
     setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
     setEditingCustomer(null);
-    setFormData(EMPTY_FORM);
   };
-
-  const handleSubmit = () => {
-    if (!formData.company_name.trim()) return toast.error('Company name is required');
-    if (editingCustomer) {
-      updateMutation.mutate({ id: editingCustomer.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
-  };
-
-  const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div>
@@ -210,90 +156,14 @@ export default function CustomersPage() {
       </div>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => !open && closeForm()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Company Name *</Label>
-                <Input value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} placeholder="e.g., CH Robinson" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Type</Label>
-                <Select value={formData.customer_type || 'NONE'} onValueChange={(v) => setFormData({ ...formData, customer_type: v === 'NONE' ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NONE">Not specified</SelectItem>
-                    <SelectItem value="BROKER">Broker</SelectItem>
-                    <SelectItem value="SHIPPER">Shipper</SelectItem>
-                    <SelectItem value="PARTNER">Partner</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Contact Name</Label>
-                <Input value={formData.contact_name} onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })} placeholder="Jane Doe" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Phone</Label>
-                <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(555) 123-4567" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Billing Email</Label>
-              <Input type="email" value={formData.billing_email} onChange={(e) => setFormData({ ...formData, billing_email: e.target.value })} placeholder="ap@company.com" />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>MC Number</Label>
-                <Input value={formData.mc_number} onChange={(e) => setFormData({ ...formData, mc_number: e.target.value })} placeholder="MC123456" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>DOT Number</Label>
-                <Input value={formData.dot_number} onChange={(e) => setFormData({ ...formData, dot_number: e.target.value })} placeholder="DOT123456" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Payment Terms</Label>
-                <Input type="number" value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: parseInt(e.target.value) || 30 })} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="123 Main St" />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label>City</Label>
-                <Input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="Chicago" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>State</Label>
-                <Input value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} placeholder="IL" maxLength={2} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>ZIP</Label>
-                <Input value={formData.zip} onChange={(e) => setFormData({ ...formData, zip: e.target.value })} placeholder="60601" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Credit Limit ($)</Label>
-              <Input type="number" step="0.01" value={formData.credit_limit} onChange={(e) => setFormData({ ...formData, credit_limit: e.target.value })} placeholder="50000.00" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeForm}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isPending} className="theme-brand-bg text-white">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {editingCustomer ? 'Save Changes' : 'Create Customer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {showForm && (
+        <CustomerFormDialog
+          open={showForm}
+          onOpenChange={(open) => !open && closeForm()}
+          editingCustomer={editingCustomer}
+          onSuccess={() => closeForm()}
+        />
+      )}
 
       {/* Detail Sheet */}
       {selectedId && (
