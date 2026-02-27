@@ -264,12 +264,14 @@ export default function LoadCreateModal({ onClose }) {
               </div>
               <div className="space-y-2">
                 <Label>Sales Agent</Label>
-                <Select value={form.sales_agent_id || undefined} onValueChange={(v) => updateField('sales_agent_id', v)}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select user..." /></SelectTrigger>
-                  <SelectContent>
-                    {users.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.full_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={form.sales_agent_id || null}
+                  onValueChange={(v) => updateField('sales_agent_id', v)}
+                  options={users.map(u => ({ value: String(u.id), label: u.full_name }))}
+                  placeholder="Select user..."
+                  searchPlaceholder="Search users..."
+                  allowClear
+                />
               </div>
             </div>
           </div>
