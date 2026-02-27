@@ -232,14 +232,16 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {editing ? (
-                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-                    <CheckCircle className="w-3.5 h-3.5" /> Done
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-                    <Pencil className="w-3.5 h-3.5" /> Edit
-                  </Button>
+                {!['COMPLETED', 'INVOICED'].includes(load.status) && (
+                  editing ? (
+                    <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                      <CheckCircle className="w-3.5 h-3.5" /> Done
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                      <Pencil className="w-3.5 h-3.5" /> Edit
+                    </Button>
+                  )
                 )}
                 {['OPEN', 'CANCELLED'].includes(load.status) && (
                   <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>

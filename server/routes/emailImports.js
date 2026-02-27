@@ -18,14 +18,26 @@ export default function emailImportsRouter(db) {
       .limit(parseInt(limit))
       .offset(offset);
 
-    // Enrich with load info
-    const enriched = await Promise.all(imports.map(async (imp) => {
-      let load = null;
-      if (imp.load_id) {
-        load = await db('loads').where({ id: imp.load_id }).first();
-      }
-      const docs = await db('documents').where({ email_import_id: imp.id });
-      return { ...imp, load, documents: docs };
+    // Batch enrich instead of N+1
+    const importIds = imports.map(i => i.id);
+    const loadIds = [...new Set(imports.map(i => i.load_id).filter(Boolean))];
+
+    const [loadsArr, allDocs] = await Promise.all([
+      loadIds.length ? db('loads').whereIn('id', loadIds) : [],
+      importIds.length ? db('documents').whereIn('email_import_id', importIds) : [],
+    ]);
+
+    const loadsMap = Object.fromEntries(loadsArr.map(l => [l.id, l]));
+    const docsByImport = {};
+    for (const doc of allDocs) {
+      if (!docsByImport[doc.email_import_id]) docsByImport[doc.email_import_id] = [];
+      docsByImport[doc.email_import_id].push(doc);
+    }
+
+    const enriched = imports.map(imp => ({
+      ...imp,
+      load: imp.load_id ? (loadsMap[imp.load_id] || null) : null,
+      documents: docsByImport[imp.id] || [],
     }));
 
     res.json({
@@ -84,29 +96,31 @@ export default function emailImportsRouter(db) {
       if (updates[field] !== undefined) loadUpdates[field] = updates[field];
     });
 
-    await db('loads').where({ id: imp.load_id }).update(loadUpdates);
+    await db.transaction(async (trx) => {
+      await trx('loads').where({ id: imp.load_id }).update(loadUpdates);
 
-    // Update stops if provided
-    if (updates.stops) {
-      await db('stops').where({ load_id: imp.load_id }).del();
-      const stopRows = updates.stops.map((stop, index) => ({
-        id: stop.id || `s${Date.now()}-${index}`,
-        load_id: imp.load_id,
-        sequence_order: index + 1,
-        stop_type: stop.stop_type,
-        facility_name: stop.facility_name || '',
-        address: stop.address || '',
-        city: stop.city || '',
-        state: stop.state || '',
-        zip: stop.zip || '',
-        appointment_start: stop.appointment_start || null,
-        appointment_end: stop.appointment_end || null,
-      }));
-      await db('stops').insert(stopRows);
-    }
+      // Update stops if provided
+      if (updates.stops) {
+        await trx('stops').where({ load_id: imp.load_id }).del();
+        const stopRows = updates.stops.map((stop, index) => ({
+          id: stop.id || `s${Date.now()}-${index}`,
+          load_id: imp.load_id,
+          sequence_order: index + 1,
+          stop_type: stop.stop_type,
+          facility_name: stop.facility_name || '',
+          address: stop.address || '',
+          city: stop.city || '',
+          state: stop.state || '',
+          zip: stop.zip || '',
+          appointment_start: stop.appointment_start || null,
+          appointment_end: stop.appointment_end || null,
+        }));
+        await trx('stops').insert(stopRows);
+      }
 
-    // Update import status
-    await db('email_imports').where({ id: imp.id }).update({ processing_status: 'APPROVED' });
+      // Update import status
+      await trx('email_imports').where({ id: imp.id }).update({ processing_status: 'APPROVED' });
+    });
 
     const updatedLoad = await db('loads').where({ id: imp.load_id }).first();
     const stops = await db('stops').where({ load_id: updatedLoad.id }).orderBy('sequence_order');
@@ -123,11 +137,12 @@ export default function emailImportsRouter(db) {
       return res.status(400).json({ error: `Cannot reject import in ${imp.processing_status} status` });
     }
 
-    if (imp.load_id) {
-      await db('loads').where({ id: imp.load_id }).update({ status: 'CANCELLED' });
-    }
-
-    await db('email_imports').where({ id: imp.id }).update({ processing_status: 'REJECTED' });
+    await db.transaction(async (trx) => {
+      if (imp.load_id) {
+        await trx('loads').where({ id: imp.load_id }).update({ status: 'CANCELLED' });
+      }
+      await trx('email_imports').where({ id: imp.id }).update({ processing_status: 'REJECTED' });
+    });
 
     res.json({ ...imp, processing_status: 'REJECTED' });
   }));

@@ -304,69 +304,73 @@ export default function loadsRouter(db) {
 
     const totalAmount = calculateLoadTotal(parseFloat(rate_amount), parseFloat(fuel_surcharge_amount), 0);
 
-    const [newLoad] = await db('loads').insert({
-      reference_number: reference_number || `LOAD-${Date.now()}`,
-      customer_id,
-      driver_id: null,
-      dispatcher_id: req.user.id,
-      status,
-      rate_amount,
-      rate_type,
-      loaded_miles: loaded_miles || 0,
-      empty_miles,
-      commodity: commodity || '',
-      weight: weight || 0,
-      equipment_type: equipment_type || 'DRY_VAN',
-      email_import_id: email_import_id || null,
-      confidence_score: confidence_score || null,
-      special_instructions: special_instructions || null,
-      fuel_surcharge_amount,
-      total_amount: totalAmount,
-      parent_load_id: parent_load_id || null,
-      is_reefer: !!is_reefer,
-      reefer_mode: is_reefer ? (reefer_mode || null) : null,
-      set_temp: is_reefer ? (set_temp || null) : null,
-      reefer_fuel_pct: is_reefer ? (reefer_fuel_pct || null) : null,
-      bol_number: bol_number || null,
-      po_number: po_number || null,
-      pro_number: pro_number || null,
-      pickup_number: pickup_number || null,
-      delivery_number: delivery_number || null,
-      is_ltl: !!is_ltl,
-      booking_authority_id: booking_authority_id || null,
-      sales_agent_id: sales_agent_id || null,
-      customer_ref_number: customer_ref_number || null,
-    }).returning('*');
+    const newLoad = await db.transaction(async (trx) => {
+      const [load] = await trx('loads').insert({
+        reference_number: reference_number || `LOAD-${Date.now()}`,
+        customer_id,
+        driver_id: null,
+        dispatcher_id: req.user.id,
+        status,
+        rate_amount,
+        rate_type,
+        loaded_miles: loaded_miles || 0,
+        empty_miles,
+        commodity: commodity || '',
+        weight: weight || 0,
+        equipment_type: equipment_type || 'DRY_VAN',
+        email_import_id: email_import_id || null,
+        confidence_score: confidence_score || null,
+        special_instructions: special_instructions || null,
+        fuel_surcharge_amount,
+        total_amount: totalAmount,
+        parent_load_id: parent_load_id || null,
+        is_reefer: !!is_reefer,
+        reefer_mode: is_reefer ? (reefer_mode || null) : null,
+        set_temp: is_reefer ? (set_temp || null) : null,
+        reefer_fuel_pct: is_reefer ? (reefer_fuel_pct || null) : null,
+        bol_number: bol_number || null,
+        po_number: po_number || null,
+        pro_number: pro_number || null,
+        pickup_number: pickup_number || null,
+        delivery_number: delivery_number || null,
+        is_ltl: !!is_ltl,
+        booking_authority_id: booking_authority_id || null,
+        sales_agent_id: sales_agent_id || null,
+        customer_ref_number: customer_ref_number || null,
+      }).returning('*');
 
-    // Insert stops
-    const stopRows = stops.map((stop, index) => ({
-      id: `s${Date.now()}-${index}`,
-      load_id: newLoad.id,
-      sequence_order: index + 1,
-      stop_type: stop.stop_type,
-      facility_name: stop.facility_name || '',
-      address: stop.address || '',
-      city: stop.city || '',
-      state: stop.state || '',
-      zip: stop.zip || '',
-      appointment_start: stop.appointment_start || null,
-      appointment_end: stop.appointment_end || null,
-      action_type: stop.action_type || null,
-      free_time_minutes: stop.free_time_minutes ?? 120,
-      appointment_type: stop.appointment_type || 'APPOINTMENT',
-      quantity: stop.quantity || null,
-      quantity_type: stop.quantity_type || null,
-      commodity: stop.commodity || null,
-      weight: stop.weight || null,
-      stop_reefer_mode: stop.stop_reefer_mode || null,
-      stop_set_temp: stop.stop_set_temp || null,
-      bol_number: stop.bol_number || null,
-      po_number: stop.po_number || null,
-      ref_number: stop.ref_number || null,
-      instructions: stop.instructions || null,
-    }));
+      // Insert stops
+      const stopRows = stops.map((stop, index) => ({
+        id: `s${Date.now()}-${index}`,
+        load_id: load.id,
+        sequence_order: index + 1,
+        stop_type: stop.stop_type,
+        facility_name: stop.facility_name || '',
+        address: stop.address || '',
+        city: stop.city || '',
+        state: stop.state || '',
+        zip: stop.zip || '',
+        appointment_start: stop.appointment_start || null,
+        appointment_end: stop.appointment_end || null,
+        action_type: stop.action_type || null,
+        free_time_minutes: stop.free_time_minutes ?? 120,
+        appointment_type: stop.appointment_type || 'APPOINTMENT',
+        quantity: stop.quantity || null,
+        quantity_type: stop.quantity_type || null,
+        commodity: stop.commodity || null,
+        weight: stop.weight || null,
+        stop_reefer_mode: stop.stop_reefer_mode || null,
+        stop_set_temp: stop.stop_set_temp || null,
+        bol_number: stop.bol_number || null,
+        po_number: stop.po_number || null,
+        ref_number: stop.ref_number || null,
+        instructions: stop.instructions || null,
+      }));
 
-    await db('stops').insert(stopRows);
+      await trx('stops').insert(stopRows);
+      return load;
+    });
+
     await autoSaveLocations(stops);
 
     const enriched = await enrichLoad(newLoad);
@@ -556,49 +560,52 @@ export default function loadsRouter(db) {
       }
     });
 
-    // Handle stops update
-    if (req.body.stops) {
-      await db('stops').where({ load_id: load.id }).del();
-      const stopRows = req.body.stops.map((stop, index) => ({
-        id: stop.id || `s${Date.now()}-${index}`,
-        load_id: load.id,
-        sequence_order: index + 1,
-        stop_type: stop.stop_type,
-        facility_name: stop.facility_name || '',
-        address: stop.address || '',
-        city: stop.city || '',
-        state: stop.state || '',
-        zip: stop.zip || '',
-        appointment_start: stop.appointment_start || null,
-        appointment_end: stop.appointment_end || null,
-        arrived_at: stop.arrived_at || null,
-        departed_at: stop.departed_at || null,
-        action_type: stop.action_type || null,
-        arrival_time: stop.arrival_time || null,
-        departure_time: stop.departure_time || null,
-        free_time_minutes: stop.free_time_minutes ?? 120,
-        trailer_id: stop.trailer_id || null,
-        trailer_dropped: !!stop.trailer_dropped,
-        stop_status: stop.stop_status || null,
-        appointment_type: stop.appointment_type || 'APPOINTMENT',
-        quantity: stop.quantity || null,
-        quantity_type: stop.quantity_type || null,
-        commodity: stop.commodity || null,
-        weight: stop.weight || null,
-        stop_reefer_mode: stop.stop_reefer_mode || null,
-        stop_set_temp: stop.stop_set_temp || null,
-        bol_number: stop.bol_number || null,
-        po_number: stop.po_number || null,
-        ref_number: stop.ref_number || null,
-        instructions: stop.instructions || null,
-      }));
-      await db('stops').insert(stopRows);
-      await autoSaveLocations(req.body.stops);
-    }
+    // Handle stops + field updates in one transaction
+    await db.transaction(async (trx) => {
+      if (req.body.stops) {
+        await trx('stops').where({ load_id: load.id }).del();
+        const stopRows = req.body.stops.map((stop, index) => ({
+          id: stop.id || `s${Date.now()}-${index}`,
+          load_id: load.id,
+          sequence_order: index + 1,
+          stop_type: stop.stop_type,
+          facility_name: stop.facility_name || '',
+          address: stop.address || '',
+          city: stop.city || '',
+          state: stop.state || '',
+          zip: stop.zip || '',
+          appointment_start: stop.appointment_start || null,
+          appointment_end: stop.appointment_end || null,
+          arrived_at: stop.arrived_at || null,
+          departed_at: stop.departed_at || null,
+          action_type: stop.action_type || null,
+          arrival_time: stop.arrival_time || null,
+          departure_time: stop.departure_time || null,
+          free_time_minutes: stop.free_time_minutes ?? 120,
+          trailer_id: stop.trailer_id || null,
+          trailer_dropped: !!stop.trailer_dropped,
+          stop_status: stop.stop_status || null,
+          appointment_type: stop.appointment_type || 'APPOINTMENT',
+          quantity: stop.quantity || null,
+          quantity_type: stop.quantity_type || null,
+          commodity: stop.commodity || null,
+          weight: stop.weight || null,
+          stop_reefer_mode: stop.stop_reefer_mode || null,
+          stop_set_temp: stop.stop_set_temp || null,
+          bol_number: stop.bol_number || null,
+          po_number: stop.po_number || null,
+          ref_number: stop.ref_number || null,
+          instructions: stop.instructions || null,
+        }));
+        await trx('stops').insert(stopRows);
+      }
 
-    if (Object.keys(updates).length > 0) {
-      await db('loads').where({ id: load.id }).update(updates);
-    }
+      if (Object.keys(updates).length > 0) {
+        await trx('loads').where({ id: load.id }).update(updates);
+      }
+    });
+
+    if (req.body.stops) await autoSaveLocations(req.body.stops);
 
     const updatedLoad = await db('loads').where({ id: load.id }).first();
     const enriched = await enrichLoad(updatedLoad);
@@ -614,30 +621,34 @@ export default function loadsRouter(db) {
       return res.status(400).json({ error: 'Cannot split a child load. Only parent/standalone loads can be split.' });
     }
 
-    const [child] = await db('loads').insert({
-      reference_number: `${parent.reference_number}-S${Date.now().toString(36).slice(-4).toUpperCase()}`,
-      customer_id: parent.customer_id,
-      parent_load_id: parent.id,
-      dispatcher_id: req.user.id,
-      status: 'OPEN',
-      rate_amount: 0,
-      rate_type: parent.rate_type,
-      loaded_miles: 0,
-      empty_miles: 0,
-      commodity: parent.commodity,
-      weight: 0,
-      equipment_type: parent.equipment_type,
-      is_reefer: parent.is_reefer,
-      reefer_mode: parent.reefer_mode,
-      fuel_surcharge_amount: 0,
-      total_amount: 0,
-    }).returning('*');
+    const child = await db.transaction(async (trx) => {
+      const [c] = await trx('loads').insert({
+        reference_number: `${parent.reference_number}-S${Date.now().toString(36).slice(-4).toUpperCase()}`,
+        customer_id: parent.customer_id,
+        parent_load_id: parent.id,
+        dispatcher_id: req.user.id,
+        status: 'OPEN',
+        rate_amount: 0,
+        rate_type: parent.rate_type,
+        loaded_miles: 0,
+        empty_miles: 0,
+        commodity: parent.commodity,
+        weight: 0,
+        equipment_type: parent.equipment_type,
+        is_reefer: parent.is_reefer,
+        reefer_mode: parent.reefer_mode,
+        fuel_surcharge_amount: 0,
+        total_amount: 0,
+      }).returning('*');
 
-    // Create 2 empty stops for the child
-    await db('stops').insert([
-      { id: `s${Date.now()}-0`, load_id: child.id, sequence_order: 1, stop_type: 'PICKUP', facility_name: '', address: '', city: '', state: '', zip: '' },
-      { id: `s${Date.now()}-1`, load_id: child.id, sequence_order: 2, stop_type: 'DELIVERY', facility_name: '', address: '', city: '', state: '', zip: '' },
-    ]);
+      // Create 2 empty stops for the child
+      await trx('stops').insert([
+        { id: `s${Date.now()}-0`, load_id: c.id, sequence_order: 1, stop_type: 'PICKUP', facility_name: '', address: '', city: '', state: '', zip: '' },
+        { id: `s${Date.now()}-1`, load_id: c.id, sequence_order: 2, stop_type: 'DELIVERY', facility_name: '', address: '', city: '', state: '', zip: '' },
+      ]);
+
+      return c;
+    });
 
     const enriched = await enrichLoad(child);
     res.status(201).json(enriched);
@@ -722,7 +733,7 @@ export default function loadsRouter(db) {
       return res.status(400).json({ error: 'Cannot delete a load that is linked to a settlement' });
     }
 
-    // Cascade-delete related records
+    // Delete files outside transaction (filesystem ops can't rollback)
     const docs = await db('documents').where({ load_id: load.id });
     for (const doc of docs) {
       try {
@@ -732,10 +743,15 @@ export default function loadsRouter(db) {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       } catch {}
     }
-    await db('documents').where({ load_id: load.id }).del();
-    await db('load_accessorials').where({ load_id: load.id }).del();
-    await db('stops').where({ load_id: load.id }).del();
-    await db('loads').where({ id: load.id }).del();
+
+    // Cascade-delete related records in transaction
+    await db.transaction(async (trx) => {
+      await trx('documents').where({ load_id: load.id }).del();
+      await trx('load_accessorials').where({ load_id: load.id }).del();
+      await trx('load_notes').where({ load_id: load.id }).del();
+      await trx('stops').where({ load_id: load.id }).del();
+      await trx('loads').where({ id: load.id }).del();
+    });
 
     console.log(`Load #${load.id} (${load.reference_number}) deleted`);
     res.json({ message: 'Load deleted' });

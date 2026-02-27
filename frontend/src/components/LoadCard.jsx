@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Snowflake } from 'lucide-react';
 import { LOAD_STATUS_COLORS as statusColors } from '@/lib/constants';
 
 function ConfidenceDot({ score }) {
@@ -72,9 +72,19 @@ export default function LoadCard({ load, onClick }) {
                 </AvatarFallback>
               </Avatar>
               <span className="text-xs font-medium text-muted-foreground truncate">{load.driver_name}</span>
-              {load.truck_unit && (
-                <span className="text-[10px] text-muted-foreground/70 ml-auto flex-shrink-0">Truck {load.truck_unit}</span>
-              )}
+              <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                {load.truck_unit && (
+                  <span className="text-[10px] text-muted-foreground/70">T{load.truck_unit}</span>
+                )}
+                {load.trailer_unit && (
+                  <span className="text-[10px] text-muted-foreground/70">{load.truck_unit ? '/' : ''}TR{load.trailer_unit}</span>
+                )}
+                {load.is_reefer && load.set_temp && (
+                  <span className="text-[10px] text-blue-600 flex items-center gap-0.5">
+                    <Snowflake className="w-2.5 h-2.5" />{load.set_temp}°
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

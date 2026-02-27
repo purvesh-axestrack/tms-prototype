@@ -133,28 +133,32 @@ export default function driversRouter(db) {
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
 
-    // Bidirectional team driver sync
-    if ('team_driver_id' in updates) {
-      const newTeamId = updates.team_driver_id || null;
-      const oldTeamId = driver.team_driver_id || null;
-
-      // Clear old partner's back-link
-      if (oldTeamId && oldTeamId !== newTeamId) {
-        await db('drivers').where({ id: oldTeamId }).update({ team_driver_id: null, updated_at: db.fn.now() });
-      }
-      // Set new partner's back-link
-      if (newTeamId) {
-        // Clear any existing team link the new partner had
-        const newPartner = await db('drivers').where({ id: newTeamId }).first();
-        if (newPartner?.team_driver_id && newPartner.team_driver_id !== req.params.id) {
-          await db('drivers').where({ id: newPartner.team_driver_id }).update({ team_driver_id: null, updated_at: db.fn.now() });
-        }
-        await db('drivers').where({ id: newTeamId }).update({ team_driver_id: req.params.id, updated_at: db.fn.now() });
-      }
-    }
-
     updates.updated_at = db.fn.now();
-    await db('drivers').where({ id: req.params.id }).update(updates);
+
+    await db.transaction(async (trx) => {
+      // Bidirectional team driver sync
+      if ('team_driver_id' in updates) {
+        const newTeamId = updates.team_driver_id || null;
+        const oldTeamId = driver.team_driver_id || null;
+
+        // Clear old partner's back-link
+        if (oldTeamId && oldTeamId !== newTeamId) {
+          await trx('drivers').where({ id: oldTeamId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+        }
+        // Set new partner's back-link
+        if (newTeamId) {
+          // Clear any existing team link the new partner had
+          const newPartner = await trx('drivers').where({ id: newTeamId }).first();
+          if (newPartner?.team_driver_id && newPartner.team_driver_id !== req.params.id) {
+            await trx('drivers').where({ id: newPartner.team_driver_id }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          }
+          await trx('drivers').where({ id: newTeamId }).update({ team_driver_id: req.params.id, updated_at: db.fn.now() });
+        }
+      }
+
+      await trx('drivers').where({ id: req.params.id }).update(updates);
+    });
+
     const updated = await db('drivers').where({ id: req.params.id }).first();
     res.json(updated);
   }));

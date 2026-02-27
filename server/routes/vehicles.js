@@ -168,21 +168,23 @@ export default function vehiclesRouter(db) {
 
     const col = role === 'TEAM' ? 'current_driver2_id' : 'current_driver_id';
 
-    if (driver_id) {
-      // Unassign this driver from BOTH slots on other vehicles of the same type
-      await db('vehicles')
-        .where({ current_driver_id: driver_id, type: vehicle.type })
-        .whereNot({ id: req.params.id })
-        .update({ current_driver_id: null, updated_at: db.fn.now() });
-      await db('vehicles')
-        .where({ current_driver2_id: driver_id, type: vehicle.type })
-        .whereNot({ id: req.params.id })
-        .update({ current_driver2_id: null, updated_at: db.fn.now() });
-    }
+    await db.transaction(async (trx) => {
+      if (driver_id) {
+        // Unassign this driver from BOTH slots on other vehicles of the same type
+        await trx('vehicles')
+          .where({ current_driver_id: driver_id, type: vehicle.type })
+          .whereNot({ id: req.params.id })
+          .update({ current_driver_id: null, updated_at: db.fn.now() });
+        await trx('vehicles')
+          .where({ current_driver2_id: driver_id, type: vehicle.type })
+          .whereNot({ id: req.params.id })
+          .update({ current_driver2_id: null, updated_at: db.fn.now() });
+      }
 
-    await db('vehicles').where({ id: req.params.id }).update({
-      [col]: driver_id || null,
-      updated_at: db.fn.now(),
+      await trx('vehicles').where({ id: req.params.id }).update({
+        [col]: driver_id || null,
+        updated_at: db.fn.now(),
+      });
     });
 
     const updated = await db('vehicles')

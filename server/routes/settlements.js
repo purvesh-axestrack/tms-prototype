@@ -179,10 +179,12 @@ export default function settlementsRouter(db) {
       return res.status(400).json({ error: `Cannot approve settlement in ${settlement.status} status` });
     }
 
-    await db('settlements').where({ id: settlement.id }).update({
-      status: 'APPROVED',
-      approved_by: req.user.id,
-      approved_at: new Date().toISOString(),
+    await db.transaction(async (trx) => {
+      await trx('settlements').where({ id: settlement.id }).update({
+        status: 'APPROVED',
+        approved_by: req.user.id,
+        approved_at: new Date().toISOString(),
+      });
     });
 
     const updated = await db('settlements').where({ id: settlement.id }).first();
@@ -218,12 +220,14 @@ export default function settlementsRouter(db) {
       return res.status(400).json({ error: `Cannot delete settlement in ${settlement.status} status. Only DRAFT settlements can be deleted.` });
     }
 
-    // Unlink loads from this settlement
-    await db('loads').where({ settlement_id: settlement.id }).update({ settlement_id: null });
-    // Delete line items
-    await db('settlement_line_items').where({ settlement_id: settlement.id }).del();
-    // Delete settlement
-    await db('settlements').where({ id: settlement.id }).del();
+    await db.transaction(async (trx) => {
+      // Unlink loads from this settlement
+      await trx('loads').where({ settlement_id: settlement.id }).update({ settlement_id: null });
+      // Delete line items
+      await trx('settlement_line_items').where({ settlement_id: settlement.id }).del();
+      // Delete settlement
+      await trx('settlements').where({ id: settlement.id }).del();
+    });
 
     console.log(`Settlement ${settlement.settlement_number} deleted`);
     res.json({ message: 'Settlement deleted' });

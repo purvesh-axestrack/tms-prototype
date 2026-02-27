@@ -275,31 +275,35 @@ export default function invoicesRouter(db) {
     const issueDate = new Date().toISOString().slice(0, 10);
     const dueDate = new Date(Date.now() + (customer.payment_terms || 30) * 86400000).toISOString().slice(0, 10);
 
-    const [invoice] = await db('invoices').insert({
-      invoice_number: generateInvoiceNumber(),
-      customer_id,
-      status: 'DRAFT',
-      issue_date: issueDate,
-      due_date: dueDate,
-      subtotal,
-      fuel_surcharge_total: fuelSurchargeTotal,
-      accessorial_total: accessorialTotal,
-      total_amount: totalAmount,
-      amount_paid: 0,
-      balance_due: totalAmount,
-      notes: notes || null,
-      created_by: req.user.id,
-    }).returning('*');
+    const invoice = await db.transaction(async (trx) => {
+      const [inv] = await trx('invoices').insert({
+        invoice_number: generateInvoiceNumber(),
+        customer_id,
+        status: 'DRAFT',
+        issue_date: issueDate,
+        due_date: dueDate,
+        subtotal,
+        fuel_surcharge_total: fuelSurchargeTotal,
+        accessorial_total: accessorialTotal,
+        total_amount: totalAmount,
+        amount_paid: 0,
+        balance_due: totalAmount,
+        notes: notes || null,
+        created_by: req.user.id,
+      }).returning('*');
 
-    // Insert line items
-    const itemRows = lineItems.map(item => ({
-      ...item,
-      invoice_id: invoice.id,
-    }));
-    await db('invoice_line_items').insert(itemRows);
+      // Insert line items
+      const itemRows = lineItems.map(item => ({
+        ...item,
+        invoice_id: inv.id,
+      }));
+      await trx('invoice_line_items').insert(itemRows);
 
-    // Link loads to invoice
-    await db('loads').whereIn('id', loads.map(l => l.id)).update({ invoice_id: invoice.id });
+      // Link loads to invoice
+      await trx('loads').whereIn('id', loads.map(l => l.id)).update({ invoice_id: inv.id });
+
+      return inv;
+    });
 
     const enriched = await enrichInvoice(invoice);
     res.status(201).json(enriched);
@@ -402,12 +406,14 @@ export default function invoicesRouter(db) {
       return res.status(400).json({ error: `Cannot delete invoice in ${invoice.status} status. Only DRAFT invoices can be deleted.` });
     }
 
-    // Unlink loads from this invoice
-    await db('loads').where({ invoice_id: invoice.id }).update({ invoice_id: null });
-    // Delete line items
-    await db('invoice_line_items').where({ invoice_id: invoice.id }).del();
-    // Delete invoice
-    await db('invoices').where({ id: invoice.id }).del();
+    await db.transaction(async (trx) => {
+      // Unlink loads from this invoice
+      await trx('loads').where({ invoice_id: invoice.id }).update({ invoice_id: null });
+      // Delete line items
+      await trx('invoice_line_items').where({ invoice_id: invoice.id }).del();
+      // Delete invoice
+      await trx('invoices').where({ id: invoice.id }).del();
+    });
 
     console.log(`Invoice ${invoice.invoice_number} deleted`);
     res.json({ message: 'Invoice deleted' });
