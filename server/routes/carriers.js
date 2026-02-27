@@ -63,7 +63,18 @@ export default function carriersRouter(db) {
       .orderBy('created_at', 'desc')
       .limit(20);
 
-    res.json({ ...carrier, insurance, recent_loads: loads });
+    // Get carrier's drivers and trucks
+    const drivers = await db('drivers')
+      .where('carrier_id', req.params.id)
+      .whereNot('status', 'INACTIVE')
+      .orderBy('full_name');
+
+    const trucks = await db('vehicles')
+      .where('carrier_id', req.params.id)
+      .whereNot('status', 'INACTIVE')
+      .orderBy('unit_number');
+
+    res.json({ ...carrier, insurance, recent_loads: loads, drivers, trucks });
   }));
 
   // POST /api/carriers

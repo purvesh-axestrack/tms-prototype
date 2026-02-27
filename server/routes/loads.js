@@ -271,7 +271,7 @@ export default function loadsRouter(db) {
     const load = await db('loads').where({ id: req.params.id }).first();
     if (!load) return res.status(404).json({ error: 'Load not found' });
 
-    const { driver_id, truck_id, trailer_id } = req.body;
+    const { driver_id, truck_id, trailer_id, driver2_id } = req.body;
     if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
 
     const driver = await db('drivers').where({ id: driver_id }).first();
@@ -320,6 +320,7 @@ export default function loadsRouter(db) {
 
     if (truck_id !== undefined) updates.truck_id = truck_id;
     if (trailer_id !== undefined) updates.trailer_id = trailer_id;
+    if (driver2_id !== undefined) updates.driver2_id = driver2_id;
 
     // Auto-transition to SCHEDULED if currently OPEN
     if (load.status === 'OPEN') {
@@ -328,6 +329,11 @@ export default function loadsRouter(db) {
 
     await db('loads').where({ id: load.id }).update(updates);
     await db('drivers').where({ id: driver_id }).update({ status: 'EN_ROUTE' });
+
+    // Also mark driver2 as EN_ROUTE
+    if (driver2_id) {
+      await db('drivers').where({ id: driver2_id }).update({ status: 'EN_ROUTE' });
+    }
 
     const updatedLoad = await db('loads').where({ id: load.id }).first();
     const enriched = await enrichLoad(updatedLoad);
@@ -355,8 +361,8 @@ export default function loadsRouter(db) {
       }
       const carrier = await db('carriers').where({ id: carrier_id }).first();
       if (!carrier) return res.status(400).json({ error: 'Carrier not found' });
-      if (carrier.status !== 'ACTIVE') {
-        return res.status(400).json({ error: 'Carrier must be ACTIVE to accept brokered loads' });
+      if (carrier.status === 'INACTIVE' || carrier.status === 'SUSPENDED') {
+        return res.status(400).json({ error: 'Cannot broker to an INACTIVE or SUSPENDED carrier' });
       }
       updates.carrier_id = carrier_id;
       if (carrier_rate) updates.carrier_rate = carrier_rate;
@@ -371,11 +377,17 @@ export default function loadsRouter(db) {
       if (load.driver_id) {
         await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
       }
+      if (load.driver2_id) {
+        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+      }
     }
 
     if (status === 'TONU') {
       if (load.driver_id) {
         await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      }
+      if (load.driver2_id) {
+        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
       }
     }
 

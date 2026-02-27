@@ -8,13 +8,18 @@ export default function driversRouter(db) {
 
   // GET /api/drivers
   router.get('/', asyncHandler(async (req, res) => {
-    const { include_inactive } = req.query;
-    const query = db('drivers').orderBy('full_name');
+    const { include_inactive, carrier_id } = req.query;
+    const query = db('drivers')
+      .leftJoin('carriers as c', 'drivers.carrier_id', 'c.id')
+      .leftJoin('drivers as td', 'drivers.team_driver_id', 'td.id')
+      .select('drivers.*', 'c.company_name as carrier_name', 'td.full_name as team_driver_name')
+      .orderBy('drivers.full_name');
     if (include_inactive) {
       // return all
     } else {
-      query.whereNot({ status: 'INACTIVE' });
+      query.whereNot('drivers.status', 'INACTIVE');
     }
+    if (carrier_id) query.where('drivers.carrier_id', carrier_id);
     const drivers = await query;
 
     const enriched = await Promise.all(drivers.map(async (driver) => {
@@ -28,7 +33,12 @@ export default function driversRouter(db) {
 
   // GET /api/drivers/:id
   router.get('/:id', asyncHandler(async (req, res) => {
-    const driver = await db('drivers').where({ id: req.params.id }).first();
+    const driver = await db('drivers')
+      .leftJoin('carriers as c', 'drivers.carrier_id', 'c.id')
+      .leftJoin('drivers as td', 'drivers.team_driver_id', 'td.id')
+      .select('drivers.*', 'c.company_name as carrier_name', 'td.full_name as team_driver_name')
+      .where('drivers.id', req.params.id)
+      .first();
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
     const driverLoads = await db('loads').where({ driver_id: driver.id }).orderBy('created_at', 'desc');
@@ -57,7 +67,7 @@ export default function driversRouter(db) {
 
   // POST /api/drivers
   router.post('/', asyncHandler(async (req, res) => {
-    const { full_name, phone, email, license_number, license_state, pay_model, pay_rate, minimum_per_mile, driver_type, tax_type, route_type, hire_date } = req.body;
+    const { full_name, phone, email, license_number, license_state, pay_model, pay_rate, minimum_per_mile, driver_type, tax_type, route_type, hire_date, carrier_id } = req.body;
     if (!full_name) return res.status(400).json({ error: 'Full name is required' });
     if (!pay_model || !['CPM', 'PERCENTAGE', 'FLAT'].includes(pay_model)) {
       return res.status(400).json({ error: 'Pay model must be CPM, PERCENTAGE, or FLAT' });
@@ -80,6 +90,7 @@ export default function driversRouter(db) {
       tax_type: tax_type || null,
       route_type: route_type || null,
       hire_date: hire_date || null,
+      carrier_id: carrier_id || null,
     });
 
     const driver = await db('drivers').where({ id }).first();
@@ -91,7 +102,7 @@ export default function driversRouter(db) {
     const driver = await db('drivers').where({ id: req.params.id }).first();
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-    const allowed = ['full_name', 'phone', 'email', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile', 'driver_type', 'tax_type', 'route_type', 'hire_date'];
+    const allowed = ['full_name', 'phone', 'email', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile', 'driver_type', 'tax_type', 'route_type', 'hire_date', 'carrier_id', 'team_driver_id'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -106,6 +117,26 @@ export default function driversRouter(db) {
     }
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+    // Bidirectional team driver sync
+    if ('team_driver_id' in updates) {
+      const newTeamId = updates.team_driver_id || null;
+      const oldTeamId = driver.team_driver_id || null;
+
+      // Clear old partner's back-link
+      if (oldTeamId && oldTeamId !== newTeamId) {
+        await db('drivers').where({ id: oldTeamId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+      }
+      // Set new partner's back-link
+      if (newTeamId) {
+        // Clear any existing team link the new partner had
+        const newPartner = await db('drivers').where({ id: newTeamId }).first();
+        if (newPartner?.team_driver_id && newPartner.team_driver_id !== req.params.id) {
+          await db('drivers').where({ id: newPartner.team_driver_id }).update({ team_driver_id: null, updated_at: db.fn.now() });
+        }
+        await db('drivers').where({ id: newTeamId }).update({ team_driver_id: req.params.id, updated_at: db.fn.now() });
+      }
+    }
 
     updates.updated_at = db.fn.now();
     await db('drivers').where({ id: req.params.id }).update(updates);

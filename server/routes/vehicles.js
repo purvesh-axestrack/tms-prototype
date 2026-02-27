@@ -7,16 +7,18 @@ export default function vehiclesRouter(db) {
 
   // GET /api/vehicles
   router.get('/', asyncHandler(async (req, res) => {
-    const { type, status, include_inactive } = req.query;
+    const { type, status, include_inactive, carrier_id } = req.query;
     let query = db('vehicles')
       .leftJoin('drivers as d1', 'vehicles.current_driver_id', 'd1.id')
       .leftJoin('drivers as d2', 'vehicles.current_driver2_id', 'd2.id')
-      .select('vehicles.*', 'd1.full_name as driver_name', 'd2.full_name as driver2_name')
+      .leftJoin('carriers as c', 'vehicles.carrier_id', 'c.id')
+      .select('vehicles.*', 'd1.full_name as driver_name', 'd2.full_name as driver2_name', 'c.company_name as carrier_name')
       .orderBy('vehicles.unit_number');
 
     if (!include_inactive) query = query.whereNot('vehicles.status', 'INACTIVE');
     if (type) query = query.where('vehicles.type', type);
     if (status) query = query.where('vehicles.status', status);
+    if (carrier_id) query = query.where('vehicles.carrier_id', carrier_id);
 
     const vehicles = await query;
     res.json(vehicles);
@@ -51,7 +53,14 @@ export default function vehiclesRouter(db) {
         .first();
     }
 
-    res.json({ truck: truck || null, suggested_trailer });
+    // Fetch team driver from the driver's team_driver_id
+    const driverRow = await db('drivers').where({ id: driverId }).first();
+    let team_driver = null;
+    if (driverRow?.team_driver_id) {
+      team_driver = await db('drivers').where({ id: driverRow.team_driver_id }).whereNot('status', 'INACTIVE').first();
+    }
+
+    res.json({ truck: truck || null, suggested_trailer, team_driver: team_driver || null });
   }));
 
   // GET /api/vehicles/:id
@@ -59,7 +68,8 @@ export default function vehiclesRouter(db) {
     const vehicle = await db('vehicles')
       .leftJoin('drivers as d1', 'vehicles.current_driver_id', 'd1.id')
       .leftJoin('drivers as d2', 'vehicles.current_driver2_id', 'd2.id')
-      .select('vehicles.*', 'd1.full_name as driver_name', 'd2.full_name as driver2_name')
+      .leftJoin('carriers as c', 'vehicles.carrier_id', 'c.id')
+      .select('vehicles.*', 'd1.full_name as driver_name', 'd2.full_name as driver2_name', 'c.company_name as carrier_name')
       .where('vehicles.id', req.params.id)
       .first();
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
@@ -76,7 +86,7 @@ export default function vehiclesRouter(db) {
 
   // POST /api/vehicles
   router.post('/', asyncHandler(async (req, res) => {
-    const { unit_number, type, vin, year, make, model, license_plate, license_state, notes } = req.body;
+    const { unit_number, type, vin, year, make, model, license_plate, license_state, notes, carrier_id } = req.body;
     if (!unit_number) return res.status(400).json({ error: 'Unit number is required' });
     if (!type || !['TRACTOR', 'TRAILER'].includes(type)) {
       return res.status(400).json({ error: 'Type must be TRACTOR or TRAILER' });
@@ -94,6 +104,7 @@ export default function vehiclesRouter(db) {
       license_plate: license_plate || null,
       license_state: license_state || null,
       notes: notes || null,
+      carrier_id: carrier_id || null,
       status: 'ACTIVE',
     });
 
@@ -106,7 +117,7 @@ export default function vehiclesRouter(db) {
     const vehicle = await db('vehicles').where({ id: req.params.id }).first();
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-    const allowed = ['unit_number', 'type', 'vin', 'year', 'make', 'model', 'license_plate', 'license_state', 'status', 'current_driver_id', 'current_driver2_id', 'odometer', 'notes'];
+    const allowed = ['unit_number', 'type', 'vin', 'year', 'make', 'model', 'license_plate', 'license_state', 'status', 'current_driver_id', 'current_driver2_id', 'odometer', 'notes', 'carrier_id'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];

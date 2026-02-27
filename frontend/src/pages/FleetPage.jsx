@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, assignVehicleDriver, getDrivers } from '../services/api';
+import { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, assignVehicleDriver, getDrivers, getCarriers } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,17 +11,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Truck, Plus, Search, MapPin, Gauge } from 'lucide-react';
+import { Truck, Plus, Search, MapPin, Gauge, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { VEHICLE_TYPES, VEHICLE_STATUSES, VEHICLE_STATUS_COLORS as statusColors } from '@/lib/constants';
 
 const emptyForm = {
   unit_number: '', type: 'TRACTOR', vin: '', year: '', make: '', model: '',
-  license_plate: '', license_state: '', notes: '',
+  license_plate: '', license_state: '', notes: '', carrier_id: '',
 };
 
 export default function FleetPage() {
@@ -52,6 +53,19 @@ export default function FleetPage() {
     queryFn: getDrivers,
   });
 
+  const { data: carriers = [] } = useQuery({
+    queryKey: ['carriers'],
+    queryFn: getCarriers,
+  });
+
+  // Sync driver assignment selects when detail changes (fixes team driver bug)
+  useEffect(() => {
+    if (detail) {
+      setAssignDriverId(detail.current_driver_id ? String(detail.current_driver_id) : '');
+      setAssignDriver2Id(detail.current_driver2_id ? String(detail.current_driver2_id) : '');
+    }
+  }, [detail]);
+
   const filtered = useMemo(() => {
     let list = vehicles;
     if (tab !== 'ALL' && tab !== 'INACTIVE') {
@@ -66,7 +80,8 @@ export default function FleetPage() {
         v.model?.toLowerCase().includes(q) ||
         v.driver_name?.toLowerCase().includes(q) ||
         v.driver2_name?.toLowerCase().includes(q) ||
-        v.license_plate?.toLowerCase().includes(q)
+        v.license_plate?.toLowerCase().includes(q) ||
+        v.carrier_name?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -130,7 +145,7 @@ export default function FleetPage() {
       unit_number: v.unit_number || '', type: v.type || 'TRACTOR', vin: v.vin || '',
       year: v.year || '', make: v.make || '', model: v.model || '',
       license_plate: v.license_plate || '', license_state: v.license_state || '',
-      status: v.status || 'ACTIVE', notes: v.notes || '',
+      status: v.status || 'ACTIVE', notes: v.notes || '', carrier_id: v.carrier_id || '',
     });
     setEditVehicle(v);
   };
@@ -209,6 +224,7 @@ export default function FleetPage() {
                 <TableHead>License Plate</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Team Driver</TableHead>
+                <TableHead>Carrier</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -216,7 +232,7 @@ export default function FleetPage() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No vehicles found</TableCell>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">No vehicles found</TableCell>
                 </TableRow>
               ) : filtered.map(v => (
                 <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedId(v.id)}>
@@ -233,6 +249,7 @@ export default function FleetPage() {
                   </TableCell>
                   <TableCell className="text-sm">{v.driver_name || '\u2014'}</TableCell>
                   <TableCell className="text-sm">{v.driver2_name || '\u2014'}</TableCell>
+                  <TableCell className="text-sm">{v.carrier_name || '\u2014'}</TableCell>
                   <TableCell>
                     <Badge className={statusColors[v.status] || ''}>{v.status}</Badge>
                   </TableCell>
@@ -252,7 +269,7 @@ export default function FleetPage() {
           <DialogHeader>
             <DialogTitle className="font-display">Add Vehicle</DialogTitle>
           </DialogHeader>
-          <VehicleForm form={form} setForm={setForm} />
+          <VehicleForm form={form} setForm={setForm} carriers={carriers} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={createMutation.isPending} className="theme-brand-bg text-white">
@@ -268,7 +285,7 @@ export default function FleetPage() {
           <DialogHeader>
             <DialogTitle className="font-display">Edit Vehicle</DialogTitle>
           </DialogHeader>
-          <VehicleForm form={form} setForm={setForm} showStatus />
+          <VehicleForm form={form} setForm={setForm} showStatus carriers={carriers} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVehicle(null)}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="theme-brand-bg text-white">
@@ -280,35 +297,58 @@ export default function FleetPage() {
 
       {/* Detail Sheet */}
       <Sheet open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
+        <SheetContent className="sm:max-w-2xl overflow-y-auto p-0">
           {detail ? (
             <>
-              <SheetHeader>
-                <SheetTitle className="font-display flex items-center gap-2">
-                  <Truck className="w-5 h-5" />
-                  Unit {detail.unit_number}
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-6">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{detail.type}</Badge>
-                  <Badge className={statusColors[detail.status] || ''}>{detail.status}</Badge>
+              <div className="theme-sidebar text-white p-6">
+                <SheetHeader className="p-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="theme-brand-dot text-white font-bold text-lg">
+                        <Truck className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <SheetTitle className="text-2xl font-display font-bold text-white">Unit {detail.unit_number}</SheetTitle>
+                      <SheetDescription className="theme-sidebar-text flex items-center gap-3 flex-wrap">
+                        <Badge variant="outline" className="border-white/20 text-white">{detail.type}</Badge>
+                        <Badge className={statusColors[detail.status] || ''}>{detail.status}</Badge>
+                        {detail.carrier_name && <Badge className="bg-white/10 text-slate-300">{detail.carrier_name}</Badge>}
+                        {detail.year && <span>{detail.year} {detail.make} {detail.model}</span>}
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+              </div>
+              <div className="p-6 space-y-5">
+                {/* Vehicle Info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground mb-1">VIN</div>
+                      <div className="text-sm font-bold font-mono">{detail.vin || '\u2014'}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Gauge className="w-3 h-3" /> Odometer</div>
+                      <div className="text-lg font-bold">{detail.odometer ? `${Number(detail.odometer).toLocaleString()} mi` : '\u2014'}</div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Vehicle Info */}
-                <Card className="py-4">
-                  <CardContent>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Vehicle Information</div>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                      <div><span className="text-muted-foreground">Year:</span> <span className="font-medium">{detail.year || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">Make:</span> <span className="font-medium">{detail.make || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">Model:</span> <span className="font-medium">{detail.model || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">VIN:</span> <span className="font-medium font-mono text-xs">{detail.vin || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">License:</span> <span className="font-medium">{detail.license_plate || '\u2014'} {detail.license_state ? `(${detail.license_state})` : ''}</span></div>
-                      <div><span className="text-muted-foreground">Odometer:</span> <span className="font-medium">{detail.odometer ? `${Number(detail.odometer).toLocaleString()} mi` : '\u2014'}</span></div>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs">License</span>
+                    <span className="font-medium">{detail.license_plate || '\u2014'} {detail.license_state ? `(${detail.license_state})` : ''}</span>
+                  </div>
+                  {detail.carrier_name && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">Carrier</span>
+                      <Badge variant="secondary">{detail.carrier_name}</Badge>
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
 
                 {/* GPS */}
                 {(detail.last_latitude || detail.samsara_id) && (
@@ -340,7 +380,7 @@ export default function FleetPage() {
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <Select
-                          value={assignDriverId || (detail.current_driver_id ? String(detail.current_driver_id) : undefined)}
+                          value={assignDriverId || undefined}
                           onValueChange={(v) => setAssignDriverId(v)}
                         >
                           <SelectTrigger className="h-9">
@@ -355,7 +395,6 @@ export default function FleetPage() {
                         size="sm"
                         onClick={() => {
                           assignMutation.mutate({ vehicleId: detail.id, driverId: assignDriverId || null, role: 'PRIMARY' });
-                          setAssignDriverId('');
                         }}
                         disabled={assignMutation.isPending}
                         className="theme-brand-bg text-white"
@@ -368,7 +407,7 @@ export default function FleetPage() {
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <Select
-                          value={assignDriver2Id || (detail.current_driver2_id ? String(detail.current_driver2_id) : undefined)}
+                          value={assignDriver2Id || undefined}
                           onValueChange={(v) => setAssignDriver2Id(v)}
                         >
                           <SelectTrigger className="h-9">
@@ -383,7 +422,6 @@ export default function FleetPage() {
                         size="sm"
                         onClick={() => {
                           assignMutation.mutate({ vehicleId: detail.id, driverId: assignDriver2Id || null, role: 'TEAM' });
-                          setAssignDriver2Id('');
                         }}
                         disabled={assignMutation.isPending}
                         className="theme-brand-bg text-white"
@@ -394,10 +432,22 @@ export default function FleetPage() {
                   </CardContent>
                 </Card>
 
+                {/* Notes */}
+                {detail.notes && (
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notes</div>
+                      <p className="text-sm whitespace-pre-wrap">{detail.notes}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Recent Loads */}
                 {detail.recent_loads?.length > 0 && (
-                  <div>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent Loads</div>
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="bg-muted px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Recent Loads
+                    </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -432,7 +482,12 @@ export default function FleetPage() {
               </div>
             </>
           ) : (
-            <div className="space-y-4 mt-6">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
           )}
         </SheetContent>
       </Sheet>
@@ -458,7 +513,7 @@ export default function FleetPage() {
   );
 }
 
-function VehicleForm({ form, setForm, showStatus }) {
+function VehicleForm({ form, setForm, showStatus, carriers = [] }) {
   const set = (field) => (v) => setForm(prev => ({ ...prev, [field]: v }));
   const setInput = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
@@ -512,6 +567,20 @@ function VehicleForm({ form, setForm, showStatus }) {
             </SelectTrigger>
             <SelectContent>
               {VEHICLE_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {carriers.length > 0 && (
+        <div className="space-y-1.5">
+          <Label>Carrier</Label>
+          <Select value={form.carrier_id ? String(form.carrier_id) : 'NONE'} onValueChange={(v) => setForm(prev => ({ ...prev, carrier_id: v === 'NONE' ? '' : parseInt(v) }))}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Own fleet" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NONE">Own fleet</SelectItem>
+              {carriers.filter(c => c.status !== 'INACTIVE').map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDrivers, createDriver, updateDriver, deleteDriver, getDriverById } from '../services/api';
+import { getDrivers, createDriver, updateDriver, deleteDriver, getDriverById, getCarriers } from '../services/api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import DriverDeductionsEditor from '../components/DriverDeductionsEditor';
 import { DRIVER_STATUS_COLORS as STATUS_COLORS, PAY_MODEL_LABELS as PAY_LABELS, US_STATES } from '@/lib/constants';
 
-const EMPTY_FORM = { full_name: '', phone: '', email: '', license_number: '', license_state: '', pay_model: 'CPM', pay_rate: '', minimum_per_mile: '', driver_type: '', tax_type: '', route_type: '', hire_date: '' };
+const EMPTY_FORM = { full_name: '', phone: '', email: '', license_number: '', license_state: '', pay_model: 'CPM', pay_rate: '', minimum_per_mile: '', driver_type: '', tax_type: '', route_type: '', hire_date: '', carrier_id: '', team_driver_id: '' };
 
 export default function DriversPage() {
   const [search, setSearch] = useState('');
@@ -41,6 +41,11 @@ export default function DriversPage() {
     enabled: !!selectedId,
   });
 
+  const { data: carriers = [] } = useQuery({
+    queryKey: ['carriers'],
+    queryFn: getCarriers,
+  });
+
   const filtered = useMemo(() => {
     if (!search.trim()) return drivers;
     const q = search.toLowerCase();
@@ -48,7 +53,9 @@ export default function DriversPage() {
       d.full_name?.toLowerCase().includes(q) ||
       d.phone?.toLowerCase().includes(q) ||
       d.license_number?.toLowerCase().includes(q) ||
-      d.license_state?.toLowerCase().includes(q)
+      d.license_state?.toLowerCase().includes(q) ||
+      d.carrier_name?.toLowerCase().includes(q) ||
+      d.team_driver_name?.toLowerCase().includes(q)
     );
   }, [drivers, search]);
 
@@ -104,6 +111,8 @@ export default function DriversPage() {
       tax_type: driver.tax_type || '',
       route_type: driver.route_type || '',
       hire_date: driver.hire_date || '',
+      carrier_id: driver.carrier_id || '',
+      team_driver_id: driver.team_driver_id || '',
     });
     setShowForm(true);
   };
@@ -121,6 +130,8 @@ export default function DriversPage() {
       ...formData,
       pay_rate: parseFloat(formData.pay_rate),
       minimum_per_mile: formData.minimum_per_mile ? parseFloat(formData.minimum_per_mile) : null,
+      carrier_id: formData.carrier_id ? parseInt(formData.carrier_id) : null,
+      team_driver_id: formData.team_driver_id || null,
     };
     if (editingDriver) {
       updateMutation.mutate({ id: editingDriver.id, data: payload });
@@ -166,6 +177,8 @@ export default function DriversPage() {
               <TableHead>Driver</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>CDL</TableHead>
+              <TableHead>Carrier</TableHead>
+              <TableHead>Team</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Pay Model</TableHead>
               <TableHead className="text-center">Active Loads</TableHead>
@@ -175,7 +188,7 @@ export default function DriversPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-3">
                     <Skeleton className="h-8 w-8 rounded-full" />
                     <Skeleton className="h-4 w-32" />
@@ -184,7 +197,7 @@ export default function DriversPage() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
+                <TableCell colSpan={9} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <User className="w-10 h-10 text-muted-foreground/30" />
                     <span className="text-sm text-muted-foreground">{search ? 'No matching drivers' : 'No drivers yet'}</span>
@@ -209,6 +222,8 @@ export default function DriversPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{d.phone || '\u2014'}</TableCell>
                   <TableCell className="text-muted-foreground">{d.license_number || '\u2014'} {d.license_state ? `(${d.license_state})` : ''}</TableCell>
+                  <TableCell className="text-sm">{d.carrier_name || '\u2014'}</TableCell>
+                  <TableCell className="text-sm">{d.team_driver_name || '\u2014'}</TableCell>
                   <TableCell>
                     <Badge className={STATUS_COLORS[d.status] || 'bg-slate-100'}>{d.status.replaceAll('_', ' ')}</Badge>
                   </TableCell>
@@ -313,6 +328,28 @@ export default function DriversPage() {
                 <Input type="date" value={formData.hire_date} onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })} />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Carrier</Label>
+                <Select value={formData.carrier_id ? String(formData.carrier_id) : 'NONE'} onValueChange={(v) => setFormData({ ...formData, carrier_id: v === 'NONE' ? '' : v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Own fleet" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Own fleet</SelectItem>
+                    {carriers.filter(c => c.status !== 'INACTIVE').map(c => <SelectItem key={c.id} value={String(c.id)}>{c.company_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Team Partner</Label>
+                <Select value={formData.team_driver_id || 'NONE'} onValueChange={(v) => setFormData({ ...formData, team_driver_id: v === 'NONE' ? '' : v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">None</SelectItem>
+                    {drivers.filter(d => d.id !== editingDriver?.id && d.status !== 'INACTIVE').map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <Separator />
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
@@ -401,6 +438,23 @@ export default function DriversPage() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {(detail.carrier_name || detail.team_driver_name) && (
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {detail.carrier_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">Carrier</span>
+                          <Badge variant="secondary">{detail.carrier_name}</Badge>
+                        </div>
+                      )}
+                      {detail.team_driver_name && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">Team Partner</span>
+                          <span className="font-medium">{detail.team_driver_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {(detail.email || detail.tax_type || detail.hire_date) && (
                     <div className="grid grid-cols-3 gap-3 text-sm">

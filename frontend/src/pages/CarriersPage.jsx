@@ -11,11 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building, Plus, Search, Shield, AlertTriangle, Trash2 } from 'lucide-react';
+import { Building, Plus, Search, Shield, AlertTriangle, Trash2, User, Truck, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { CARRIER_STATUSES, INSURANCE_TYPES, CARRIER_STATUS_COLORS as statusColors, INSURANCE_TYPE_LABELS as insuranceTypeLabels } from '@/lib/constants';
 
@@ -300,62 +301,81 @@ export default function CarriersPage() {
 
       {/* Detail Sheet */}
       <Sheet open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
+        <SheetContent className="sm:max-w-2xl overflow-y-auto p-0">
           {detail ? (
             <>
-              <SheetHeader>
-                <SheetTitle className="font-display flex items-center gap-2">
-                  <Building className="w-5 h-5" />
-                  {detail.company_name}
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-6">
-                <div className="flex items-center gap-2">
-                  <Badge className={statusColors[detail.status] || ''}>{detail.status}</Badge>
-                  {detail.mc_number && <Badge variant="outline">MC# {detail.mc_number}</Badge>}
-                  {detail.dot_number && <Badge variant="outline">DOT# {detail.dot_number}</Badge>}
+              <div className="theme-sidebar text-white p-6">
+                <SheetHeader className="p-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <Avatar className="h-12 w-12">
+                      <AvatarFallback className="theme-brand-dot text-white font-bold text-lg">
+                        <Building className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <SheetTitle className="text-2xl font-display font-bold text-white">{detail.company_name}</SheetTitle>
+                      <SheetDescription className="theme-sidebar-text flex items-center gap-3 flex-wrap">
+                        <Badge className={statusColors[detail.status] || ''}>{detail.status}</Badge>
+                        {detail.mc_number && <Badge className="bg-white/10 text-slate-300">MC# {detail.mc_number}</Badge>}
+                        {detail.dot_number && <Badge className="bg-white/10 text-slate-300">DOT# {detail.dot_number}</Badge>}
+                        {detail.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {detail.contact_phone}</span>}
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+              </div>
+              <div className="p-6 space-y-5">
+                {/* Summary cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground mb-1">SCAC</div>
+                      <div className="text-lg font-bold font-mono">{detail.scac_code || '\u2014'}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><User className="w-3 h-3" /> Drivers</div>
+                      <div className="text-lg font-bold">{detail.drivers?.length || 0}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="py-4">
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Truck className="w-3 h-3" /> Trucks</div>
+                      <div className="text-lg font-bold">{detail.trucks?.length || 0}</div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Company Info */}
-                <Card className="py-4">
-                  <CardContent>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Company Information</div>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                      <div><span className="text-muted-foreground">MC #:</span> <span className="font-medium font-mono">{detail.mc_number || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">DOT #:</span> <span className="font-medium font-mono">{detail.dot_number || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">SCAC:</span> <span className="font-medium font-mono">{detail.scac_code || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">Status:</span> <span className="font-medium">{detail.status}</span></div>
+                {/* Contact details */}
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  {detail.contact_name && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">Contact</span>
+                      <span className="font-medium">{detail.contact_name}</span>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Contact Info */}
-                <Card className="py-4">
-                  <CardContent>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Contact Information</div>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                      <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{detail.contact_name || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{detail.contact_email || '\u2014'}</span></div>
-                      <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{detail.contact_phone || '\u2014'}</span></div>
+                  )}
+                  {detail.contact_email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3 h-3 text-muted-foreground" />
+                      <span className="font-medium truncate">{detail.contact_email}</span>
                     </div>
-                    {(detail.address || detail.city) && (
-                      <div className="mt-2 text-sm">
-                        <span className="text-muted-foreground">Address:</span>{' '}
-                        <span className="font-medium">
-                          {[detail.address, detail.city, detail.state, detail.zip].filter(Boolean).join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  )}
+                  {(detail.address || detail.city) && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">Address</span>
+                      <span className="font-medium truncate">{[detail.city, detail.state].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Insurance */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                <div className="rounded-lg border overflow-hidden">
+                  <div className="bg-muted px-4 py-3 flex items-center justify-between">
                     <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                       <Shield className="w-3.5 h-3.5" /> Insurance Policies ({detail.insurance?.length || 0})
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => { setInsuranceForm(emptyInsuranceForm); setShowAddInsurance(true); }}>
+                    <Button size="sm" variant="outline" className="h-7" onClick={() => { setInsuranceForm(emptyInsuranceForm); setShowAddInsurance(true); }}>
                       <Plus className="w-3 h-3 mr-1" /> Add
                     </Button>
                   </div>
@@ -401,14 +421,74 @@ export default function CarriersPage() {
                       </TableBody>
                     </Table>
                   ) : (
-                    <div className="text-sm text-muted-foreground py-4 text-center border rounded-lg">No insurance policies on file</div>
+                    <div className="text-sm text-muted-foreground py-4 text-center">No insurance policies on file</div>
                   )}
                 </div>
 
+                {/* Carrier's Drivers */}
+                {detail.drivers?.length > 0 && (
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="bg-muted px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" /> Drivers ({detail.drivers.length})
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Pay Model</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.drivers.map(d => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-medium text-sm">{d.full_name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{d.phone || '\u2014'}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{d.status}</Badge></TableCell>
+                            <TableCell className="text-sm">{d.pay_model}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Carrier's Trucks */}
+                {detail.trucks?.length > 0 && (
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="bg-muted px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5" /> Trucks ({detail.trucks.length})
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Unit #</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Year / Make / Model</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.trucks.map(v => (
+                          <TableRow key={v.id}>
+                            <TableCell className="font-medium text-sm">{v.unit_number}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{v.type}</Badge></TableCell>
+                            <TableCell className="text-sm">{[v.year, v.make, v.model].filter(Boolean).join(' ') || '\u2014'}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{v.status}</Badge></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
                 {/* Recent Loads */}
                 {detail.recent_loads?.length > 0 && (
-                  <div>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Brokered Loads</div>
+                  <div className="rounded-lg border overflow-hidden">
+                    <div className="bg-muted px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Brokered Loads
+                    </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -455,7 +535,12 @@ export default function CarriersPage() {
               </div>
             </>
           ) : (
-            <div className="space-y-4 mt-6">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
           )}
         </SheetContent>
       </Sheet>

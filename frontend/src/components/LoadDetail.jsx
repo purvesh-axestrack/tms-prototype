@@ -256,6 +256,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
               drivers={drivers}
               trucks={trucks}
               trailers={trailers}
+              carriers={carriers}
               saveField={saveField}
               saveFields={saveFields}
               isSaving={isSaving}
@@ -876,7 +877,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
               <Select value={brokerCarrierId} onValueChange={setBrokerCarrierId}>
                 <SelectTrigger><SelectValue placeholder="Select a carrier..." /></SelectTrigger>
                 <SelectContent>
-                  {carriers.filter(c => c.status === 'ACTIVE').map(c => (
+                  {carriers.filter(c => c.status !== 'INACTIVE').map(c => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.company_name} {c.mc_number ? `(MC# ${c.mc_number})` : ''}
                     </SelectItem>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { assignDriver, getVehicleByDriver, checkDriverAvailability } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,37 +8,58 @@ import { Loader2, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import EditableSelect from './EditableSelect';
 
-export default function DispatchCard({ load, drivers, trucks, trailers, saveField, saveFields, isSaving }) {
+export default function DispatchCard({ load, drivers, trucks, trailers, carriers, saveField, saveFields, isSaving }) {
   const [checking, setChecking] = useState(false);
   const [conflicts, setConflicts] = useState(null);
   const queryClient = useQueryClient();
 
-  const driverOpts = drivers
-    .filter(d => d.status !== 'OUT_OF_SERVICE')
+  const isBrokered = !!load.carrier_id;
+
+  // In brokered mode, filter drivers/trucks to that carrier
+  const filteredDrivers = useMemo(() => {
+    const base = drivers.filter(d => d.status !== 'OUT_OF_SERVICE');
+    if (isBrokered) return base.filter(d => d.carrier_id === load.carrier_id);
+    return base;
+  }, [drivers, isBrokered, load.carrier_id]);
+
+  const filteredTrucks = useMemo(() => {
+    if (isBrokered) return trucks.filter(v => v.carrier_id === load.carrier_id);
+    return trucks;
+  }, [trucks, isBrokered, load.carrier_id]);
+
+  const driverOpts = filteredDrivers.map(d => ({ value: String(d.id), label: d.full_name }));
+  const truckOpts = filteredTrucks.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
+  const trailerOpts = trailers.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
+  const driver2Opts = filteredDrivers
+    .filter(d => d.id !== load.driver_id)
     .map(d => ({ value: String(d.id), label: d.full_name }));
 
-  const truckOpts = trucks.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
-  const trailerOpts = trailers.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
-  const driver2Opts = drivers
-    .filter(d => d.id !== load.driver_id && d.status !== 'OUT_OF_SERVICE')
-    .map(d => ({ value: String(d.id), label: d.full_name }));
+  const carrierOpts = carriers
+    ?.filter(c => c.status !== 'INACTIVE')
+    .map(c => ({ value: String(c.id), label: c.company_name })) || [];
 
   const currentDriver = drivers.find(d => d.id === load.driver_id);
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['loads'] });
+    queryClient.invalidateQueries({ queryKey: ['loads', load.id] });
+    queryClient.invalidateQueries({ queryKey: ['drivers'] });
+    queryClient.invalidateQueries({ queryKey: ['stats'] });
+  };
+
   const assignMutation = useMutation({
-    mutationFn: ({ driverId, truck_id, trailer_id }) => assignDriver(load.id, driverId, { truck_id, trailer_id }),
+    mutationFn: ({ driverId, truck_id, trailer_id, driver2_id }) =>
+      assignDriver(load.id, driverId, { truck_id, trailer_id, driver2_id }),
     onSuccess: (data) => {
       const autoFilled = [];
       if (data.truck_id && !load.truck_id) autoFilled.push(`Truck ${data.truck_unit || data.truck_id}`);
       if (data.trailer_id && !load.trailer_id) autoFilled.push(`Trailer ${data.trailer_unit || data.trailer_id}`);
+      if (data.driver2_id && !load.driver2_id) autoFilled.push(`Team ${data.driver2_name || data.driver2_id}`);
       const msg = autoFilled.length > 0
         ? `Driver assigned (auto-filled: ${autoFilled.join(', ')})`
         : 'Driver assigned';
       toast.success(msg);
-      queryClient.invalidateQueries({ queryKey: ['loads'] });
-      queryClient.invalidateQueries({ queryKey: ['loads', load.id] });
-      queryClient.invalidateQueries({ queryKey: ['drivers'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      invalidate();
       setConflicts(null);
     },
     onError: (error) => {
@@ -50,6 +71,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
     },
   });
 
+  // Driver-first auto-fill
   const handleDriverSelect = async (driverId) => {
     if (!driverId) {
       setConflicts(null);
@@ -71,7 +93,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
         return;
       }
 
-      // 2. Get driver's current truck + suggested trailer
+      // 2. Get driver's current truck + suggested trailer + team driver
       const vehicleInfo = await getVehicleByDriver(driverId);
 
       // 3. Build payload — never overwrite fields dispatcher already set
@@ -82,6 +104,9 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
       if (!load.trailer_id && vehicleInfo.suggested_trailer) {
         payload.trailer_id = vehicleInfo.suggested_trailer.id;
       }
+      if (!load.driver2_id && vehicleInfo.team_driver) {
+        payload.driver2_id = vehicleInfo.team_driver.id;
+      }
 
       setChecking(false);
 
@@ -90,6 +115,34 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
     } catch (error) {
       setChecking(false);
       toast.error('Failed to check driver availability');
+    }
+  };
+
+  // Truck-first auto-fill
+  const handleTruckSelect = async (truckId) => {
+    if (!truckId) {
+      saveField('truck_id', null);
+      return;
+    }
+
+    const truck = trucks.find(t => String(t.id) === String(truckId));
+    const updates = { truck_id: truckId };
+
+    // Auto-fill drivers from truck assignment if not already set
+    if (!load.driver_id && truck?.current_driver_id) {
+      updates.driver_id = truck.current_driver_id;
+    }
+    if (!load.driver2_id && truck?.current_driver2_id) {
+      updates.driver2_id = truck.current_driver2_id;
+    }
+
+    saveFields(updates);
+
+    const autoFilled = [];
+    if (updates.driver_id) autoFilled.push(`Driver ${truck?.driver_name || ''}`);
+    if (updates.driver2_id) autoFilled.push(`Team ${truck?.driver2_name || ''}`);
+    if (autoFilled.length > 0) {
+      toast.success(`Truck set (auto-filled: ${autoFilled.join(', ')})`);
     }
   };
 
@@ -105,6 +158,24 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
         </div>
 
         <div className="space-y-3 text-sm">
+          {/* Carrier (brokered mode) */}
+          {carriers && carriers.length > 0 && (
+            <div className="space-y-1">
+              <label className="text-[10px] text-muted-foreground">Carrier</label>
+              <EditableSelect
+                value={load.carrier_id ? String(load.carrier_id) : null}
+                displayValue={load.carrier_name}
+                onSave={(v) => saveField('carrier_id', v ? parseInt(v) : null)}
+                options={carrierOpts}
+                placeholder="Own fleet"
+                allowNone
+              />
+              {isBrokered && (
+                <Badge variant="outline" className="text-[10px] mt-1">Brokered</Badge>
+              )}
+            </div>
+          )}
+
           {/* Driver */}
           <div className="flex items-center gap-3">
             <div className="flex-1 space-y-1">
@@ -159,7 +230,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, saveFiel
             <EditableSelect
               value={load.truck_id ? String(load.truck_id) : null}
               displayValue={load.truck_unit ? `${load.truck_unit} ${load.truck_info ? `(${load.truck_info})` : ''}` : null}
-              onSave={(v) => saveField('truck_id', v)}
+              onSave={handleTruckSelect}
               options={truckOpts}
               placeholder="None"
               allowNone

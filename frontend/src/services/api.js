@@ -100,10 +100,11 @@ export const createLoad = async (loadData) => {
   return response.data;
 };
 
-export const assignDriver = async (loadId, driverId, { truck_id, trailer_id } = {}) => {
+export const assignDriver = async (loadId, driverId, { truck_id, trailer_id, driver2_id } = {}) => {
   const body = { driver_id: driverId };
   if (truck_id !== undefined) body.truck_id = truck_id;
   if (trailer_id !== undefined) body.trailer_id = trailer_id;
+  if (driver2_id !== undefined) body.driver2_id = driver2_id;
   const response = await api.patch(`/loads/${loadId}/assign`, body);
   return response.data;
 };
