@@ -26,7 +26,30 @@ export default function settlementsRouter(db) {
     if (status) query = query.where({ status });
 
     const settlements = await query.orderBy('id', 'desc');
-    const enriched = await Promise.all(settlements.map(enrichSettlement));
+
+    // Batch enrich instead of N+1
+    const settlementIds = settlements.map(s => s.id);
+    const driverIds = [...new Set(settlements.map(s => s.driver_id).filter(Boolean))];
+
+    const [driversArr, allLineItems] = await Promise.all([
+      driverIds.length ? db('drivers').whereIn('id', driverIds).select('id', 'full_name') : [],
+      settlementIds.length ? db('settlement_line_items').whereIn('settlement_id', settlementIds).orderBy('id') : [],
+    ]);
+
+    const driversMap = Object.fromEntries(driversArr.map(d => [d.id, d]));
+    const lineItemsBySettlement = {};
+    for (const li of allLineItems) {
+      if (!lineItemsBySettlement[li.settlement_id]) lineItemsBySettlement[li.settlement_id] = [];
+      lineItemsBySettlement[li.settlement_id].push(li);
+    }
+
+    const enriched = settlements.map(settlement => ({
+      ...settlement,
+      driver_name: driversMap[settlement.driver_id]?.full_name || null,
+      driver: driversMap[settlement.driver_id] || null,
+      line_items: lineItemsBySettlement[settlement.id] || [],
+    }));
+
     res.json(enriched);
   }));
 

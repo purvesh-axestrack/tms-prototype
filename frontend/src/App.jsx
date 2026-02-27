@@ -22,7 +22,16 @@ import FleetPage from './pages/FleetPage';
 import CarriersPage from './pages/CarriersPage';
 import './index.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,       // 2 min — prevents refetch on remount/focus for most data
+      gcTime: 10 * 60 * 1000,          // 10 min garbage collection
+      retry: 1,                         // 1 retry, not 3
+      refetchOnWindowFocus: true,       // still refresh on tab focus
+    },
+  },
+});
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();

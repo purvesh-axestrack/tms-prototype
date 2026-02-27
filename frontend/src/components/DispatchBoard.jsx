@@ -171,7 +171,6 @@ export default function DispatchBoard() {
   const { data: loads = [], isLoading } = useQuery({
     queryKey: ['loads'],
     queryFn: getLoads,
-    refetchInterval: 3000,
   });
 
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });

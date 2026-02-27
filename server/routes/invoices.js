@@ -53,7 +53,37 @@ export default function invoicesRouter(db) {
       }
     }
 
-    const enriched = await Promise.all(invoices.map(enrichInvoice));
+    // Batch enrich instead of N+1
+    const invoiceIds = invoices.map(i => i.id);
+    const customerIds = [...new Set(invoices.map(i => i.customer_id).filter(Boolean))];
+
+    const [customersArr, allLineItems, allLoads] = await Promise.all([
+      customerIds.length ? db('customers').whereIn('id', customerIds).select('id', 'company_name') : [],
+      invoiceIds.length ? db('invoice_line_items').whereIn('invoice_id', invoiceIds).orderBy('id') : [],
+      invoiceIds.length ? db('loads').whereIn('invoice_id', invoiceIds) : [],
+    ]);
+
+    const customersMap = Object.fromEntries(customersArr.map(c => [c.id, c]));
+    const lineItemsByInvoice = {};
+    for (const li of allLineItems) {
+      if (!lineItemsByInvoice[li.invoice_id]) lineItemsByInvoice[li.invoice_id] = [];
+      lineItemsByInvoice[li.invoice_id].push(li);
+    }
+    const loadsByInvoice = {};
+    for (const l of allLoads) {
+      if (!loadsByInvoice[l.invoice_id]) loadsByInvoice[l.invoice_id] = [];
+      loadsByInvoice[l.invoice_id].push(l);
+    }
+
+    const enriched = invoices.map(invoice => ({
+      ...invoice,
+      customer_name: customersMap[invoice.customer_id]?.company_name || null,
+      customer: customersMap[invoice.customer_id] || null,
+      line_items: lineItemsByInvoice[invoice.id] || [],
+      loads: loadsByInvoice[invoice.id] || [],
+      available_transitions: getAvailableInvoiceTransitions(invoice.status),
+    }));
+
     res.json(enriched);
   }));
 
@@ -69,18 +99,28 @@ export default function invoicesRouter(db) {
 
     const loads = await query.orderBy('delivered_at', 'desc');
 
-    const enriched = await Promise.all(loads.map(async (load) => {
-      const customer = await db('customers').where({ id: load.customer_id }).first();
-      const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
+    // Batch enrich
+    const loadIds = loads.map(l => l.id);
+    const custIds = [...new Set(loads.map(l => l.customer_id).filter(Boolean))];
+    const [custsArr, allStops] = await Promise.all([
+      custIds.length ? db('customers').whereIn('id', custIds).select('id', 'company_name') : [],
+      loadIds.length ? db('stops').whereIn('load_id', loadIds).orderBy(['load_id', 'sequence_order']) : [],
+    ]);
+    const custMap = Object.fromEntries(custsArr.map(c => [c.id, c.company_name]));
+    const stopsByLoad = {};
+    for (const s of allStops) {
+      if (!stopsByLoad[s.load_id]) stopsByLoad[s.load_id] = [];
+      stopsByLoad[s.load_id].push(s);
+    }
+    const enriched = loads.map(load => {
+      const stops = stopsByLoad[load.id] || [];
       return {
         ...load,
-        customer_name: customer?.company_name,
-        pickup_city: stops[0]?.city,
-        pickup_state: stops[0]?.state,
-        delivery_city: stops[stops.length - 1]?.city,
-        delivery_state: stops[stops.length - 1]?.state,
+        customer_name: custMap[load.customer_id] || null,
+        pickup_city: stops[0]?.city, pickup_state: stops[0]?.state,
+        delivery_city: stops[stops.length - 1]?.city, delivery_state: stops[stops.length - 1]?.state,
       };
-    }));
+    });
 
     res.json(enriched);
   }));
@@ -93,11 +133,16 @@ export default function invoicesRouter(db) {
       .where('balance_due', '>', 0);
 
     const now = new Date();
+
+    // Batch customer lookup
+    const agingCustIds = [...new Set(invoices.map(i => i.customer_id).filter(Boolean))];
+    const agingCusts = agingCustIds.length ? await db('customers').whereIn('id', agingCustIds).select('id', 'company_name') : [];
+    const agingCustMap = Object.fromEntries(agingCusts.map(c => [c.id, c.company_name]));
+
     const customerMap = {};
 
     for (const inv of invoices) {
-      const customer = await db('customers').where({ id: inv.customer_id }).first();
-      const customerName = customer?.company_name || inv.customer_id;
+      const customerName = agingCustMap[inv.customer_id] || inv.customer_id;
 
       if (!customerMap[customerName]) {
         customerMap[customerName] = { customer_name: customerName, current: 0, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_90_plus: 0, total: 0 };

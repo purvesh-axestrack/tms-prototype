@@ -43,7 +43,6 @@ export default function StatsBar() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['stats'],
     queryFn: getStats,
-    refetchInterval: 5000,
   });
 
   const statCards = [

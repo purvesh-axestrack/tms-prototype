@@ -26,7 +26,6 @@ export default function InvoicesPage() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices', activeTab],
     queryFn: () => getInvoices(activeTab !== 'ALL' ? { status: activeTab } : {}),
-    refetchInterval: 5000,
   });
 
   const filtered = useMemo(() => {

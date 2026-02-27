@@ -22,10 +22,25 @@ export default function driversRouter(db) {
     if (carrier_id) query.where('drivers.carrier_id', carrier_id);
     const drivers = await query;
 
-    const enriched = await Promise.all(drivers.map(async (driver) => {
-      const driverLoads = await db('loads').where({ driver_id: driver.id });
-      const stats = calculateDriverStats(driverLoads);
-      return { ...driver, stats };
+    // Batch driver stats — single aggregate query instead of N+1
+    const driverIds = drivers.map(d => d.id);
+    const statsRows = driverIds.length > 0 ? await db('loads')
+      .whereIn('driver_id', driverIds)
+      .select('driver_id')
+      .select(db.raw(`COUNT(*) FILTER (WHERE status IN ('SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT')) as active_loads`))
+      .select(db.raw(`COUNT(*) FILTER (WHERE status IN ('COMPLETED', 'INVOICED')) as completed_loads`))
+      .select(db.raw(`COALESCE(SUM(loaded_miles) FILTER (WHERE status IN ('COMPLETED', 'INVOICED')), 0) as total_miles`))
+      .groupBy('driver_id') : [];
+
+    const statsMap = Object.fromEntries(statsRows.map(s => [s.driver_id, {
+      active_loads: parseInt(s.active_loads),
+      completed_loads: parseInt(s.completed_loads),
+      total_miles: parseInt(s.total_miles),
+    }]));
+
+    const enriched = drivers.map(driver => ({
+      ...driver,
+      stats: statsMap[driver.id] || { active_loads: 0, completed_loads: 0, total_miles: 0 },
     }));
 
     res.json(enriched);

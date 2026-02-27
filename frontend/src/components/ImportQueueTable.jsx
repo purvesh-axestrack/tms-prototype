@@ -68,7 +68,7 @@ export default function ImportQueueTable({ onViewImport }) {
   const { data, isLoading } = useQuery({
     queryKey: ['email-imports', activeTab, page],
     queryFn: () => getEmailImports(params),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 
   const handleRetry = async (id) => {

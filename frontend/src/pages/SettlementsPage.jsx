@@ -24,7 +24,6 @@ export default function SettlementsPage() {
   const { data: settlements = [], isLoading } = useQuery({
     queryKey: ['settlements', activeTab],
     queryFn: () => getSettlements(activeTab !== 'ALL' ? { status: activeTab } : {}),
-    refetchInterval: 5000,
   });
 
   const filtered = useMemo(() => {

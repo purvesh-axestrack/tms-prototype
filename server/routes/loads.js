@@ -130,6 +130,113 @@ export default function loadsRouter(db) {
     };
   }
 
+  // Batch enrich for list endpoint — replaces N+1 with 5 queries total
+  async function enrichLoadList(loads) {
+    if (loads.length === 0) return [];
+    const loadIds = loads.map(l => l.id);
+
+    // 1. Batch stops — get first and last per load
+    const allStops = await db('stops').whereIn('load_id', loadIds).orderBy(['load_id', 'sequence_order']);
+    const stopsByLoad = {};
+    for (const s of allStops) {
+      if (!stopsByLoad[s.load_id]) stopsByLoad[s.load_id] = [];
+      stopsByLoad[s.load_id].push(s);
+    }
+
+    // 2. Collect all referenced IDs for batch lookups
+    const customerIds = [...new Set(loads.map(l => l.customer_id).filter(Boolean))];
+    const driverIds = [...new Set(loads.flatMap(l => [l.driver_id, l.driver2_id]).filter(Boolean))];
+    const carrierIds = [...new Set(loads.flatMap(l => [l.carrier_id, l.booking_authority_id]).filter(Boolean))];
+    const vehicleIds = [...new Set(loads.flatMap(l => [l.truck_id, l.trailer_id]).filter(Boolean))];
+    const userIds = [...new Set(loads.map(l => l.sales_agent_id).filter(Boolean))];
+
+    const [customersArr, driversArr, carriersArr, vehiclesArr, usersArr] = await Promise.all([
+      customerIds.length ? db('customers').whereIn('id', customerIds).select('id', 'company_name') : [],
+      driverIds.length ? db('drivers').whereIn('id', driverIds).select('id', 'full_name') : [],
+      carrierIds.length ? db('carriers').whereIn('id', carrierIds).select('id', 'company_name') : [],
+      vehicleIds.length ? db('vehicles').whereIn('id', vehicleIds).select('id', 'unit_number', 'year', 'make', 'model') : [],
+      userIds.length ? db('users').whereIn('id', userIds).select('id', 'full_name') : [],
+    ]);
+
+    const customersMap = Object.fromEntries(customersArr.map(c => [c.id, c]));
+    const driversMap = Object.fromEntries(driversArr.map(d => [d.id, d]));
+    const carriersMap = Object.fromEntries(carriersArr.map(c => [c.id, c]));
+    const vehiclesMap = Object.fromEntries(vehiclesArr.map(v => [v.id, v]));
+    const usersMap = Object.fromEntries(usersArr.map(u => [u.id, u]));
+
+    // 3. Batch accessorial totals
+    const accessorialSums = await db('load_accessorials')
+      .whereIn('load_id', loadIds)
+      .groupBy('load_id')
+      .select('load_id')
+      .sum('total as accessorials_sum');
+    const accMap = Object.fromEntries(accessorialSums.map(a => [a.load_id, parseFloat(a.accessorials_sum || 0)]));
+
+    // 4. Batch notes counts + latest note
+    const notesCounts = await db('load_notes')
+      .whereIn('load_id', loadIds)
+      .groupBy('load_id')
+      .select('load_id')
+      .count('id as count');
+    const notesMap = Object.fromEntries(notesCounts.map(n => [n.load_id, parseInt(n.count)]));
+
+    const loadIdsWithNotes = notesCounts.filter(n => parseInt(n.count) > 0).map(n => n.load_id);
+    let latestNotesMap = {};
+    if (loadIdsWithNotes.length > 0) {
+      const latestNotes = await db.raw(`
+        SELECT DISTINCT ON (ln.load_id) ln.load_id, ln.note, u.full_name as user_name, ln.created_at
+        FROM load_notes ln JOIN users u ON ln.user_id = u.id
+        WHERE ln.load_id = ANY(?)
+        ORDER BY ln.load_id, ln.created_at DESC
+      `, [loadIdsWithNotes]);
+      latestNotesMap = Object.fromEntries(latestNotes.rows.map(n => [n.load_id, { note: n.note, user_name: n.user_name, created_at: n.created_at }]));
+    }
+
+    // 5. Assemble
+    return loads.map(load => {
+      const stops = stopsByLoad[load.id] || [];
+      const firstStop = stops[0];
+      const lastStop = stops[stops.length - 1];
+      const customer = customersMap[load.customer_id];
+      const driver = driversMap[load.driver_id];
+      const driver2 = driversMap[load.driver2_id];
+      const carrier = carriersMap[load.carrier_id];
+      const bookingAuth = carriersMap[load.booking_authority_id];
+      const salesAgent = usersMap[load.sales_agent_id];
+      const truck = vehiclesMap[load.truck_id];
+      const trailer = vehiclesMap[load.trailer_id];
+      const accSum = accMap[load.id] || 0;
+      const totalAmount = load.total_amount || calculateLoadTotal(
+        parseFloat(load.rate_amount), parseFloat(load.fuel_surcharge_amount || 0), accSum
+      );
+
+      return {
+        ...load,
+        stops,
+        total_amount: totalAmount,
+        customer_name: customer?.company_name || null,
+        driver_name: driver?.full_name || null,
+        driver2_name: driver2?.full_name || null,
+        carrier_name: carrier?.company_name || null,
+        booking_authority_name: bookingAuth?.company_name || null,
+        sales_agent_name: salesAgent?.full_name || null,
+        truck_unit: truck?.unit_number || null,
+        truck_info: truck ? `${truck.year || ''} ${truck.make || ''} ${truck.model || ''}`.trim() : null,
+        trailer_unit: trailer?.unit_number || null,
+        trailer_info: trailer ? `${trailer.year || ''} ${trailer.make || ''} ${trailer.model || ''}`.trim() : null,
+        pickup_city: firstStop?.city || null,
+        pickup_state: firstStop?.state || null,
+        pickup_date: firstStop?.appointment_start || null,
+        delivery_city: lastStop?.city || null,
+        delivery_state: lastStop?.state || null,
+        delivery_date: lastStop?.appointment_end || lastStop?.appointment_start || null,
+        available_transitions: getAvailableTransitions(load.status),
+        notes_count: notesMap[load.id] || 0,
+        latest_note: latestNotesMap[load.id] || null,
+      };
+    });
+  }
+
   // GET /api/loads
   router.get('/', asyncHandler(async (req, res) => {
     const { status, driver_id, customer_id } = req.query;
@@ -140,7 +247,7 @@ export default function loadsRouter(db) {
     if (customer_id) query = query.where({ customer_id });
 
     const loads = await query.orderBy('id', 'desc');
-    const enriched = await Promise.all(loads.map(enrichLoad));
+    const enriched = await enrichLoadList(loads);
     res.json(enriched);
   }));
 
@@ -313,51 +420,51 @@ export default function loadsRouter(db) {
       });
     }
 
-    // Assign driver + optional truck/trailer
-    const updates = {
-      driver_id,
-      assigned_at: new Date().toISOString(),
-    };
+    // All writes in a transaction
+    await db.transaction(async (trx) => {
+      const updates = {
+        driver_id,
+        assigned_at: new Date().toISOString(),
+      };
 
-    if (truck_id !== undefined) updates.truck_id = truck_id;
-    if (trailer_id !== undefined) updates.trailer_id = trailer_id;
-    if (driver2_id !== undefined) updates.driver2_id = driver2_id;
+      if (truck_id !== undefined) updates.truck_id = truck_id;
+      if (trailer_id !== undefined) updates.trailer_id = trailer_id;
+      if (driver2_id !== undefined) updates.driver2_id = driver2_id;
 
-    // Auto-transition to SCHEDULED if currently OPEN
-    if (load.status === 'OPEN') {
-      updates.status = 'SCHEDULED';
-    }
-
-    // Release old driver(s) if reassigning
-    if (load.driver_id && load.driver_id !== driver_id) {
-      const oldDriverOtherLoads = await db('loads')
-        .where({ driver_id: load.driver_id })
-        .whereNot({ id: load.id })
-        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
-        .first();
-      if (!oldDriverOtherLoads) {
-        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      if (load.status === 'OPEN') {
+        updates.status = 'SCHEDULED';
       }
-    }
-    if (load.driver2_id && driver2_id !== undefined && load.driver2_id !== driver2_id) {
-      const oldD2OtherLoads = await db('loads')
-        .where({ driver_id: load.driver2_id })
-        .orWhere({ driver2_id: load.driver2_id })
-        .whereNot({ id: load.id })
-        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
-        .first();
-      if (!oldD2OtherLoads) {
-        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+
+      // Release old driver(s) if reassigning
+      if (load.driver_id && load.driver_id !== driver_id) {
+        const oldDriverOtherLoads = await trx('loads')
+          .where({ driver_id: load.driver_id })
+          .whereNot({ id: load.id })
+          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+          .first();
+        if (!oldDriverOtherLoads) {
+          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+        }
       }
-    }
+      if (load.driver2_id && driver2_id !== undefined && load.driver2_id !== driver2_id) {
+        const oldD2OtherLoads = await trx('loads')
+          .where({ driver_id: load.driver2_id })
+          .orWhere({ driver2_id: load.driver2_id })
+          .whereNot({ id: load.id })
+          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+          .first();
+        if (!oldD2OtherLoads) {
+          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+        }
+      }
 
-    await db('loads').where({ id: load.id }).update(updates);
-    await db('drivers').where({ id: driver_id }).update({ status: 'EN_ROUTE' });
+      await trx('loads').where({ id: load.id }).update(updates);
+      await trx('drivers').where({ id: driver_id }).update({ status: 'EN_ROUTE' });
 
-    // Also mark driver2 as EN_ROUTE
-    if (driver2_id) {
-      await db('drivers').where({ id: driver2_id }).update({ status: 'EN_ROUTE' });
-    }
+      if (driver2_id) {
+        await trx('drivers').where({ id: driver2_id }).update({ status: 'EN_ROUTE' });
+      }
+    });
 
     const updatedLoad = await db('loads').where({ id: load.id }).first();
     const enriched = await enrichLoad(updatedLoad);
@@ -396,26 +503,29 @@ export default function loadsRouter(db) {
       updates.picked_up_at = new Date().toISOString();
     }
 
-    if (status === 'COMPLETED' && !load.delivered_at) {
-      updates.delivered_at = new Date().toISOString();
-      if (load.driver_id) {
-        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+    // All writes in a transaction
+    await db.transaction(async (trx) => {
+      if (status === 'COMPLETED' && !load.delivered_at) {
+        updates.delivered_at = new Date().toISOString();
+        if (load.driver_id) {
+          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+        }
+        if (load.driver2_id) {
+          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+        }
       }
-      if (load.driver2_id) {
-        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
-      }
-    }
 
-    if (status === 'TONU') {
-      if (load.driver_id) {
-        await db('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+      if (status === 'TONU') {
+        if (load.driver_id) {
+          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
+        }
+        if (load.driver2_id) {
+          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+        }
       }
-      if (load.driver2_id) {
-        await db('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
-      }
-    }
 
-    await db('loads').where({ id: load.id }).update(updates);
+      await trx('loads').where({ id: load.id }).update(updates);
+    });
 
     console.log(`Load #${load.id} status changed: ${oldStatus} -> ${status}`);
 

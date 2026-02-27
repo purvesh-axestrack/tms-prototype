@@ -20,7 +20,7 @@ export default function GmailConnectionCard() {
   const { data: gmailStatus, isLoading } = useQuery({
     queryKey: ['gmail-status'],
     queryFn: getGmailStatus,
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   });
 
   const handleConnect = async () => {
