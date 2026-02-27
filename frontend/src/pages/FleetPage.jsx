@@ -33,6 +33,7 @@ export default function FleetPage() {
   const [selectedId, setSelectedId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [assignDriverId, setAssignDriverId] = useState('');
+  const [assignDriver2Id, setAssignDriver2Id] = useState('');
   const queryClient = useQueryClient();
 
   const { data: vehicles = [], isLoading } = useQuery({
@@ -64,6 +65,7 @@ export default function FleetPage() {
         v.make?.toLowerCase().includes(q) ||
         v.model?.toLowerCase().includes(q) ||
         v.driver_name?.toLowerCase().includes(q) ||
+        v.driver2_name?.toLowerCase().includes(q) ||
         v.license_plate?.toLowerCase().includes(q)
       );
     }
@@ -104,7 +106,7 @@ export default function FleetPage() {
   });
 
   const assignMutation = useMutation({
-    mutationFn: ({ vehicleId, driverId }) => assignVehicleDriver(vehicleId, driverId),
+    mutationFn: ({ vehicleId, driverId, role }) => assignVehicleDriver(vehicleId, driverId, role),
     onSuccess: () => {
       toast.success('Driver assigned');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -206,6 +208,7 @@ export default function FleetPage() {
                 <TableHead>VIN</TableHead>
                 <TableHead>License Plate</TableHead>
                 <TableHead>Driver</TableHead>
+                <TableHead>Team Driver</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -213,7 +216,7 @@ export default function FleetPage() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No vehicles found</TableCell>
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No vehicles found</TableCell>
                 </TableRow>
               ) : filtered.map(v => (
                 <TableRow key={v.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedId(v.id)}>
@@ -229,6 +232,7 @@ export default function FleetPage() {
                     {v.license_plate ? `${v.license_plate}${v.license_state ? ` (${v.license_state})` : ''}` : '\u2014'}
                   </TableCell>
                   <TableCell className="text-sm">{v.driver_name || '\u2014'}</TableCell>
+                  <TableCell className="text-sm">{v.driver2_name || '\u2014'}</TableCell>
                   <TableCell>
                     <Badge className={statusColors[v.status] || ''}>{v.status}</Badge>
                   </TableCell>
@@ -332,7 +336,7 @@ export default function FleetPage() {
                 {/* Driver Assignment */}
                 <Card className="py-4">
                   <CardContent>
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Assigned Driver</div>
+                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Primary Driver</div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <Select
@@ -350,8 +354,36 @@ export default function FleetPage() {
                       <Button
                         size="sm"
                         onClick={() => {
-                          assignMutation.mutate({ vehicleId: detail.id, driverId: assignDriverId || null });
+                          assignMutation.mutate({ vehicleId: detail.id, driverId: assignDriverId || null, role: 'PRIMARY' });
                           setAssignDriverId('');
+                        }}
+                        disabled={assignMutation.isPending}
+                        className="theme-brand-bg text-white"
+                      >
+                        {assignMutation.isPending ? 'Saving...' : 'Assign'}
+                      </Button>
+                    </div>
+
+                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-4">Team Driver</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Select
+                          value={assignDriver2Id || (detail.current_driver2_id ? String(detail.current_driver2_id) : undefined)}
+                          onValueChange={(v) => setAssignDriver2Id(v)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="No team driver assigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {drivers.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.full_name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          assignMutation.mutate({ vehicleId: detail.id, driverId: assignDriver2Id || null, role: 'TEAM' });
+                          setAssignDriver2Id('');
                         }}
                         disabled={assignMutation.isPending}
                         className="theme-brand-bg text-white"

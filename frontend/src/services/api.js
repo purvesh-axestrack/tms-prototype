@@ -100,8 +100,11 @@ export const createLoad = async (loadData) => {
   return response.data;
 };
 
-export const assignDriver = async (loadId, driverId) => {
-  const response = await api.patch(`/loads/${loadId}/assign`, { driver_id: driverId });
+export const assignDriver = async (loadId, driverId, { truck_id, trailer_id } = {}) => {
+  const body = { driver_id: driverId };
+  if (truck_id !== undefined) body.truck_id = truck_id;
+  if (trailer_id !== undefined) body.trailer_id = trailer_id;
+  const response = await api.patch(`/loads/${loadId}/assign`, body);
   return response.data;
 };
 
@@ -443,8 +446,13 @@ export const deleteVehicle = async (id) => {
   return response.data;
 };
 
-export const assignVehicleDriver = async (vehicleId, driverId) => {
-  const response = await api.post(`/vehicles/${vehicleId}/assign-driver`, { driver_id: driverId });
+export const assignVehicleDriver = async (vehicleId, driverId, role = 'PRIMARY') => {
+  const response = await api.post(`/vehicles/${vehicleId}/assign-driver`, { driver_id: driverId, role });
+  return response.data;
+};
+
+export const getVehicleByDriver = async (driverId) => {
+  const response = await api.get(`/vehicles/by-driver/${driverId}`);
   return response.data;
 };
 

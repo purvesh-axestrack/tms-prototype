@@ -9,15 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, UserPlus, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import DriverAssignModal from './DriverAssignModal';
+import DispatchCard from './DispatchCard';
 import AccessorialEditor from './AccessorialEditor';
 import LocationAutocomplete from './LocationAutocomplete';
 import LoadNotes from './LoadNotes';
@@ -27,7 +26,6 @@ import useInlineLoadSave from '../hooks/useInlineLoadSave';
 import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS, RATE_TYPES } from '@/lib/constants';
 
 export default function LoadDetail({ loadId, initialData, onClose }) {
-  const [showDriverModal, setShowDriverModal] = useState(false);
   const [confirmTransition, setConfirmTransition] = useState(null);
   const [showBrokerDialog, setShowBrokerDialog] = useState(false);
   const [brokerCarrierId, setBrokerCarrierId] = useState('');
@@ -53,7 +51,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: getUsers });
   const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
 
-  const tractors = vehicles.filter(v => v.type === 'TRACTOR' && v.status === 'ACTIVE');
+  const trucks = vehicles.filter(v => v.type === 'TRACTOR' && v.status === 'ACTIVE');
   const trailers = vehicles.filter(v => v.type === 'TRAILER' && v.status === 'ACTIVE');
 
   const { data: documents = [], refetch: refetchDocs } = useQuery({
@@ -175,17 +173,12 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
 
   if (!load) return null;
 
-  const currentDriver = drivers.find(d => d.id === load.driver_id);
-
   // ── Build option arrays for EditableSelect ──
   const customerOpts = customers.map(c => ({ value: String(c.id), label: c.company_name }));
   const equipmentOpts = EQUIPMENT_TYPES.map(t => ({ value: t, label: t.replaceAll('_', ' ') }));
   const rateTypeOpts = RATE_TYPES.map(t => ({ value: t, label: t === 'CPM' ? 'Per Mile' : t.charAt(0) + t.slice(1).toLowerCase() }));
-  const tractorOpts = tractors.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
-  const trailerOpts = trailers.map(v => ({ value: String(v.id), label: `${v.unit_number} - ${v.make} ${v.model}` }));
   const carrierOpts = carriers.map(c => ({ value: String(c.id), label: c.company_name }));
   const userOpts = users.map(u => ({ value: String(u.id), label: u.full_name }));
-  const driver2Opts = drivers.filter(d => d.id !== load.driver_id).map(d => ({ value: String(d.id), label: d.full_name }));
 
   return (
     <>
@@ -243,50 +236,30 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
               )}
             </div>
 
-            {/* Customer + Driver */}
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="py-4">
-                <CardContent>
-                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer</div>
-                  <EditableSelect
-                    value={load.customer_id ? String(load.customer_id) : null}
-                    displayValue={load.customer_name}
-                    onSave={(v) => saveField('customer_id', v)}
-                    options={customerOpts}
-                    placeholder="Select customer"
-                  />
-                </CardContent>
-              </Card>
-              <Card className="py-4">
-                <CardContent>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Driver</div>
-                    {!load.driver_id && (
-                      <Button size="xs" onClick={() => setShowDriverModal(true)} className="theme-brand-bg text-white">
-                        <UserPlus className="w-3 h-3" /> Assign
-                      </Button>
-                    )}
-                  </div>
-                  {load.driver_name ? (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs font-bold theme-brand-badge">
-                          {load.driver_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-bold">{load.driver_name}</div>
-                        {currentDriver && (
-                          <div className="text-xs text-muted-foreground">{currentDriver.phone} &middot; {currentDriver.pay_model}</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-muted-foreground italic text-sm">Not assigned</div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            {/* Customer */}
+            <Card className="py-4">
+              <CardContent>
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer</div>
+                <EditableSelect
+                  value={load.customer_id ? String(load.customer_id) : null}
+                  displayValue={load.customer_name}
+                  onSave={(v) => saveField('customer_id', v)}
+                  options={customerOpts}
+                  placeholder="Select customer"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Dispatch — unified driver/truck/trailer/team */}
+            <DispatchCard
+              load={load}
+              drivers={drivers}
+              trucks={trucks}
+              trailers={trailers}
+              saveField={saveField}
+              saveFields={saveFields}
+              isSaving={isSaving}
+            />
 
             {/* Brokered carrier */}
             {load.carrier_id && (
@@ -828,39 +801,6 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                     <Label className="text-[10px] text-muted-foreground">Empty Miles</Label>
                     <EditableField value={load.empty_miles} onSave={(v) => saveField('empty_miles', v)} type="number" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Tractor</Label>
-                    <EditableSelect
-                      value={load.truck_id ? String(load.truck_id) : null}
-                      displayValue={load.truck_unit ? `${load.truck_unit} ${load.truck_info ? `(${load.truck_info})` : ''}` : null}
-                      onSave={(v) => saveField('truck_id', v)}
-                      options={tractorOpts}
-                      placeholder="None"
-                      allowNone
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Trailer</Label>
-                    <EditableSelect
-                      value={load.trailer_id ? String(load.trailer_id) : null}
-                      displayValue={load.trailer_unit ? `${load.trailer_unit} ${load.trailer_info ? `(${load.trailer_info})` : ''}` : null}
-                      onSave={(v) => saveField('trailer_id', v)}
-                      options={trailerOpts}
-                      placeholder="None"
-                      allowNone
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground">Team Driver</Label>
-                    <EditableSelect
-                      value={load.driver2_id ? String(load.driver2_id) : null}
-                      displayValue={load.driver2_name}
-                      onSave={(v) => saveField('driver2_id', v)}
-                      options={driver2Opts}
-                      placeholder="None"
-                      allowNone
-                    />
-                  </div>
                   <div className="col-span-2 space-y-1">
                     <Label className="text-[10px] text-muted-foreground">Special Instructions</Label>
                     <EditableField value={load.special_instructions} onSave={(v) => saveField('special_instructions', v)} placeholder="—" />
@@ -887,18 +827,6 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
           </div>
         </SheetContent>
       </Sheet>
-
-      {showDriverModal && (
-        <DriverAssignModal
-          load={load}
-          onClose={() => setShowDriverModal(false)}
-          onAssigned={() => {
-            setShowDriverModal(false);
-            queryClient.invalidateQueries({ queryKey: ['loads'] });
-            queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
-          }}
-        />
-      )}
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>

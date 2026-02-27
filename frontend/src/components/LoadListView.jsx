@@ -25,7 +25,7 @@ const ALL_COLUMNS = [
   { key: 'notes', label: 'Notes', align: 'center' },
   { key: 'pickup_date', label: 'Pickup Date' },
   { key: 'delivery_date', label: 'Delivery Date' },
-  { key: 'tractor', label: 'Tractor' },
+  { key: 'tractor', label: 'Truck' },
   { key: 'trailer', label: 'Trailer' },
   { key: 'total', label: 'Total Rev', align: 'right' },
 ];

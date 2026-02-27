@@ -38,6 +38,20 @@ export default function loadsRouter(db) {
     const truck = load.truck_id ? await db('vehicles').where({ id: load.truck_id }).first() : null;
     const trailer = load.trailer_id ? await db('vehicles').where({ id: load.trailer_id }).first() : null;
 
+    // Fetch truck's assigned driver names
+    let truck_driver_name = null;
+    let truck_driver2_name = null;
+    if (truck) {
+      if (truck.current_driver_id) {
+        const td1 = await db('drivers').where({ id: truck.current_driver_id }).first();
+        truck_driver_name = td1?.full_name || null;
+      }
+      if (truck.current_driver2_id) {
+        const td2 = await db('drivers').where({ id: truck.current_driver2_id }).first();
+        truck_driver2_name = td2?.full_name || null;
+      }
+    }
+
     // Fetch accessorials
     const accessorials = await db('load_accessorials')
       .join('accessorial_types', 'load_accessorials.accessorial_type_id', 'accessorial_types.id')
@@ -100,6 +114,8 @@ export default function loadsRouter(db) {
       truck_info: truck ? `${truck.year || ''} ${truck.make || ''} ${truck.model || ''}`.trim() : null,
       trailer_unit: trailer?.unit_number || null,
       trailer_info: trailer ? `${trailer.year || ''} ${trailer.make || ''} ${trailer.model || ''}`.trim() : null,
+      truck_driver_name,
+      truck_driver2_name,
       pickup_city: firstStop?.city,
       pickup_state: firstStop?.state,
       pickup_date: firstStop?.appointment_start || null,
@@ -255,7 +271,7 @@ export default function loadsRouter(db) {
     const load = await db('loads').where({ id: req.params.id }).first();
     if (!load) return res.status(404).json({ error: 'Load not found' });
 
-    const { driver_id } = req.body;
+    const { driver_id, truck_id, trailer_id } = req.body;
     if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
 
     const driver = await db('drivers').where({ id: driver_id }).first();
@@ -296,11 +312,14 @@ export default function loadsRouter(db) {
       });
     }
 
-    // Assign driver
+    // Assign driver + optional truck/trailer
     const updates = {
       driver_id,
       assigned_at: new Date().toISOString(),
     };
+
+    if (truck_id !== undefined) updates.truck_id = truck_id;
+    if (trailer_id !== undefined) updates.trailer_id = trailer_id;
 
     // Auto-transition to SCHEDULED if currently OPEN
     if (load.status === 'OPEN') {

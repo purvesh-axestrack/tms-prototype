@@ -72,6 +72,9 @@ export default function LoadCard({ load, onClick }) {
                 </AvatarFallback>
               </Avatar>
               <span className="text-xs font-medium text-muted-foreground truncate">{load.driver_name}</span>
+              {load.truck_unit && (
+                <span className="text-[10px] text-muted-foreground/70 ml-auto flex-shrink-0">Truck {load.truck_unit}</span>
+              )}
             </div>
           </div>
         )}
