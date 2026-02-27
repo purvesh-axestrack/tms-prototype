@@ -820,6 +820,8 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                       displayValue={load.equipment_type?.replaceAll('_', ' ')}
                       onSave={(v) => saveField('equipment_type', v)}
                       options={equipmentOpts}
+                      placeholder="None"
+                      allowNone
                     />
                   </div>
                   <div className="space-y-1">
