@@ -96,6 +96,7 @@ export default function DraftReviewModal({ emailImport, onClose }) {
       await approveImport(emailImport.id, form);
       toast.success('Load approved and created');
       queryClient.invalidateQueries({ queryKey: ['email-imports'] });
+      queryClient.invalidateQueries({ queryKey: ['email-import', emailImport.id] });
       queryClient.invalidateQueries({ queryKey: ['loads'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       onClose();
@@ -112,6 +113,7 @@ export default function DraftReviewModal({ emailImport, onClose }) {
       await rejectImport(emailImport.id);
       toast.success('Import rejected');
       queryClient.invalidateQueries({ queryKey: ['email-imports'] });
+      queryClient.invalidateQueries({ queryKey: ['email-import', emailImport.id] });
       queryClient.invalidateQueries({ queryKey: ['loads'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       onClose();

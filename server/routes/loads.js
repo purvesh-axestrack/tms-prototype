@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateStatusChange, getAvailableTransitions } from '../lib/stateMachine.js';
 import { checkDriverConflicts } from '../lib/conflictDetection.js';
 import { calculateLoadTotal } from '../lib/rateCalculator.js';
+import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
 
 export default function loadsRouter(db) {
   const router = Router();
@@ -312,12 +313,12 @@ export default function loadsRouter(db) {
         dispatcher_id: req.user.id,
         status,
         rate_amount,
-        rate_type,
+        rate_type: normalizeEnum(rate_type, RATE_TYPES, 'FLAT'),
         loaded_miles: loaded_miles || 0,
         empty_miles,
         commodity: commodity || '',
         weight: weight || 0,
-        equipment_type: equipment_type || 'DRY_VAN',
+        equipment_type: normalizeEnum(equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES),
         email_import_id: email_import_id || null,
         confidence_score: confidence_score || null,
         special_instructions: special_instructions || null,
@@ -349,7 +350,7 @@ export default function loadsRouter(db) {
         id: `s${Date.now()}-${index}`,
         load_id: load.id,
         sequence_order: index + 1,
-        stop_type: stop.stop_type,
+        stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
         facility_name: stop.facility_name || '',
         address: stop.address || '',
         city: stop.city || '',
@@ -564,6 +565,9 @@ export default function loadsRouter(db) {
         updates[field] = req.body[field];
       }
     });
+    // Normalize enums on update
+    if (updates.equipment_type) updates.equipment_type = normalizeEnum(updates.equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES);
+    if (updates.rate_type) updates.rate_type = normalizeEnum(updates.rate_type, RATE_TYPES, 'FLAT');
 
     // Handle stops + field updates in one transaction
     await db.transaction(async (trx) => {
@@ -573,7 +577,7 @@ export default function loadsRouter(db) {
           id: stop.id || `s${Date.now()}-${index}`,
           load_id: load.id,
           sequence_order: index + 1,
-          stop_type: stop.stop_type,
+          stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
           facility_name: stop.facility_name || '',
           address: stop.address || '',
           city: stop.city || '',

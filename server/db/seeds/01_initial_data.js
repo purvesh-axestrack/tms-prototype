@@ -77,19 +77,27 @@ export async function seed(knex) {
   //   Hunter Transport (6):  d_09↔d_10 (team)
   //   PLM Carrier (2):       d_11, d_12 (solo)
   await knex('drivers').insert([
-    { id: 'd_01', full_name: 'John Miller', phone: '555-0101', license_number: 'CDL-TX-123456', license_state: 'TX', status: 'EN_ROUTE', pay_model: 'CPM', pay_rate: 0.55, team_driver_id: 'd_02' },
-    { id: 'd_02', full_name: 'Maria Garcia', phone: '555-0102', license_number: 'CDL-CA-234567', license_state: 'CA', status: 'EN_ROUTE', pay_model: 'PERCENTAGE', pay_rate: 25.0, minimum_per_mile: 0.50, team_driver_id: 'd_01' },
+    { id: 'd_01', full_name: 'John Miller', phone: '555-0101', license_number: 'CDL-TX-123456', license_state: 'TX', status: 'EN_ROUTE', pay_model: 'CPM', pay_rate: 0.55 },
+    { id: 'd_02', full_name: 'Maria Garcia', phone: '555-0102', license_number: 'CDL-CA-234567', license_state: 'CA', status: 'EN_ROUTE', pay_model: 'PERCENTAGE', pay_rate: 25.0, minimum_per_mile: 0.50 },
     { id: 'd_03', full_name: 'David Chen', phone: '555-0103', license_number: 'CDL-IL-345678', license_state: 'IL', status: 'AVAILABLE', pay_model: 'FLAT', pay_rate: 1200.0 },
     { id: 'd_04', full_name: 'Angela Brown', phone: '555-0104', license_number: 'CDL-GA-456789', license_state: 'GA', status: 'EN_ROUTE', pay_model: 'CPM', pay_rate: 0.60 },
     { id: 'd_05', full_name: 'Robert Wilson', phone: '555-0105', license_number: 'CDL-FL-567890', license_state: 'FL', status: 'OUT_OF_SERVICE', pay_model: 'PERCENTAGE', pay_rate: 28.0, minimum_per_mile: 0.55 },
     { id: 'd_06', full_name: 'Luis Hernandez', phone: '555-0106', license_number: 'CDL-TX-678901', license_state: 'TX', status: 'AVAILABLE', pay_model: 'CPM', pay_rate: 0.58 },
-    { id: 'd_07', full_name: 'Patricia Johnson', phone: '555-0107', license_number: 'CDL-OH-789012', license_state: 'OH', status: 'EN_ROUTE', pay_model: 'PERCENTAGE', pay_rate: 26.0, minimum_per_mile: 0.48, carrier_id: 7, team_driver_id: 'd_08' },
-    { id: 'd_08', full_name: 'James Thompson', phone: '555-0108', license_number: 'CDL-PA-890123', license_state: 'PA', status: 'AVAILABLE', pay_model: 'CPM', pay_rate: 0.52, carrier_id: 7, team_driver_id: 'd_07' },
-    { id: 'd_09', full_name: 'Svetlana Petrov', phone: '555-0109', license_number: 'CDL-NJ-901234', license_state: 'NJ', status: 'AVAILABLE', pay_model: 'FLAT', pay_rate: 1350.0, carrier_id: 6, team_driver_id: 'd_10' },
-    { id: 'd_10', full_name: 'Marcus Washington', phone: '555-0110', license_number: 'CDL-TN-012345', license_state: 'TN', status: 'EN_ROUTE', pay_model: 'CPM', pay_rate: 0.57, carrier_id: 6, team_driver_id: 'd_09' },
-    { id: 'd_11', full_name: 'Raj Patel', phone: '555-0111', license_number: 'CDL-IN-112233', license_state: 'IN', status: 'AVAILABLE', pay_model: 'PERCENTAGE', pay_rate: 24.0, minimum_per_mile: 0.45, carrier_id: 2 },
-    { id: 'd_12', full_name: 'Tommy Nguyen', phone: '555-0112', license_number: 'CDL-WA-223344', license_state: 'WA', status: 'AVAILABLE', pay_model: 'CPM', pay_rate: 0.62, carrier_id: 2 },
+    { id: 'd_07', full_name: 'Patricia Johnson', phone: '555-0107', license_number: 'CDL-OH-789012', license_state: 'OH', status: 'EN_ROUTE', pay_model: 'PERCENTAGE', pay_rate: 26.0, minimum_per_mile: 0.48 },
+    { id: 'd_08', full_name: 'James Thompson', phone: '555-0108', license_number: 'CDL-PA-890123', license_state: 'PA', status: 'AVAILABLE', pay_model: 'CPM', pay_rate: 0.52 },
+    { id: 'd_09', full_name: 'Svetlana Petrov', phone: '555-0109', license_number: 'CDL-NJ-901234', license_state: 'NJ', status: 'AVAILABLE', pay_model: 'FLAT', pay_rate: 1350.0 },
+    { id: 'd_10', full_name: 'Marcus Washington', phone: '555-0110', license_number: 'CDL-TN-012345', license_state: 'TN', status: 'EN_ROUTE', pay_model: 'CPM', pay_rate: 0.57 },
+    { id: 'd_11', full_name: 'Raj Patel', phone: '555-0111', license_number: 'CDL-IN-112233', license_state: 'IN', status: 'AVAILABLE', pay_model: 'PERCENTAGE', pay_rate: 24.0, minimum_per_mile: 0.45 },
+    { id: 'd_12', full_name: 'Tommy Nguyen', phone: '555-0112', license_number: 'CDL-WA-223344', license_state: 'WA', status: 'AVAILABLE', pay_model: 'CPM', pay_rate: 0.62 },
   ]);
+
+  // Set team driver relationships (bidirectional self-referencing FKs require separate update)
+  await knex('drivers').where({ id: 'd_01' }).update({ team_driver_id: 'd_02' });
+  await knex('drivers').where({ id: 'd_02' }).update({ team_driver_id: 'd_01' });
+  await knex('drivers').where({ id: 'd_07' }).update({ team_driver_id: 'd_08' });
+  await knex('drivers').where({ id: 'd_08' }).update({ team_driver_id: 'd_07' });
+  await knex('drivers').where({ id: 'd_09' }).update({ team_driver_id: 'd_10' });
+  await knex('drivers').where({ id: 'd_10' }).update({ team_driver_id: 'd_09' });
 
   // ── Vehicles (16: 10 tractors, 6 trailers) ─────────────
   // Team trucks have current_driver2_id; carrier trucks have carrier_id
@@ -103,10 +111,10 @@ export async function seed(knex) {
     { id: 'v_04', unit_number: 'T-104', type: 'TRACTOR', make: 'Volvo', model: 'VNL 860', year: 2023, vin: '4V4NC9EH5PN200004', license_plate: 'GA-TRK-3456', license_state: 'GA', status: 'ACTIVE', current_driver_id: 'd_04' },
     { id: 'v_05', unit_number: 'T-105', type: 'TRACTOR', make: 'International', model: 'LT', year: 2020, vin: '3HSDJAPR1LN600005', license_plate: 'FL-TRK-7890', license_state: 'FL', status: 'IN_SHOP', current_driver_id: 'd_05' },
     { id: 'v_06', unit_number: 'T-106', type: 'TRACTOR', make: 'Freightliner', model: 'Cascadia', year: 2024, vin: '3AKJHHDR7PSLA0006', license_plate: 'TX-TRK-2345', license_state: 'TX', status: 'ACTIVE', current_driver_id: 'd_06' },
-    { id: 'v_07', unit_number: 'T-107', type: 'TRACTOR', make: 'Kenworth', model: 'W990', year: 2022, vin: '1XKYD49X2NJ100007', license_plate: 'OH-TRK-6789', license_state: 'OH', status: 'ACTIVE', current_driver_id: 'd_07', current_driver2_id: 'd_08', carrier_id: 7 },
-    { id: 'v_08', unit_number: 'T-108', type: 'TRACTOR', make: 'Mack', model: 'Anthem', year: 2023, vin: '1M1AN07Y5PM000008', license_plate: 'PA-TRK-0123', license_state: 'PA', status: 'ACTIVE', carrier_id: 7 },
-    { id: 'v_09', unit_number: 'T-109', type: 'TRACTOR', make: 'Peterbilt', model: '389', year: 2021, vin: '1XPBD49X3ND300009', license_plate: 'NJ-TRK-4567', license_state: 'NJ', status: 'ACTIVE', current_driver_id: 'd_09', current_driver2_id: 'd_10', carrier_id: 6 },
-    { id: 'v_10', unit_number: 'T-110', type: 'TRACTOR', make: 'Volvo', model: 'VNR 640', year: 2024, vin: '4V4NC9EH7PN200010', license_plate: 'TN-TRK-8901', license_state: 'TN', status: 'ACTIVE', carrier_id: 6 },
+    { id: 'v_07', unit_number: 'T-107', type: 'TRACTOR', make: 'Kenworth', model: 'W990', year: 2022, vin: '1XKYD49X2NJ100007', license_plate: 'OH-TRK-6789', license_state: 'OH', status: 'ACTIVE', current_driver_id: 'd_07', current_driver2_id: 'd_08' },
+    { id: 'v_08', unit_number: 'T-108', type: 'TRACTOR', make: 'Mack', model: 'Anthem', year: 2023, vin: '1M1AN07Y5PM000008', license_plate: 'PA-TRK-0123', license_state: 'PA', status: 'ACTIVE' },
+    { id: 'v_09', unit_number: 'T-109', type: 'TRACTOR', make: 'Peterbilt', model: '389', year: 2021, vin: '1XPBD49X3ND300009', license_plate: 'NJ-TRK-4567', license_state: 'NJ', status: 'ACTIVE', current_driver_id: 'd_09', current_driver2_id: 'd_10' },
+    { id: 'v_10', unit_number: 'T-110', type: 'TRACTOR', make: 'Volvo', model: 'VNR 640', year: 2024, vin: '4V4NC9EH7PN200010', license_plate: 'TN-TRK-8901', license_state: 'TN', status: 'ACTIVE' },
     { id: 'v_11', unit_number: 'TR-201', type: 'TRAILER', make: 'Great Dane', model: 'Champion SE', year: 2022, vin: '1GRAA0622NB700011', license_plate: 'TX-TRL-1111', license_state: 'TX', status: 'ACTIVE' },
     { id: 'v_12', unit_number: 'TR-202', type: 'TRAILER', make: 'Utility', model: '4000D-X', year: 2023, vin: '1UYVS2532NU200012', license_plate: 'CA-TRL-2222', license_state: 'CA', status: 'ACTIVE' },
     { id: 'v_13', unit_number: 'TR-203', type: 'TRAILER', make: 'Wabash', model: 'DuraPlate', year: 2021, vin: '1JJV532D3NL300013', license_plate: 'IL-TRL-3333', license_state: 'IL', status: 'ACTIVE' },

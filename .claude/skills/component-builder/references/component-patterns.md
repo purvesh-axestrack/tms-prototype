@@ -493,6 +493,69 @@ const NAV_SECTIONS = [
 ];
 ```
 
+## Data Fetching Best Practices
+
+### Never Use Aggressive Polling
+
+`refetchInterval` should be a last resort, not the default. Most pages don't need it at all.
+
+| Scenario | Strategy |
+|----------|----------|
+| Data changes only via user actions in this app | No polling. Rely on `invalidateQueries()` in mutation `onSuccess`. This is the **default for all pages**. |
+| Data changes from external sources (e.g., Samsara GPS) | `refetchInterval: 30000` (30s) minimum. Never less. |
+| Dashboard/stats that summarize other data | `refetchInterval: 60000` (60s) or just `refetchOnWindowFocus: true` |
+| Real-time collaboration (multiple dispatchers) | Not yet needed. When it is, use WebSockets/SSE, not polling. |
+
+**Bad — burns API calls for no reason:**
+```js
+useQuery({
+  queryKey: ['loads'],
+  queryFn: getLoads,
+  refetchInterval: 3000, // 20 fetches/min for data that changes once an hour
+});
+```
+
+**Good — refreshes only when something changes:**
+```js
+useQuery({
+  queryKey: ['loads'],
+  queryFn: getLoads,
+  // No refetchInterval. Data updates via invalidateQueries after mutations.
+});
+
+// In your mutation:
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ['loads'] });
+}
+```
+
+### staleTime
+
+Set `staleTime` for data that doesn't change often. Prevents refetches on component remounts and tab focus.
+
+```js
+// Reference data (customers, drivers, locations) — unlikely to change mid-session
+useQuery({
+  queryKey: ['customers'],
+  queryFn: getCustomers,
+  staleTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Active operational data (loads, invoices) — keep default (0), rely on invalidation
+useQuery({
+  queryKey: ['loads'],
+  queryFn: getLoads,
+  // staleTime: 0 (default) — always refetch when stale
+});
+```
+
+### Query Key Rules
+
+1. List queries: `['resources']` or `['resources', { filters }]`
+2. Detail queries: `['resource', id]`
+3. Always invalidate both list and detail after mutations
+4. Use `enabled: !!id` for conditional detail fetches
+
 ## Brand Colors
 
 | Use | Color |

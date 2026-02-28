@@ -32,7 +32,9 @@ export default function SettlementBatchModal({ onClose }) {
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Failed to generate settlements');
+      const msg = err.response?.data?.error || 'Failed to generate settlements';
+      setError(msg);
+      toast.error(msg);
     },
   });
 

@@ -83,6 +83,8 @@ Before presenting:
 8. AlertDialog for destructive confirmations (not `window.confirm`)?
 9. Sonner toast for success/error (not `window.alert`)?
 10. Status colors defined as constant object?
+11. **No unnecessary `refetchInterval`?** Data should update via mutation invalidation, not polling. Only use polling for external data sources, and never less than 30s. See `references/component-patterns.md` "Data Fetching Best Practices".
+12. **`staleTime` set for reference data?** Customers, drivers, locations, carriers = `5 * 60 * 1000`. Operational data = default (0).
 
 ## Examples
 

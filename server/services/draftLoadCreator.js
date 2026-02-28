@@ -1,3 +1,5 @@
+import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
+
 export async function createDraftLoad(db, emailImportId, extractedData, dispatcherId = null) {
   const data = extractedData.data;
 
@@ -33,12 +35,12 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
     email_import_id: emailImportId,
     confidence_score: extractedData.confidence || null,
     rate_amount: data.rate_amount?.value || 0,
-    rate_type: data.rate_type?.value || 'FLAT',
+    rate_type: normalizeEnum(data.rate_type?.value, RATE_TYPES, 'FLAT'),
     loaded_miles: data.loaded_miles?.value || 0,
     empty_miles: 0,
     commodity: data.commodity?.value || '',
     weight: data.weight?.value || 0,
-    equipment_type: data.equipment_type?.value || 'DRY_VAN',
+    equipment_type: normalizeEnum(data.equipment_type?.value, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES),
     special_instructions: data.special_instructions?.value || null,
   }).returning('*');
 
@@ -49,7 +51,7 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
       id: `s${Date.now()}-${index}`,
       load_id: load.id,
       sequence_order: index + 1,
-      stop_type: stop.stop_type || (index === 0 ? 'PICKUP' : 'DELIVERY'),
+      stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
       facility_name: stop.facility_name || '',
       address: stop.address || '',
       city: stop.city || '',

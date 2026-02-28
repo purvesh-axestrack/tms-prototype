@@ -40,7 +40,9 @@ export default function InvoiceCreateModal({ onClose }) {
       onClose();
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Failed to create invoice');
+      const msg = err.response?.data?.error || 'Failed to create invoice';
+      setError(msg);
+      toast.error(msg);
     },
   });
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
 
 export default function emailImportsRouter(db) {
   const router = Router();
@@ -95,6 +96,8 @@ export default function emailImportsRouter(db) {
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) loadUpdates[field] = updates[field];
     });
+    if (loadUpdates.equipment_type) loadUpdates.equipment_type = normalizeEnum(loadUpdates.equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES);
+    if (loadUpdates.rate_type) loadUpdates.rate_type = normalizeEnum(loadUpdates.rate_type, RATE_TYPES, 'FLAT');
 
     await db.transaction(async (trx) => {
       await trx('loads').where({ id: imp.load_id }).update(loadUpdates);
@@ -106,7 +109,7 @@ export default function emailImportsRouter(db) {
           id: stop.id || `s${Date.now()}-${index}`,
           load_id: imp.load_id,
           sequence_order: index + 1,
-          stop_type: stop.stop_type,
+          stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
           facility_name: stop.facility_name || '',
           address: stop.address || '',
           city: stop.city || '',

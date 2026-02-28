@@ -153,6 +153,18 @@ export const STOP_ACTION_TYPE_COLORS = {
   HOOK_TRAILER: 'bg-purple-100 text-purple-700',
 };
 
+// ── Enum normalization (for AI-extracted values) ──────────────────────
+export const EQUIPMENT_ALIASES = { 'DRY': 'DRY_VAN', 'VAN': 'DRY_VAN', 'REFRIGERATED': 'REEFER', 'FLAT_BED': 'FLATBED', 'FLAT': 'FLATBED', 'STEPDECK': 'STEP_DECK', 'LOW_BOY': 'LOWBOY' };
+export const STOP_ALIASES = { 'PICK_UP': 'PICKUP', 'PICK': 'PICKUP', 'DROP': 'DELIVERY', 'DROPOFF': 'DELIVERY', 'DROP_OFF': 'DELIVERY', 'DELIVER': 'DELIVERY' };
+
+export function normalizeEnum(raw, validSet, fallback, aliases = {}) {
+  if (!raw) return fallback;
+  const upper = String(raw).toUpperCase().replace(/[\s-]+/g, '_');
+  if (validSet.includes(upper)) return upper;
+  if (aliases[upper]) return aliases[upper];
+  return validSet.find(e => upper.includes(e)) || fallback;
+}
+
 // ── Bundle for GET /api/enums endpoint ─────────────────────────────────
 export const ALL_ENUMS = {
   USER_ROLES,
