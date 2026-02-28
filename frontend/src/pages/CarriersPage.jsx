@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCarriers, getCarrierById, createCarrier, updateCarrier, deleteCarrier, addCarrierInsurance, removeCarrierInsurance } from '../services/api';
+import { getCarriers, getCarrierById, deleteCarrier, addCarrierInsurance, removeCarrierInsurance } from '../services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,22 +10,15 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building, Plus, Search, Shield, AlertTriangle, Trash2, User, Truck, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
-import { CARRIER_STATUSES, INSURANCE_TYPES, CARRIER_STATUS_COLORS as statusColors, INSURANCE_TYPE_LABELS as insuranceTypeLabels } from '@/lib/constants';
-
-const emptyForm = {
-  company_name: '', mc_number: '', dot_number: '', scac_code: '',
-  contact_name: '', contact_email: '', contact_phone: '',
-  address: '', city: '', state: '', zip: '',
-  status: 'PROSPECT', notes: '',
-};
+import { INSURANCE_TYPES, CARRIER_STATUS_COLORS as statusColors, INSURANCE_TYPE_LABELS as insuranceTypeLabels } from '@/lib/constants';
+import CarrierFormDialog from '../components/CarrierFormDialog';
 
 const emptyInsuranceForm = {
   policy_type: '', provider: '', policy_number: '', coverage_amount: '', expiration_date: '',
@@ -36,7 +29,6 @@ export default function CarriersPage() {
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editCarrier, setEditCarrier] = useState(null);
-  const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showAddInsurance, setShowAddInsurance] = useState(false);
@@ -72,28 +64,6 @@ export default function CarriersPage() {
     return list;
   }, [carriers, tab, search]);
 
-  const createMutation = useMutation({
-    mutationFn: createCarrier,
-    onSuccess: () => {
-      toast.success('Carrier created');
-      queryClient.invalidateQueries({ queryKey: ['carriers'] });
-      setShowCreate(false);
-      setForm(emptyForm);
-    },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to create carrier'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateCarrier(id, data),
-    onSuccess: () => {
-      toast.success('Carrier updated');
-      queryClient.invalidateQueries({ queryKey: ['carriers'] });
-      queryClient.invalidateQueries({ queryKey: ['carrier', editCarrier?.id] });
-      setEditCarrier(null);
-    },
-    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update carrier'),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: deleteCarrier,
     onSuccess: () => {
@@ -127,28 +97,6 @@ export default function CarriersPage() {
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to remove insurance'),
   });
 
-  const handleCreate = () => {
-    if (!form.company_name) return toast.error('Company name is required');
-    createMutation.mutate(form);
-  };
-
-  const handleUpdate = () => {
-    if (!editCarrier) return;
-    updateMutation.mutate({ id: editCarrier.id, data: form });
-  };
-
-  const openEdit = (c) => {
-    setForm({
-      company_name: c.company_name || '', mc_number: c.mc_number || '',
-      dot_number: c.dot_number || '', scac_code: c.scac_code || '',
-      contact_name: c.contact_name || '', contact_email: c.contact_email || '',
-      contact_phone: c.contact_phone || '',
-      address: c.address || '', city: c.city || '', state: c.state || '', zip: c.zip || '',
-      status: c.status || 'PROSPECT', notes: c.notes || '',
-    });
-    setEditCarrier(c);
-  };
-
   const handleAddInsurance = () => {
     if (!insuranceForm.policy_type) return toast.error('Policy type is required');
     if (!insuranceForm.provider) return toast.error('Provider is required');
@@ -172,7 +120,7 @@ export default function CarriersPage() {
           <Building className="w-6 h-6" />
           Carriers
         </h2>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }} className="theme-brand-bg text-white">
+        <Button onClick={() => setShowCreate(true)} className="theme-brand-bg text-white">
           <Plus className="w-4 h-4" /> Add Carrier
         </Button>
       </div>
@@ -257,7 +205,7 @@ export default function CarriersPage() {
                     <Badge className={statusColors[c.status] || ''}>{c.status}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(c); }}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditCarrier(c); }}>Edit</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -266,38 +214,12 @@ export default function CarriersPage() {
         </Card>
       )}
 
-      {/* Create Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display">Add Carrier</DialogTitle>
-            <DialogDescription>Add a new carrier for brokered loads</DialogDescription>
-          </DialogHeader>
-          <CarrierForm form={form} setForm={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={createMutation.isPending} className="theme-brand-bg text-white">
-              {createMutation.isPending ? 'Creating...' : 'Create Carrier'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editCarrier} onOpenChange={() => setEditCarrier(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-display">Edit Carrier</DialogTitle>
-          </DialogHeader>
-          <CarrierForm form={form} setForm={setForm} showStatus />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCarrier(null)}>Cancel</Button>
-            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="theme-brand-bg text-white">
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create / Edit Dialog */}
+      <CarrierFormDialog
+        open={showCreate || !!editCarrier}
+        onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditCarrier(null); } }}
+        editingCarrier={editCarrier}
+      />
 
       {/* Detail Sheet */}
       <Sheet open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
@@ -525,7 +447,7 @@ export default function CarriersPage() {
                 {/* Actions */}
                 <Separator />
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { openEdit(detail); setSelectedId(null); }}>Edit Carrier</Button>
+                  <Button variant="outline" onClick={() => { setEditCarrier(detail); setSelectedId(null); }}>Edit Carrier</Button>
                   {detail.status !== 'INACTIVE' && (
                     <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => { setDeleteTarget(detail); setSelectedId(null); }}>
                       Deactivate
@@ -608,93 +530,6 @@ export default function CarriersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function CarrierForm({ form, setForm, showStatus }) {
-  const setInput = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
-  const set = (field) => (v) => setForm(prev => ({ ...prev, [field]: v }));
-
-  return (
-    <div className="space-y-4">
-      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Company Details</div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2 space-y-1.5">
-          <Label>Company Name *</Label>
-          <Input value={form.company_name} onChange={setInput('company_name')} placeholder="Carrier company name" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>MC Number</Label>
-          <Input value={form.mc_number} onChange={setInput('mc_number')} placeholder="e.g., MC-123456" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>DOT Number</Label>
-          <Input value={form.dot_number} onChange={setInput('dot_number')} placeholder="e.g., 1234567" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>SCAC Code</Label>
-          <Input value={form.scac_code} onChange={setInput('scac_code')} placeholder="2-4 letter code" maxLength={4} />
-        </div>
-        {showStatus && (
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={form.status} onValueChange={set('status')}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CARRIER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-
-      <Separator />
-      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Contact Information</div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>Contact Name</Label>
-          <Input value={form.contact_name} onChange={setInput('contact_name')} placeholder="Primary contact" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Phone</Label>
-          <Input value={form.contact_phone} onChange={setInput('contact_phone')} placeholder="(555) 123-4567" />
-        </div>
-        <div className="col-span-2 space-y-1.5">
-          <Label>Email</Label>
-          <Input value={form.contact_email} onChange={setInput('contact_email')} placeholder="dispatch@carrier.com" type="email" />
-        </div>
-      </div>
-
-      <Separator />
-      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Address</div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2 space-y-1.5">
-          <Label>Street Address</Label>
-          <Input value={form.address} onChange={setInput('address')} placeholder="123 Main St" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>City</Label>
-          <Input value={form.city} onChange={setInput('city')} />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1.5">
-            <Label>State</Label>
-            <Input value={form.state} onChange={setInput('state')} maxLength={2} placeholder="TX" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>ZIP</Label>
-            <Input value={form.zip} onChange={setInput('zip')} placeholder="75001" />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Notes</Label>
-        <Textarea value={form.notes} onChange={setInput('notes')} rows={2} placeholder="Any additional notes..." />
-      </div>
     </div>
   );
 }
