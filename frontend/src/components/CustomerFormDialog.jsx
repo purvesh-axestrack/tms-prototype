@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const EMPTY_FORM = { company_name: '', customer_type: '', mc_number: '', dot_number: '', billing_email: '', payment_terms: 30, phone: '', contact_name: '', address: '', city: '', state: '', zip: '', credit_limit: '' };
 
-export default function CustomerFormDialog({ open, onOpenChange, editingCustomer, onSuccess }) {
+export default function CustomerFormDialog({ open, onOpenChange, editingCustomer, onSuccess, defaultName }) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState(() => {
     if (editingCustomer) {
@@ -31,7 +31,7 @@ export default function CustomerFormDialog({ open, onOpenChange, editingCustomer
         credit_limit: editingCustomer.credit_limit || '',
       };
     }
-    return { ...EMPTY_FORM };
+    return { ...EMPTY_FORM, ...(defaultName ? { company_name: defaultName } : {}) };
   });
 
   const createMutation = useMutation({

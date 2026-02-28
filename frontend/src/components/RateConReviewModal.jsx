@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
-import { Loader2, CheckCircle, MapPin, FileText } from 'lucide-react';
+import { Loader2, CheckCircle, MapPin, FileText, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { EQUIPMENT_TYPES } from '@/lib/constants';
+import CustomerFormDialog from './CustomerFormDialog';
 
 function ConfidenceDot({ score }) {
   if (score == null) return null;
@@ -55,6 +56,8 @@ export default function RateConReviewModal({ data, onClose }) {
       appointment_end: s.appointment_end || '',
     })),
   });
+
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
 
   const updateField = (field, value) => setForm(f => ({ ...f, [field]: value }));
   const updateStop = (idx, field, value) => {
@@ -117,14 +120,28 @@ export default function RateConReviewModal({ data, onClose }) {
               <Input value={form.customer_ref_number} onChange={e => updateField('customer_ref_number', e.target.value)} className="h-8 text-sm" />
             </div>
             <div>
-              <Label className="text-xs">Customer</Label>
-              <Combobox
-                value={form.customer_id}
-                onChange={(v) => updateField('customer_id', v)}
-                options={customerOpts}
-                placeholder={form.broker_name ? `Match: "${form.broker_name}"` : 'Select customer...'}
-                searchPlaceholder="Search customers..."
-              />
+              <Label className="text-xs flex items-center gap-1.5">
+                Customer
+                {form.broker_name && (
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    PDF: {form.broker_name}
+                  </Badge>
+                )}
+              </Label>
+              <div className="flex gap-1.5">
+                <div className="flex-1">
+                  <Combobox
+                    value={form.customer_id}
+                    onChange={(v) => updateField('customer_id', v)}
+                    options={customerOpts}
+                    placeholder={form.broker_name ? `Search "${form.broker_name}"...` : 'Select customer...'}
+                    searchPlaceholder="Search customers..."
+                  />
+                </div>
+                <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => setShowCustomerForm(true)} title="Create new customer">
+                  <Plus className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -219,6 +236,18 @@ export default function RateConReviewModal({ data, onClose }) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {showCustomerForm && (
+        <CustomerFormDialog
+          open={showCustomerForm}
+          onOpenChange={(open) => !open && setShowCustomerForm(false)}
+          defaultName={form.broker_name}
+          onSuccess={(created) => {
+            if (created?.id) updateField('customer_id', String(created.id));
+            setShowCustomerForm(false);
+          }}
+        />
+      )}
     </Dialog>
   );
 }
