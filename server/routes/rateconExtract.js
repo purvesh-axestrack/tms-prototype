@@ -90,6 +90,16 @@ export default function rateconRouter(db) {
 
     const userId = dispatcher_id || req.user?.id || null;
 
+    const VALID_EQUIPMENT = ['DRY_VAN','REEFER','FLATBED','STEP_DECK','LOWBOY','HOTSHOT','CONTAINER','POWER_ONLY','TANKER','STRAIGHT_TRUCK','SPRINTER_VAN','CARGO_VAN'];
+    const normalizeEquipment = (v) => {
+      if (!v) return 'DRY_VAN';
+      const upper = v.toUpperCase().replace(/[\s-]+/g, '_');
+      if (VALID_EQUIPMENT.includes(upper)) return upper;
+      // Common Gemini outputs
+      const map = { 'DRY': 'DRY_VAN', 'VAN': 'DRY_VAN', 'REFRIGERATED': 'REEFER', 'FLAT_BED': 'FLATBED', 'FLAT': 'FLATBED', 'STEPDECK': 'STEP_DECK', 'LOW_BOY': 'LOWBOY' };
+      return map[upper] || VALID_EQUIPMENT.find(e => upper.includes(e)) || 'DRY_VAN';
+    };
+
     // Rate con ref is the customer's ref — auto-generate our internal ref
     const [load] = await db('loads').insert({
       reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
@@ -104,7 +114,7 @@ export default function rateconRouter(db) {
       empty_miles: 0,
       commodity: data.commodity || '',
       weight: data.weight || 0,
-      equipment_type: data.equipment_type || 'DRY_VAN',
+      equipment_type: normalizeEquipment(data.equipment_type),
       special_instructions: data.special_instructions || null,
     }).returning('*');
 
