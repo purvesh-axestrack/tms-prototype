@@ -16,11 +16,26 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
   const isBrokered = !!load.carrier_id;
 
   // In brokered mode, filter drivers/trucks to that carrier
+  // Drivers match if: driver.carrier_id matches, OR driver is assigned to a truck that belongs to the carrier
+  const carrierTruckDriverIds = useMemo(() => {
+    if (!isBrokered) return null;
+    const ids = new Set();
+    for (const t of trucks) {
+      if (Number(t.carrier_id) === Number(load.carrier_id)) {
+        if (t.current_driver_id) ids.add(t.current_driver_id);
+        if (t.current_driver2_id) ids.add(t.current_driver2_id);
+      }
+    }
+    return ids;
+  }, [trucks, isBrokered, load.carrier_id]);
+
   const filteredDrivers = useMemo(() => {
     const base = drivers.filter(d => d.status !== 'OUT_OF_SERVICE');
-    if (isBrokered) return base.filter(d => Number(d.carrier_id) === Number(load.carrier_id));
+    if (isBrokered) return base.filter(d =>
+      Number(d.carrier_id) === Number(load.carrier_id) || carrierTruckDriverIds?.has(d.id)
+    );
     return base;
-  }, [drivers, isBrokered, load.carrier_id]);
+  }, [drivers, isBrokered, load.carrier_id, carrierTruckDriverIds]);
 
   const filteredTrucks = useMemo(() => {
     if (isBrokered) return trucks.filter(v => Number(v.carrier_id) === Number(load.carrier_id));
