@@ -50,7 +50,8 @@ export function gmailPublicRouter(db) {
       await db('gmail_settings').insert(settingsData);
     }
 
-    res.redirect('http://localhost:5173/settings?gmail=connected');
+    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    res.redirect(`${appUrl}/settings?gmail=connected`);
   }));
 
   return router;
