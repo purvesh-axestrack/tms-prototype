@@ -72,6 +72,8 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
     onSuccess: () => {
       toast.success('Split load created');
       queryClient.invalidateQueries({ queryKey: ['loads'] });
+      queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to create split'),
   });
@@ -108,6 +110,7 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
     onSuccess: () => {
       toast.success('Status updated successfully');
       queryClient.invalidateQueries({ queryKey: ['loads'] });
+      queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to update status'),

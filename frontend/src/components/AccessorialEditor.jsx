@@ -33,6 +33,8 @@ export default function AccessorialEditor({ loadId }) {
       toast.success('Accessorial added');
       queryClient.invalidateQueries({ queryKey: ['loadAccessorials', loadId] });
       queryClient.invalidateQueries({ queryKey: ['loads'] });
+      queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
       setSelectedType('');
       setQuantity(1);
       setRate('');
@@ -47,6 +49,8 @@ export default function AccessorialEditor({ loadId }) {
       toast.success('Accessorial removed');
       queryClient.invalidateQueries({ queryKey: ['loadAccessorials', loadId] });
       queryClient.invalidateQueries({ queryKey: ['loads'] });
+      queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 
