@@ -221,6 +221,21 @@ export const retryImport = async (id) => {
   return response.data;
 };
 
+// Rate Con Extraction
+export const extractRateCon = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/ratecon/extract', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const createLoadFromExtract = async (data) => {
+  const response = await api.post('/ratecon/create-from-extract', data);
+  return response.data;
+};
+
 // Gmail
 export const getGmailStatus = async () => {
   const response = await api.get('/gmail/status');

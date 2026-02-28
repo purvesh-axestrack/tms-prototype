@@ -157,7 +157,8 @@ export default function emailImportsRouter(db) {
     }
 
     // Re-run extraction
-    const { processEmailImport } = await import('../services/pdfExtractor.js');
+    // Use Gemini extractor (swap to '../services/pdfExtractor.js' to revert to Claude)
+    const { processEmailImport } = await import('../services/geminiExtractor.js');
     const documents = await db('documents').where({ email_import_id: imp.id });
 
     if (documents.length === 0) {

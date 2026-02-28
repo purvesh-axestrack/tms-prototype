@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Loader2, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarSign, Plus, Trash2, Upload, FileText, Download, Snowflake, Link2, GitBranch, Eye, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import DispatchCard from './DispatchCard';
 import AccessorialEditor from './AccessorialEditor';
@@ -212,44 +213,40 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
 
           <div className="p-6 space-y-5">
             {/* Actions bar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1">
-                {load.available_transitions?.length > 0 && (
-                  <>
-                    <span className="text-xs font-medium text-muted-foreground mr-1">Actions:</span>
+            <div className="flex items-center justify-end gap-2">
+              {load.available_transitions?.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="theme-brand-bg text-white" disabled={statusMutation.isPending}>
+                      {statusMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Move to <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
                     {load.available_transitions.map(transition => (
-                      <Button
-                        key={transition}
-                        size="sm"
-                        onClick={() => handleStatusChange(transition)}
-                        disabled={statusMutation.isPending}
-                        className="theme-brand-bg text-white"
-                      >
-                        {statusMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                      <DropdownMenuItem key={transition} onClick={() => handleStatusChange(transition)}>
                         {transition.replaceAll('_', ' ')}
-                      </Button>
+                      </DropdownMenuItem>
                     ))}
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {!['COMPLETED', 'INVOICED'].includes(load.status) && (
-                  editing ? (
-                    <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-                      <CheckCircle className="w-3.5 h-3.5" /> Done
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-                      <Pencil className="w-3.5 h-3.5" /> Edit
-                    </Button>
-                  )
-                )}
-                {['OPEN', 'CANCELLED'].includes(load.status) && (
-                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {!['COMPLETED', 'INVOICED'].includes(load.status) && (
+                editing ? (
+                  <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                    <CheckCircle className="w-3.5 h-3.5" /> Done
                   </Button>
-                )}
-              </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                    <Pencil className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                )
+              )}
+              {['OPEN', 'CANCELLED'].includes(load.status) && (
+                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </Button>
+              )}
             </div>
 
             {/* Customer */}
