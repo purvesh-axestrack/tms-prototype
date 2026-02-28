@@ -34,7 +34,7 @@ export default function RateConReviewModal({ data, onClose }) {
 
   // Build editable form from extracted data
   const [form, setForm] = useState({
-    reference_number: ext.reference_number?.value || '',
+    customer_ref_number: ext.reference_number?.value || '',
     customer_id: null,
     broker_name: ext.broker_name?.value || '',
     rate_amount: ext.rate_amount?.value || '',
@@ -113,8 +113,8 @@ export default function RateConReviewModal({ data, onClose }) {
           {/* Basic info */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Reference # <ConfidenceDot score={ext.reference_number?.confidence} /></Label>
-              <Input value={form.reference_number} onChange={e => updateField('reference_number', e.target.value)} className="h-8 text-sm" />
+              <Label className="text-xs">Customer Ref # <ConfidenceDot score={ext.reference_number?.confidence} /></Label>
+              <Input value={form.customer_ref_number} onChange={e => updateField('customer_ref_number', e.target.value)} className="h-8 text-sm" />
             </div>
             <div>
               <Label className="text-xs">Customer</Label>

@@ -22,8 +22,10 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
   }
 
   // Create the load
+  // Rate con reference is the customer's ref, not ours — auto-generate internal ref
   const [load] = await db('loads').insert({
-    reference_number: data.reference_number?.value || null,
+    reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
+    customer_ref_number: data.reference_number?.value || null,
     customer_id: customerId,
     driver_id: null,
     dispatcher_id: dispatcherId,

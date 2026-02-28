@@ -285,7 +285,7 @@ export default function DispatchBoard() {
             <>
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-3" />
               <p className="text-sm font-semibold text-blue-800">Extracting rate con...</p>
-              <p className="text-xs text-blue-600 mt-1">Gemini is reading the PDF</p>
+              <p className="text-xs text-blue-600 mt-1">i is reading the PDF</p>
             </>
           ) : (
             <>

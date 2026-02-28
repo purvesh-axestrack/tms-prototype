@@ -90,9 +90,10 @@ export default function rateconRouter(db) {
 
     const userId = dispatcher_id || req.user?.id || null;
 
-    // Create load
+    // Rate con ref is the customer's ref — auto-generate our internal ref
     const [load] = await db('loads').insert({
-      reference_number: data.reference_number || null,
+      reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
+      customer_ref_number: data.customer_ref_number || null,
       customer_id: data.customer_id || null,
       dispatcher_id: userId,
       status: 'OPEN',

@@ -72,7 +72,7 @@ export async function extractFromPdf(pdfPath) {
   const pdfBase64 = pdfBuffer.toString('base64');
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const model = client.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
   const result = await model.generateContent([
     {
