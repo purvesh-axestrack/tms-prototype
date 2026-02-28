@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import LoadCard from './LoadCard';
 import LoadDetail from './LoadDetail';
 import DraftReviewModal from './DraftReviewModal';
-import RateConReviewModal from './RateConReviewModal';
 import LoadCreateModal from './LoadCreateModal';
 import LoadListView from './LoadListView';
 import LoadTimelineView from './LoadTimelineView';
@@ -164,7 +163,7 @@ const BOARD_COLUMNS = [
 export default function DispatchBoard() {
   const [selectedLoad, setSelectedLoad] = useState(null);
   const [draftReview, setDraftReview] = useState(null);
-  const [rateConReview, setRateConReview] = useState(null);
+  const [createPrefill, setCreatePrefill] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [view, setView] = useState('board');
@@ -177,7 +176,8 @@ export default function DispatchBoard() {
   const extractMutation = useMutation({
     mutationFn: extractRateCon,
     onSuccess: (data) => {
-      setRateConReview(data);
+      setCreatePrefill(data);
+      setShowCreateModal(true);
       toast.success('Rate con extracted — review and confirm');
     },
     onError: (err) => {
@@ -482,12 +482,10 @@ export default function DispatchBoard() {
         />
       )}
 
-      {showCreateModal && <LoadCreateModal onClose={() => setShowCreateModal(false)} />}
-
-      {rateConReview && (
-        <RateConReviewModal
-          data={rateConReview}
-          onClose={() => { setRateConReview(null); queryClient.invalidateQueries({ queryKey: ['loads'] }); }}
+      {showCreateModal && (
+        <LoadCreateModal
+          prefill={createPrefill}
+          onClose={() => { setShowCreateModal(false); setCreatePrefill(null); }}
         />
       )}
     </div>

@@ -339,6 +339,11 @@ export default function loadsRouter(db) {
         customer_ref_number: customer_ref_number || null,
       }).returning('*');
 
+      // Link document if this came from a rate con extraction
+      if (req.body.document_id) {
+        await trx('documents').where({ id: req.body.document_id }).update({ load_id: load.id });
+      }
+
       // Insert stops
       const stopRows = stops.map((stop, index) => ({
         id: `s${Date.now()}-${index}`,

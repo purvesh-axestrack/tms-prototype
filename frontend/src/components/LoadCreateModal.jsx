@@ -43,32 +43,63 @@ const emptyStop = () => ({
   instructions: '',
 });
 
-export default function LoadCreateModal({ onClose }) {
+export default function LoadCreateModal({ onClose, prefill }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
   const [showCustomerForm, setShowCustomerForm] = useState(false);
 
-  const [form, setForm] = useState({
-    reference_number: '',
-    customer_id: '',
-    equipment_type: 'DRY_VAN',
-    commodity: '',
-    weight: '',
-    rate_amount: '',
-    rate_type: 'FLAT',
-    loaded_miles: '',
-    empty_miles: '',
-    fuel_surcharge_pct: '',
-    special_instructions: '',
-    is_ltl: false,
-    // New load metadata
-    booking_authority_id: '',
-    sales_agent_id: '',
-    customer_ref_number: '',
-    stops: [
-      { ...emptyStop(), stop_type: 'PICKUP' },
-      { ...emptyStop(), stop_type: 'DELIVERY' },
-    ],
+  const [form, setForm] = useState(() => {
+    const base = {
+      reference_number: '',
+      customer_id: '',
+      equipment_type: 'DRY_VAN',
+      commodity: '',
+      weight: '',
+      rate_amount: '',
+      rate_type: 'FLAT',
+      loaded_miles: '',
+      empty_miles: '',
+      fuel_surcharge_pct: '',
+      special_instructions: '',
+      is_ltl: false,
+      booking_authority_id: '',
+      sales_agent_id: '',
+      customer_ref_number: '',
+      document_id: null,
+      stops: [
+        { ...emptyStop(), stop_type: 'PICKUP' },
+        { ...emptyStop(), stop_type: 'DELIVERY' },
+      ],
+    };
+    if (!prefill) return base;
+
+    const ext = prefill.extracted?.data || {};
+    return {
+      ...base,
+      customer_ref_number: ext.reference_number?.value || '',
+      equipment_type: ext.equipment_type?.value || 'DRY_VAN',
+      commodity: ext.commodity?.value || '',
+      weight: ext.weight?.value || '',
+      rate_amount: ext.rate_amount?.value || '',
+      rate_type: ext.rate_type?.value || 'FLAT',
+      loaded_miles: ext.loaded_miles?.value || '',
+      special_instructions: ext.special_instructions?.value || '',
+      document_id: prefill.document_id || null,
+      _broker_name: ext.broker_name?.value || '',
+      stops: (ext.stops && ext.stops.length >= 2)
+        ? ext.stops.map(s => ({
+            ...emptyStop(),
+            stop_type: s.stop_type || 'PICKUP',
+            facility_name: s.facility_name || '',
+            address: s.address || '',
+            city: s.city || '',
+            state: s.state || '',
+            zip: s.zip || '',
+            appointment_start: s.appointment_start || '',
+            appointment_end: s.appointment_end || '',
+          }))
+        : base.stops,
+    };
   });
 
   const { data: customers = [] } = useQuery({
@@ -139,6 +170,7 @@ export default function LoadCreateModal({ onClose }) {
       : 0;
 
     createMutation.mutate({
+      document_id: form.document_id || undefined,
       reference_number: form.reference_number || undefined,
       customer_id: form.customer_id,
       equipment_type: form.equipment_type,
@@ -184,7 +216,9 @@ export default function LoadCreateModal({ onClose }) {
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-display">Create New Load</DialogTitle>
-          <DialogDescription>Fill in the load details below</DialogDescription>
+          <DialogDescription>
+            {prefill ? 'Pre-filled from rate con — review and confirm' : 'Fill in the load details below'}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -203,13 +237,18 @@ export default function LoadCreateModal({ onClose }) {
                 <Input type="text" value={form.reference_number} onChange={(e) => updateField('reference_number', e.target.value)} placeholder="Auto-generated if empty" />
               </div>
               <div className="space-y-2">
-                <Label>Customer <span className="text-red-400">*</span></Label>
+                <Label className="flex items-center gap-1.5">
+                  Customer <span className="text-red-400">*</span>
+                  {form._broker_name && (
+                    <Badge variant="outline" className="text-[10px] font-normal">PDF: {form._broker_name}</Badge>
+                  )}
+                </Label>
                 <div className="flex gap-1.5">
                   <Combobox
                     value={form.customer_id || null}
                     onValueChange={(v) => updateField('customer_id', v)}
                     options={customers.map(c => ({ value: String(c.id), label: c.company_name }))}
-                    placeholder="Select customer..."
+                    placeholder={form._broker_name ? `Search "${form._broker_name}"...` : 'Select customer...'}
                     searchPlaceholder="Search customers..."
                     className="h-9"
                   />
@@ -506,6 +545,7 @@ export default function LoadCreateModal({ onClose }) {
         <CustomerFormDialog
           open={showCustomerForm}
           onOpenChange={(open) => !open && setShowCustomerForm(false)}
+          defaultName={form._broker_name}
           onSuccess={(created) => {
             if (created?.id) updateField('customer_id', String(created.id));
             setShowCustomerForm(false);

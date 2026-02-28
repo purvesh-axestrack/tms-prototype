@@ -231,11 +231,6 @@ export const extractRateCon = async (file) => {
   return response.data;
 };
 
-export const createLoadFromExtract = async (data) => {
-  const response = await api.post('/ratecon/create-from-extract', data);
-  return response.data;
-};
-
 // Gmail
 export const getGmailStatus = async () => {
   const response = await api.get('/gmail/status');
