@@ -18,12 +18,12 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
   // In brokered mode, filter drivers/trucks to that carrier
   const filteredDrivers = useMemo(() => {
     const base = drivers.filter(d => d.status !== 'OUT_OF_SERVICE');
-    if (isBrokered) return base.filter(d => d.carrier_id === load.carrier_id);
+    if (isBrokered) return base.filter(d => Number(d.carrier_id) === Number(load.carrier_id));
     return base;
   }, [drivers, isBrokered, load.carrier_id]);
 
   const filteredTrucks = useMemo(() => {
-    if (isBrokered) return trucks.filter(v => v.carrier_id === load.carrier_id);
+    if (isBrokered) return trucks.filter(v => Number(v.carrier_id) === Number(load.carrier_id));
     return trucks;
   }, [trucks, isBrokered, load.carrier_id]);
 
@@ -87,15 +87,17 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
     setConflicts(null);
 
     try {
-      // 1. Check availability
+      // 1. Check availability (skip if no appointment dates yet)
       const pickupDate = load.stops?.[0]?.appointment_start;
       const deliveryDate = load.stops?.[load.stops.length - 1]?.appointment_end;
-      const availability = await checkDriverAvailability(driverId, pickupDate, deliveryDate);
 
-      if (!availability.available) {
-        setConflicts(availability.conflicts);
-        setChecking(false);
-        return;
+      if (pickupDate && deliveryDate) {
+        const availability = await checkDriverAvailability(driverId, pickupDate, deliveryDate);
+        if (!availability.available) {
+          setConflicts(availability.conflicts);
+          setChecking(false);
+          return;
+        }
       }
 
       // 2. Get driver's current truck + suggested trailer + team driver
@@ -119,7 +121,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
       assignMutation.mutate(payload);
     } catch (error) {
       setChecking(false);
-      toast.error('Failed to check driver availability');
+      toast.error(error.response?.data?.error || 'Failed to check driver availability');
     }
   };
 
@@ -170,7 +172,20 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
               <EditableCombobox
                 value={load.carrier_id ? String(load.carrier_id) : null}
                 displayValue={load.carrier_name}
-                onSave={(v) => saveField('carrier_id', v ? parseInt(v) : null)}
+                onSave={(v) => {
+                  const newCarrierId = v ? parseInt(v) : null;
+                  if (newCarrierId !== load.carrier_id) {
+                    // Carrier changed — clear stale dispatch fields
+                    saveFields({
+                      carrier_id: newCarrierId,
+                      driver_id: null,
+                      driver2_id: null,
+                      truck_id: null,
+                      trailer_id: null,
+                    });
+                    setConflicts(null);
+                  }
+                }}
                 options={carrierOpts}
                 placeholder="Own fleet"
                 searchPlaceholder="Search carriers..."
