@@ -2,8 +2,8 @@
  * Gemini-based PDF rate confirmation extractor.
  *
  * Self-contained — only depends on @google/generative-ai and fs.
- * Same extraction schema as the original Claude-based pdfExtractor,
- * so the rest of the pipeline (draftLoadCreator, DraftReviewModal) works unchanged.
+ * The rest of the pipeline (draftLoadCreator, DraftReviewModal) consumes
+ * the same JSON schema this returns.
  *
  * Env: GEMINI_API_KEY (required)
  */
@@ -98,7 +98,7 @@ export async function extractFromPdf(pdfPath) {
 
 /**
  * Process an email import through the Gemini extraction pipeline.
- * Drop-in replacement for pdfExtractor.processEmailImport().
+ * Process an email import through the Gemini extraction pipeline.
  */
 export async function processEmailImport(db, emailImportId, pdfStoragePath, dispatcherId = null) {
   const extracted = await extractFromPdf(pdfStoragePath);

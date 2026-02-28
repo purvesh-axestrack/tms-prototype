@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getLoads, getDrivers, getCustomers, getVehicles } from '../services/api';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { getLoads, getDrivers, getCustomers, getVehicles, extractRateCon } from '../services/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Plus, Package, Search, LayoutGrid, List, GanttChart, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
+import { Plus, Package, Search, LayoutGrid, List, GanttChart, ChevronUp, ChevronDown, RefreshCw, Upload, FileText, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import LoadCard from './LoadCard';
 import LoadDetail from './LoadDetail';
 import DraftReviewModal from './DraftReviewModal';
+import RateConReviewModal from './RateConReviewModal';
 import LoadCreateModal from './LoadCreateModal';
 import LoadListView from './LoadListView';
 import LoadTimelineView from './LoadTimelineView';
@@ -162,11 +164,59 @@ const BOARD_COLUMNS = [
 export default function DispatchBoard() {
   const [selectedLoad, setSelectedLoad] = useState(null);
   const [draftReview, setDraftReview] = useState(null);
+  const [rateConReview, setRateConReview] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [view, setView] = useState('board');
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const queryClient = useQueryClient();
+
+  // ── Drag-and-drop rate con upload ──
+  const extractMutation = useMutation({
+    mutationFn: extractRateCon,
+    onSuccess: (data) => {
+      setRateConReview(data);
+      toast.success('Rate con extracted — review and confirm');
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.error || 'Failed to extract rate con');
+    },
+  });
+
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Only PDF files are supported');
+      return;
+    }
+
+    extractMutation.mutate(file);
+  }, [extractMutation]);
 
   const { data: loads = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['loads'],
@@ -221,7 +271,32 @@ export default function DispatchBoard() {
   }
 
   return (
-    <>
+    <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className="relative"
+    >
+      {/* Drop overlay */}
+      {(isDragging || extractMutation.isPending) && (
+        <div className="absolute inset-0 z-50 bg-blue-50/90 border-2 border-dashed border-blue-400 rounded-xl flex flex-col items-center justify-center backdrop-blur-sm">
+          {extractMutation.isPending ? (
+            <>
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-3" />
+              <p className="text-sm font-semibold text-blue-800">Extracting rate con...</p>
+              <p className="text-xs text-blue-600 mt-1">Gemini is reading the PDF</p>
+            </>
+          ) : (
+            <>
+              <Upload className="w-10 h-10 text-blue-500 mb-3" />
+              <p className="text-sm font-semibold text-blue-800">Drop rate con PDF here</p>
+              <p className="text-xs text-blue-600 mt-1">Creates a new load from the extracted data</p>
+            </>
+          )}
+        </div>
+      )}
+
       {headerCollapsed ? (
         /* ── Collapsed header: compact single-line bar ── */
         <div className="mb-3 flex items-center justify-between gap-3 py-1">
@@ -408,6 +483,13 @@ export default function DispatchBoard() {
       )}
 
       {showCreateModal && <LoadCreateModal onClose={() => setShowCreateModal(false)} />}
-    </>
+
+      {rateConReview && (
+        <RateConReviewModal
+          data={rateConReview}
+          onClose={() => { setRateConReview(null); queryClient.invalidateQueries({ queryKey: ['loads'] }); }}
+        />
+      )}
+    </div>
   );
 }

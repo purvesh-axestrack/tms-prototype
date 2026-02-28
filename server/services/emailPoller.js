@@ -169,7 +169,6 @@ async function processMessage(gmail, db, messageId, settings) {
   await db('email_imports').where({ id: emailImport.id }).update({ processing_status: 'PROCESSING' });
 
   try {
-    // Use Gemini extractor (swap to './pdfExtractor.js' to revert to Claude)
     const { processEmailImport } = await import('./geminiExtractor.js');
     const firstDoc = await db('documents').where({ email_import_id: emailImport.id }).first();
     await processEmailImport(db, emailImport.id, firstDoc.storage_path, settings.user_id);

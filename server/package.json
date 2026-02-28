@@ -11,7 +11,6 @@
     "db:reset": "npx knex migrate:rollback --all && npx knex migrate:latest && npx knex seed:run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
