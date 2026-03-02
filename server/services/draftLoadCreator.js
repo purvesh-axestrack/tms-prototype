@@ -1,4 +1,5 @@
 import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
+import { calculateLoadTotal } from '../lib/rateCalculator.js';
 
 export async function createDraftLoad(db, emailImportId, extractedData, dispatcherId = null) {
   const data = extractedData.data;
@@ -27,6 +28,7 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
   const load = await db.transaction(async (trx) => {
     // Create the load
     // Rate con reference is the customer's ref, not ours — auto-generate internal ref
+    const rateAmount = data.rate_amount?.value ?? 0;
     const [newLoad] = await trx('loads').insert({
       reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
       customer_ref_number: data.reference_number?.value || null,
@@ -36,14 +38,16 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
       status: 'OPEN',
       email_import_id: emailImportId,
       confidence_score: extractedData.confidence || null,
-      rate_amount: data.rate_amount?.value || 0,
+      rate_amount: rateAmount,
       rate_type: normalizeEnum(data.rate_type?.value, RATE_TYPES, 'FLAT'),
-      loaded_miles: data.loaded_miles?.value || 0,
+      loaded_miles: data.loaded_miles?.value ?? 0,
       empty_miles: 0,
       commodity: data.commodity?.value || '',
-      weight: data.weight?.value || 0,
+      weight: data.weight?.value ?? 0,
       equipment_type: normalizeEnum(data.equipment_type?.value, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES),
       special_instructions: data.special_instructions?.value || null,
+      fuel_surcharge_amount: 0,
+      total_amount: calculateLoadTotal(parseFloat(rateAmount), 0, 0),
     }).returning('*');
 
     // Insert stops

@@ -278,7 +278,10 @@ export default function invoicesRouter(db) {
         }
       }
 
-      const totalAmount = subtotal + fuelSurchargeTotal + accessorialTotal;
+      subtotal = Math.round(subtotal * 100) / 100;
+      fuelSurchargeTotal = Math.round(fuelSurchargeTotal * 100) / 100;
+      accessorialTotal = Math.round(accessorialTotal * 100) / 100;
+      const totalAmount = Math.round((subtotal + fuelSurchargeTotal + accessorialTotal) * 100) / 100;
       const issueDate = new Date().toISOString().slice(0, 10);
       const dueDate = new Date(Date.now() + (customer.payment_terms || 30) * 86400000).toISOString().slice(0, 10);
 
@@ -334,6 +337,11 @@ export default function invoicesRouter(db) {
         updates.sent_at = db.fn.now();
       }
 
+      // VOID: unlink all loads so they can be re-invoiced
+      if (status === 'VOID') {
+        await trx('loads').where({ invoice_id: invoice.id }).update({ invoice_id: null });
+      }
+
       await trx('invoices').where({ id: invoice.id }).update(updates);
     });
 
@@ -364,8 +372,8 @@ export default function invoicesRouter(db) {
         );
       }
 
-      const newAmountPaid = parseFloat(invoice.amount_paid) + parseFloat(amount);
-      const newBalance = parseFloat(invoice.total_amount) - newAmountPaid;
+      const newAmountPaid = Math.round((parseFloat(invoice.amount_paid) + parseFloat(amount)) * 100) / 100;
+      const newBalance = Math.round((parseFloat(invoice.total_amount) - newAmountPaid) * 100) / 100;
 
       const updates = {
         amount_paid: newAmountPaid,

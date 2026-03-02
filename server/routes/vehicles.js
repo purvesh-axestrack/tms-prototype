@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { TERMINAL_STATUSES } from '../lib/constants.js';
 
 export default function vehiclesRouter(db) {
   const router = Router();
@@ -148,7 +149,7 @@ export default function vehiclesRouter(db) {
       .where(function() {
         this.where('truck_id', req.params.id).orWhere('trailer_id', req.params.id);
       })
-      .whereNotIn('status', ['COMPLETED', 'CANCELLED'])
+      .whereNotIn('status', TERMINAL_STATUSES)
       .count('id as count')
       .first();
 

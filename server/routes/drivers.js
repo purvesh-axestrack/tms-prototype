@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { checkDriverConflicts, calculateDriverStats } from '../lib/conflictDetection.js';
+import { TERMINAL_STATUSES } from '../lib/constants.js';
 
 export default function driversRouter(db) {
   const router = Router();
@@ -65,7 +66,7 @@ export default function driversRouter(db) {
       .where({ 'driver_deductions.driver_id': req.params.id })
       .select('driver_deductions.*', 'deduction_types.name as type_name');
 
-    const totalEarnings = settlements.reduce((sum, s) => sum + parseFloat(s.net_pay || 0), 0);
+    const totalEarnings = Math.round(settlements.reduce((sum, s) => sum + parseFloat(s.net_pay ?? 0), 0) * 100) / 100;
 
     res.json({
       ...driver,
@@ -170,7 +171,7 @@ export default function driversRouter(db) {
 
     const activeLoads = await db('loads')
       .where({ driver_id: req.params.id })
-      .whereNotIn('status', ['COMPLETED', 'INVOICED', 'CANCELLED', 'TONU'])
+      .whereNotIn('status', TERMINAL_STATUSES)
       .count('id as count')
       .first();
 

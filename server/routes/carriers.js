@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { CARRIER_STATUSES, INSURANCE_TYPES } from '../lib/constants.js';
+import { CARRIER_STATUSES, INSURANCE_TYPES, TERMINAL_STATUSES } from '../lib/constants.js';
 
 export default function carriersRouter(db) {
   const router = Router();
@@ -138,7 +138,7 @@ export default function carriersRouter(db) {
     // Check for active brokered loads
     const activeLoads = await db('loads')
       .where('carrier_id', req.params.id)
-      .whereNotIn('status', ['COMPLETED', 'CANCELLED', 'INVOICED'])
+      .whereNotIn('status', TERMINAL_STATUSES)
       .count('id as count')
       .first();
 

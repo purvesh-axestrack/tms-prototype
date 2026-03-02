@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { TERMINAL_STATUSES } from '../lib/constants.js';
 
 export default function customersRouter(db) {
   const router = Router();
@@ -22,16 +23,16 @@ export default function customersRouter(db) {
     const loads = await db('loads').where({ customer_id: req.params.id }).orderBy('created_at', 'desc');
     const invoices = await db('invoices').where({ customer_id: req.params.id }).orderBy('created_at', 'desc');
 
-    const totalRevenue = loads.reduce((sum, l) => sum + parseFloat(l.total_amount || l.rate_amount || 0), 0);
-    const outstandingBalance = invoices
+    const totalRevenue = Math.round(loads.reduce((sum, l) => sum + parseFloat(l.total_amount ?? l.rate_amount ?? 0), 0) * 100) / 100;
+    const outstandingBalance = Math.round(invoices
       .filter(i => ['SENT', 'OVERDUE'].includes(i.status))
-      .reduce((sum, i) => sum + parseFloat(i.balance_due || 0), 0);
+      .reduce((sum, i) => sum + parseFloat(i.balance_due ?? 0), 0) * 100) / 100;
 
     res.json({
       ...customer,
       stats: {
         total_loads: loads.length,
-        active_loads: loads.filter(l => !['COMPLETED', 'CANCELLED'].includes(l.status)).length,
+        active_loads: loads.filter(l => !TERMINAL_STATUSES.includes(l.status)).length,
         total_revenue: totalRevenue,
         outstanding_balance: outstandingBalance,
         total_invoices: invoices.length,
@@ -95,7 +96,7 @@ export default function customersRouter(db) {
 
     const activeLoads = await db('loads')
       .where({ customer_id: req.params.id })
-      .whereNotIn('status', ['COMPLETED', 'CANCELLED'])
+      .whereNotIn('status', TERMINAL_STATUSES)
       .count('id as count')
       .first();
 

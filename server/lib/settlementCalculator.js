@@ -1,12 +1,24 @@
 import { calculateDriverPay } from './rateCalculator.js';
 
-export async function calculateDeductions(db, driverId) {
-  const deductions = await db('driver_deductions')
+export async function calculateDeductions(db, driverId, periodStart, periodEnd) {
+  let query = db('driver_deductions')
     .join('deduction_types', 'driver_deductions.deduction_type_id', 'deduction_types.id')
     .where({ 'driver_deductions.driver_id': driverId, 'driver_deductions.is_active': true })
     .select('driver_deductions.*', 'deduction_types.name as type_name', 'deduction_types.code');
 
-  return deductions;
+  // Filter by date range if provided — exclude deductions outside the settlement period
+  if (periodStart) {
+    query = query.where(function () {
+      this.whereNull('end_date').orWhere('end_date', '>=', periodStart);
+    });
+  }
+  if (periodEnd) {
+    query = query.where(function () {
+      this.whereNull('start_date').orWhere('start_date', '<=', periodEnd);
+    });
+  }
+
+  return query;
 }
 
 export async function generateSettlement(db, driverId, periodStart, periodEnd, createdBy) {
@@ -50,8 +62,8 @@ export async function generateSettlement(db, driverId, periodStart, periodEnd, c
       totalMiles += (load.loaded_miles || 0);
     }
 
-    // Get active recurring deductions
-    const deductions = await calculateDeductions(trx, driverId);
+    // Get active recurring deductions within the settlement period
+    const deductions = await calculateDeductions(trx, driverId, periodStart, periodEnd);
     let totalDeductions = 0;
 
     for (const ded of deductions) {
@@ -65,7 +77,9 @@ export async function generateSettlement(db, driverId, periodStart, periodEnd, c
       totalDeductions += Math.abs(parseFloat(ded.amount));
     }
 
-    const netPay = grossPay - totalDeductions;
+    grossPay = Math.round(grossPay * 100) / 100;
+    totalDeductions = Math.round(totalDeductions * 100) / 100;
+    const netPay = Math.round((grossPay - totalDeductions) * 100) / 100;
 
     // Generate settlement number
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');

@@ -22,7 +22,10 @@ export default function loadsRouter(db) {
           city: stop.city,
           state: stop.state,
           zip: stop.zip || null,
-        }).catch(() => {}); // Silently ignore duplicates
+        }).catch(e => {
+          // Ignore unique constraint violations (race condition with concurrent inserts)
+          if (e.code !== '23505') console.error('autoSaveLocations error:', e.message);
+        });
       }
     }
   }
@@ -612,15 +615,16 @@ export default function loadsRouter(db) {
     if (!load) return res.status(404).json({ error: 'Load not found' });
 
     const allowedUpdates = [
-      'reference_number', 'customer_id', 'rate_amount', 'loaded_miles',
+      'reference_number', 'customer_id', 'rate_amount', 'rate_type', 'loaded_miles',
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
-      'carrier_id', 'carrier_rate', 'driver_id', 'truck_id', 'trailer_id',
+      'carrier_id', 'carrier_rate', 'truck_id', 'trailer_id',
       'is_reefer', 'reefer_mode', 'set_temp', 'reefer_fuel_pct',
       'bol_number', 'po_number', 'pro_number', 'pickup_number', 'delivery_number',
-      'is_ltl', 'exclude_from_settlement', 'driver2_id',
+      'is_ltl', 'exclude_from_settlement',
       'booking_authority_id', 'sales_agent_id', 'customer_ref_number',
       'fuel_surcharge_amount',
     ];
+    // driver_id/driver2_id excluded — must use /assign endpoint for conflict detection
 
     const updates = {};
     allowedUpdates.forEach(field => {
@@ -631,6 +635,14 @@ export default function loadsRouter(db) {
     // Normalize enums on update
     if (updates.equipment_type) updates.equipment_type = normalizeEnum(updates.equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES);
     if (updates.rate_type) updates.rate_type = normalizeEnum(updates.rate_type, RATE_TYPES, 'FLAT');
+
+    // Field-level guards
+    if (updates.customer_id === null && !['OPEN'].includes(load.status)) {
+      return res.status(400).json({ error: 'Cannot remove customer from a non-OPEN load' });
+    }
+    if (updates.rate_amount !== undefined && parseFloat(updates.rate_amount) <= 0 && ['COMPLETED', 'INVOICED'].includes(load.status)) {
+      return res.status(400).json({ error: 'Cannot zero out rate on a completed/invoiced load' });
+    }
 
     // Handle stops + field updates in one transaction
     await db.transaction(async (trx) => {
