@@ -19,13 +19,13 @@ import { Loader2, CheckCircle, AlertTriangle, Pencil, X, Save, Building, DollarS
 import { toast } from 'sonner';
 import DispatchCard from './DispatchCard';
 import AccessorialEditor from './AccessorialEditor';
-import LocationAutocomplete from './LocationAutocomplete';
+import StopFields from './StopFields';
 import LoadNotes from './LoadNotes';
 import EditableField from './EditableField';
 import EditableSelect from './EditableSelect';
 import { EditableCombobox, Combobox } from '@/components/ui/combobox';
 import useInlineLoadSave from '../hooks/useInlineLoadSave';
-import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, REEFER_MODES, STOP_ACTION_TYPES, STOP_STATUSES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, REEFER_MODE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS, RATE_TYPES } from '@/lib/constants';
+import { LOAD_STATUS_COLORS as statusColors, EQUIPMENT_TYPES, DOC_TYPES, STOP_STATUS_COLORS, STOP_ACTION_TYPE_LABELS, STOP_ACTION_TYPE_COLORS, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODE_LABELS, QUANTITY_TYPE_LABELS, RATE_TYPES } from '@/lib/constants';
 
 export default function LoadDetail({ loadId, initialData, onClose }) {
   const [confirmTransition, setConfirmTransition] = useState(null);
@@ -399,134 +399,17 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <LocationAutocomplete
-                            value={stop.facility_name || ''}
-                            onChange={(val) => updateStop(index, 'facility_name', val)}
-                            onSelect={(loc) => {
-                              const newStops = [...stopDraft];
-                              newStops[index] = { ...newStops[index], facility_name: loc.facility_name, address: loc.address || '', city: loc.city || '', state: loc.state || '', zip: loc.zip || '' };
-                              setStopDraft(newStops);
-                            }}
-                            className="h-7 text-sm"
-                          />
-                          <Input value={stop.address || ''} onChange={(e) => updateStop(index, 'address', e.target.value)} placeholder="Address" className="h-7 text-sm" />
-                          <Input value={stop.city || ''} onChange={(e) => updateStop(index, 'city', e.target.value)} placeholder="City" className="h-7 text-sm" />
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input value={stop.state || ''} onChange={(e) => updateStop(index, 'state', e.target.value)} placeholder="ST" maxLength={2} className="h-7 text-sm" />
-                            <Input value={stop.zip || ''} onChange={(e) => updateStop(index, 'zip', e.target.value)} placeholder="ZIP" className="h-7 text-sm" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Appt Start</Label>
-                            <Input type="datetime-local" value={stop.appointment_start ? stop.appointment_start.slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_start', e.target.value ? new Date(e.target.value).toISOString() : null)} className="h-7 text-sm" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Appt End</Label>
-                            <Input type="datetime-local" value={stop.appointment_end ? stop.appointment_end.slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_end', e.target.value ? new Date(e.target.value).toISOString() : null)} className="h-7 text-sm" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Action Type</Label>
-                            <Select value={stop.action_type || 'NONE'} onValueChange={(v) => updateStop(index, 'action_type', v === 'NONE' ? null : v)}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="NONE">None</SelectItem>
-                                {STOP_ACTION_TYPES.map(t => <SelectItem key={t} value={t}>{STOP_ACTION_TYPE_LABELS[t]}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Stop Status</Label>
-                            <Select value={stop.stop_status || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_status', v === 'NONE' ? null : v)}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="NONE">None</SelectItem>
-                                {STOP_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replaceAll('_', ' ')}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Free Time (min)</Label>
-                            <Input type="number" value={stop.free_time_minutes ?? 120} onChange={(e) => updateStop(index, 'free_time_minutes', parseInt(e.target.value) || 0)} className="h-7 text-sm" />
-                          </div>
-                        </div>
-                        <Separator className="my-2" />
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Appt Type</Label>
-                            <Select value={stop.appointment_type || 'APPOINTMENT'} onValueChange={(v) => updateStop(index, 'appointment_type', v)}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {APPOINTMENT_TYPES.map(t => <SelectItem key={t} value={t}>{APPOINTMENT_TYPE_LABELS[t]}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Quantity</Label>
-                            <Input type="number" step="0.01" value={stop.quantity || ''} onChange={(e) => updateStop(index, 'quantity', e.target.value)} className="h-7 text-sm" placeholder="0" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Qty Type</Label>
-                            <Select value={stop.quantity_type || 'NONE'} onValueChange={(v) => updateStop(index, 'quantity_type', v === 'NONE' ? null : v)}>
-                              <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="NONE">None</SelectItem>
-                                {QUANTITY_TYPES.map(t => <SelectItem key={t} value={t}>{QUANTITY_TYPE_LABELS[t]}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Commodity</Label>
-                            <Input value={stop.commodity || ''} onChange={(e) => updateStop(index, 'commodity', e.target.value)} className="h-7 text-sm" placeholder="e.g. General Freight" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Weight (lbs)</Label>
-                            <Input type="number" step="0.01" value={stop.weight || ''} onChange={(e) => updateStop(index, 'weight', e.target.value)} className="h-7 text-sm" placeholder="0" />
-                          </div>
-                        </div>
-                        {stop.stop_type === 'PICKUP' && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <Label className="text-[10px] text-muted-foreground flex items-center gap-1"><Snowflake className="w-3 h-3 text-sky-500" /> Reefer Mode</Label>
-                              <Select value={stop.stop_reefer_mode || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_reefer_mode', v === 'NONE' ? null : v)}>
-                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="NONE">None</SelectItem>
-                                  {STOP_REEFER_MODES.map(m => <SelectItem key={m} value={m}>{STOP_REEFER_MODE_LABELS[m]}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {stop.stop_reefer_mode && (
-                              <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">Set Temp (&deg;F)</Label>
-                                <Input type="number" step="0.1" value={stop.stop_set_temp || ''} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-7 text-sm" placeholder="e.g. -10" />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">BOL #</Label>
-                            <Input value={stop.bol_number || ''} onChange={(e) => updateStop(index, 'bol_number', e.target.value)} className="h-7 text-sm" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">PO #</Label>
-                            <Input value={stop.po_number || ''} onChange={(e) => updateStop(index, 'po_number', e.target.value)} className="h-7 text-sm" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">{stop.stop_type === 'PICKUP' ? 'PU #' : 'DEL #'}</Label>
-                            <Input value={stop.ref_number || ''} onChange={(e) => updateStop(index, 'ref_number', e.target.value)} className="h-7 text-sm" />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[10px] text-muted-foreground">Instructions</Label>
-                          <Input value={stop.instructions || ''} onChange={(e) => updateStop(index, 'instructions', e.target.value)} className="h-7 text-sm" placeholder="Stop-specific instructions" />
-                        </div>
+                        <StopFields
+                          stop={stop}
+                          index={index}
+                          onUpdate={updateStop}
+                          onLocationSelect={(idx, loc) => {
+                            const newStops = [...stopDraft];
+                            newStops[idx] = { ...newStops[idx], facility_name: loc.facility_name, address: loc.address || '', city: loc.city || '', state: loc.state || '', zip: loc.zip || '' };
+                            setStopDraft(newStops);
+                          }}
+                          showStatusFields
+                        />
                       </div>
                     ))}
                   </div>

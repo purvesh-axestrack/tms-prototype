@@ -14,10 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, X, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
+import { Plus, X, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { EQUIPMENT_TYPES, STOP_ACTION_TYPES, STOP_ACTION_TYPE_LABELS, APPOINTMENT_TYPES, APPOINTMENT_TYPE_LABELS, STOP_REEFER_MODES, STOP_REEFER_MODE_LABELS, QUANTITY_TYPES, QUANTITY_TYPE_LABELS } from '@/lib/constants';
-import LocationAutocomplete from './LocationAutocomplete';
+import { EQUIPMENT_TYPES } from '@/lib/constants';
+import StopFields from './StopFields';
 import CustomerFormDialog from './CustomerFormDialog';
 
 const emptyStop = () => ({
@@ -378,15 +378,6 @@ export default function LoadCreateModal({ onClose, prefill }) {
                             <SelectItem value="DELIVERY">DELIVERY</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Select value={stop.action_type || 'NONE'} onValueChange={(v) => updateStop(index, 'action_type', v === 'NONE' ? '' : v)}>
-                          <SelectTrigger className="h-7 w-auto px-2 text-xs">
-                            <SelectValue placeholder="Action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NONE">No Action</SelectItem>
-                            {STOP_ACTION_TYPES.map(t => <SelectItem key={t} value={t}>{STOP_ACTION_TYPE_LABELS[t]}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
                       </div>
                       {form.stops.length > 2 && (
                         <Button type="button" variant="ghost" size="xs" onClick={() => removeStop(index)} className="text-red-400 hover:text-red-600">
@@ -394,126 +385,25 @@ export default function LoadCreateModal({ onClose, prefill }) {
                         </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Facility</Label>
-                        <LocationAutocomplete
-                          value={stop.facility_name}
-                          onChange={(val) => updateStop(index, 'facility_name', val)}
-                          onSelect={(loc) => {
-                            setForm(prev => {
-                              const stops = [...prev.stops];
-                              stops[index] = {
-                                ...stops[index],
-                                facility_name: loc.facility_name,
-                                address: loc.address || '',
-                                city: loc.city || '',
-                                state: loc.state || '',
-                                zip: loc.zip || '',
-                              };
-                              return { ...prev, stops };
-                            });
-                          }}
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div className="lg:col-span-2 space-y-1">
-                        <Label className="text-xs">Address</Label>
-                        <Input value={stop.address} onChange={(e) => updateStop(index, 'address', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">City</Label>
-                        <Input value={stop.city} onChange={(e) => updateStop(index, 'city', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">State</Label>
-                        <Input value={stop.state} onChange={(e) => updateStop(index, 'state', e.target.value)} className="h-8 text-sm" maxLength={2} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">ZIP</Label>
-                        <Input value={stop.zip} onChange={(e) => updateStop(index, 'zip', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Appt Type</Label>
-                        <Select value={stop.appointment_type || 'APPOINTMENT'} onValueChange={(v) => updateStop(index, 'appointment_type', v)}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {APPOINTMENT_TYPES.map(t => <SelectItem key={t} value={t}>{APPOINTMENT_TYPE_LABELS[t]}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Appt Start</Label>
-                        <Input type="datetime-local" value={stop.appointment_start} onChange={(e) => updateStop(index, 'appointment_start', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Appt End</Label>
-                        <Input type="datetime-local" value={stop.appointment_end} onChange={(e) => updateStop(index, 'appointment_end', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Commodity</Label>
-                        <Input value={stop.commodity} onChange={(e) => updateStop(index, 'commodity', e.target.value)} className="h-8 text-sm" placeholder="e.g. General Freight" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Weight (lbs)</Label>
-                        <Input type="number" step="0.01" value={stop.weight} onChange={(e) => updateStop(index, 'weight', e.target.value)} className="h-8 text-sm" placeholder="0" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Quantity</Label>
-                        <Input type="number" step="0.01" value={stop.quantity} onChange={(e) => updateStop(index, 'quantity', e.target.value)} className="h-8 text-sm" placeholder="0" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Qty Type</Label>
-                        <Select value={stop.quantity_type || 'NONE'} onValueChange={(v) => updateStop(index, 'quantity_type', v === 'NONE' ? '' : v)}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NONE">None</SelectItem>
-                            {QUANTITY_TYPES.map(t => <SelectItem key={t} value={t}>{QUANTITY_TYPE_LABELS[t]}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {stop.stop_type === 'PICKUP' && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs flex items-center gap-1"><Snowflake className="w-3 h-3 text-sky-500" /> Reefer Mode</Label>
-                          <Select value={stop.stop_reefer_mode || 'NONE'} onValueChange={(v) => updateStop(index, 'stop_reefer_mode', v === 'NONE' ? '' : v)}>
-                            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="None" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="NONE">None</SelectItem>
-                              {STOP_REEFER_MODES.map(m => <SelectItem key={m} value={m}>{STOP_REEFER_MODE_LABELS[m]}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {stop.stop_reefer_mode && (
-                          <div className="space-y-1">
-                            <Label className="text-xs">Set Temp (&deg;F)</Label>
-                            <Input type="number" step="0.1" value={stop.stop_set_temp} onChange={(e) => updateStop(index, 'stop_set_temp', e.target.value)} className="h-8 text-sm" placeholder="e.g. -10" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">BOL #</Label>
-                        <Input value={stop.bol_number} onChange={(e) => updateStop(index, 'bol_number', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">PO #</Label>
-                        <Input value={stop.po_number} onChange={(e) => updateStop(index, 'po_number', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">{stop.stop_type === 'PICKUP' ? 'PU #' : 'DEL #'}</Label>
-                        <Input value={stop.ref_number} onChange={(e) => updateStop(index, 'ref_number', e.target.value)} className="h-8 text-sm" />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Instructions</Label>
-                      <Input value={stop.instructions} onChange={(e) => updateStop(index, 'instructions', e.target.value)} className="h-8 text-sm" placeholder="Stop-specific instructions" />
-                    </div>
+                    <StopFields
+                      stop={stop}
+                      index={index}
+                      onUpdate={updateStop}
+                      onLocationSelect={(idx, loc) => {
+                        setForm(prev => {
+                          const stops = [...prev.stops];
+                          stops[idx] = {
+                            ...stops[idx],
+                            facility_name: loc.facility_name,
+                            address: loc.address || '',
+                            city: loc.city || '',
+                            state: loc.state || '',
+                            zip: loc.zip || '',
+                          };
+                          return { ...prev, stops };
+                        });
+                      }}
+                    />
                   </CardContent>
                 </Card>
               ))}

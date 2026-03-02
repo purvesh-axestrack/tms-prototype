@@ -15,6 +15,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
+import StopFields from './StopFields';
 import PdfViewer from './PdfViewer';
 
 function ConfidenceDot({ score }) {
@@ -246,25 +247,26 @@ export default function DraftReviewModal({ emailImport, onClose }) {
                             <ConfidenceDot score={extracted.data.stops[index].confidence} />
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <Input value={stop.facility_name || ''} onChange={(e) => updateStop(index, 'facility_name', e.target.value)} placeholder="Facility" disabled={!isDraft} className="h-8" />
-                          <Input value={stop.address || ''} onChange={(e) => updateStop(index, 'address', e.target.value)} placeholder="Address" disabled={!isDraft} className="h-8" />
-                          <Input value={stop.city || ''} onChange={(e) => updateStop(index, 'city', e.target.value)} placeholder="City" disabled={!isDraft} className="h-8" />
-                          <div className="flex gap-2">
-                            <Input value={stop.state || ''} onChange={(e) => updateStop(index, 'state', e.target.value)} placeholder="ST" disabled={!isDraft} className="h-8 w-16" />
-                            <Input value={stop.zip || ''} onChange={(e) => updateStop(index, 'zip', e.target.value)} placeholder="ZIP" disabled={!isDraft} className="h-8 flex-1" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Appt Start</Label>
-                            <Input type="datetime-local" value={stop.appointment_start ? new Date(stop.appointment_start).toISOString().slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_start', e.target.value ? new Date(e.target.value).toISOString() : null)} disabled={!isDraft} className="h-8" />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Appt End</Label>
-                            <Input type="datetime-local" value={stop.appointment_end ? new Date(stop.appointment_end).toISOString().slice(0, 16) : ''} onChange={(e) => updateStop(index, 'appointment_end', e.target.value ? new Date(e.target.value).toISOString() : null)} disabled={!isDraft} className="h-8" />
-                          </div>
-                        </div>
+                        <StopFields
+                          stop={stop}
+                          index={index}
+                          onUpdate={updateStop}
+                          onLocationSelect={(idx, loc) => {
+                            setForm(prev => {
+                              const stops = [...prev.stops];
+                              stops[idx] = {
+                                ...stops[idx],
+                                facility_name: loc.facility_name,
+                                address: loc.address || '',
+                                city: loc.city || '',
+                                state: loc.state || '',
+                                zip: loc.zip || '',
+                              };
+                              return { ...prev, stops };
+                            });
+                          }}
+                          disabled={!isDraft}
+                        />
                       </CardContent>
                     </Card>
                   ))}

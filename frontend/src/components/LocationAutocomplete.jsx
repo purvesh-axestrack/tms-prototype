@@ -9,7 +9,7 @@ import { MapPin } from 'lucide-react';
  * When a location is selected, calls onSelect with the full location record
  * to auto-fill address/city/state/zip.
  */
-export default function LocationAutocomplete({ value, onChange, onSelect, placeholder = 'Facility name', className = '' }) {
+export default function LocationAutocomplete({ value, onChange, onSelect, placeholder = 'Facility name', className = '', disabled = false }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -54,6 +54,7 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
         onFocus={() => { if ((value || '').length >= 2) { setQuery(value); setOpen(true); } }}
         placeholder={placeholder}
         className={className}
+        disabled={disabled}
       />
       {open && suggestions.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
