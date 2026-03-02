@@ -172,14 +172,16 @@ export default function settlementsRouter(db) {
 
   // POST /api/settlements/:id/approve
   router.post('/:id/approve', asyncHandler(async (req, res) => {
-    const settlement = await db('settlements').where({ id: req.params.id }).first();
-    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
-
-    if (settlement.status !== 'DRAFT') {
-      return res.status(400).json({ error: `Cannot approve settlement in ${settlement.status} status` });
-    }
-
     await db.transaction(async (trx) => {
+      const settlement = await trx('settlements').where({ id: req.params.id }).forUpdate().first();
+      if (!settlement) {
+        throw Object.assign(new Error('Settlement not found'), { status: 404 });
+      }
+
+      if (settlement.status !== 'DRAFT') {
+        throw Object.assign(new Error(`Cannot approve settlement in ${settlement.status} status`), { status: 400 });
+      }
+
       await trx('settlements').where({ id: settlement.id }).update({
         status: 'APPROVED',
         approved_by: req.user.id,
@@ -187,7 +189,7 @@ export default function settlementsRouter(db) {
       });
     });
 
-    const updated = await db('settlements').where({ id: settlement.id }).first();
+    const updated = await db('settlements').where({ id: req.params.id }).first();
     const enriched = await enrichSettlement(updated);
     res.json(enriched);
   }));
@@ -217,23 +219,27 @@ export default function settlementsRouter(db) {
 
   // DELETE /api/settlements/:id — only DRAFT settlements
   router.delete('/:id', asyncHandler(async (req, res) => {
-    const settlement = await db('settlements').where({ id: req.params.id }).first();
-    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+    const settlementNumber = await db.transaction(async (trx) => {
+      const settlement = await trx('settlements').where({ id: req.params.id }).forUpdate().first();
+      if (!settlement) {
+        throw Object.assign(new Error('Settlement not found'), { status: 404 });
+      }
 
-    if (settlement.status !== 'DRAFT') {
-      return res.status(400).json({ error: `Cannot delete settlement in ${settlement.status} status. Only DRAFT settlements can be deleted.` });
-    }
+      if (settlement.status !== 'DRAFT') {
+        throw Object.assign(new Error(`Cannot delete settlement in ${settlement.status} status. Only DRAFT settlements can be deleted.`), { status: 400 });
+      }
 
-    await db.transaction(async (trx) => {
       // Unlink loads from this settlement
       await trx('loads').where({ settlement_id: settlement.id }).update({ settlement_id: null });
       // Delete line items
       await trx('settlement_line_items').where({ settlement_id: settlement.id }).del();
       // Delete settlement
       await trx('settlements').where({ id: settlement.id }).del();
+
+      return settlement.settlement_number;
     });
 
-    console.log(`Settlement ${settlement.settlement_number} deleted`);
+    console.log(`Settlement ${settlementNumber} deleted`);
     res.json({ message: 'Settlement deleted' });
   }));
 

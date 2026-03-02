@@ -153,17 +153,17 @@ export default function invoicesRouter(db) {
       const balance = parseFloat(inv.balance_due);
 
       if (daysOverdue <= 0) {
-        customerMap[customerName].current += balance;
+        customerMap[customerName].current = Math.round((customerMap[customerName].current + balance) * 100) / 100;
       } else if (daysOverdue <= 30) {
-        customerMap[customerName].days_1_30 += balance;
+        customerMap[customerName].days_1_30 = Math.round((customerMap[customerName].days_1_30 + balance) * 100) / 100;
       } else if (daysOverdue <= 60) {
-        customerMap[customerName].days_31_60 += balance;
+        customerMap[customerName].days_31_60 = Math.round((customerMap[customerName].days_31_60 + balance) * 100) / 100;
       } else if (daysOverdue <= 90) {
-        customerMap[customerName].days_61_90 += balance;
+        customerMap[customerName].days_61_90 = Math.round((customerMap[customerName].days_61_90 + balance) * 100) / 100;
       } else {
-        customerMap[customerName].days_90_plus += balance;
+        customerMap[customerName].days_90_plus = Math.round((customerMap[customerName].days_90_plus + balance) * 100) / 100;
       }
-      customerMap[customerName].total += balance;
+      customerMap[customerName].total = Math.round((customerMap[customerName].total + balance) * 100) / 100;
     }
 
     const agingData = Object.values(customerMap);
@@ -317,21 +317,27 @@ export default function invoicesRouter(db) {
 
   // PATCH /api/invoices/:id/status
   router.patch('/:id/status', asyncHandler(async (req, res) => {
-    const invoice = await db('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-
     const { status } = req.body;
-    if (!isValidInvoiceTransition(invoice.status, status)) {
-      return res.status(400).json({ error: `Cannot transition from ${invoice.status} to ${status}` });
-    }
 
-    const updates = { status };
-    if (status === 'SENT' && !invoice.sent_at) {
-      updates.sent_at = db.fn.now();
-    }
+    await db.transaction(async (trx) => {
+      const invoice = await trx('invoices').where({ id: req.params.id }).forUpdate().first();
+      if (!invoice) {
+        throw Object.assign(new Error('Invoice not found'), { status: 404 });
+      }
 
-    await db('invoices').where({ id: invoice.id }).update(updates);
-    const updated = await db('invoices').where({ id: invoice.id }).first();
+      if (!isValidInvoiceTransition(invoice.status, status)) {
+        throw Object.assign(new Error(`Cannot transition from ${invoice.status} to ${status}`), { status: 400 });
+      }
+
+      const updates = { status };
+      if (status === 'SENT' && !invoice.sent_at) {
+        updates.sent_at = db.fn.now();
+      }
+
+      await trx('invoices').where({ id: invoice.id }).update(updates);
+    });
+
+    const updated = await db('invoices').where({ id: req.params.id }).first();
     const enriched = await enrichInvoice(updated);
     res.json(enriched);
   }));
@@ -394,13 +400,6 @@ export default function invoicesRouter(db) {
 
   // PATCH /api/invoices/:id
   router.patch('/:id', asyncHandler(async (req, res) => {
-    const invoice = await db('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-
-    if (invoice.status !== 'DRAFT') {
-      return res.status(400).json({ error: 'Only DRAFT invoices can be edited' });
-    }
-
     const allowed = ['notes', 'due_date', 'issue_date'];
     const updates = {};
     for (const key of allowed) {
@@ -411,31 +410,47 @@ export default function invoicesRouter(db) {
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    await db('invoices').where({ id: invoice.id }).update(updates);
-    const updated = await db('invoices').where({ id: invoice.id }).first();
+    await db.transaction(async (trx) => {
+      const invoice = await trx('invoices').where({ id: req.params.id }).forUpdate().first();
+      if (!invoice) {
+        throw Object.assign(new Error('Invoice not found'), { status: 404 });
+      }
+
+      if (invoice.status !== 'DRAFT') {
+        throw Object.assign(new Error('Only DRAFT invoices can be edited'), { status: 400 });
+      }
+
+      await trx('invoices').where({ id: invoice.id }).update(updates);
+    });
+
+    const updated = await db('invoices').where({ id: req.params.id }).first();
     const enriched = await enrichInvoice(updated);
     res.json(enriched);
   }));
 
   // DELETE /api/invoices/:id — only DRAFT invoices
   router.delete('/:id', asyncHandler(async (req, res) => {
-    const invoice = await db('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    const invoiceNumber = await db.transaction(async (trx) => {
+      const invoice = await trx('invoices').where({ id: req.params.id }).forUpdate().first();
+      if (!invoice) {
+        throw Object.assign(new Error('Invoice not found'), { status: 404 });
+      }
 
-    if (invoice.status !== 'DRAFT') {
-      return res.status(400).json({ error: `Cannot delete invoice in ${invoice.status} status. Only DRAFT invoices can be deleted.` });
-    }
+      if (invoice.status !== 'DRAFT') {
+        throw Object.assign(new Error(`Cannot delete invoice in ${invoice.status} status. Only DRAFT invoices can be deleted.`), { status: 400 });
+      }
 
-    await db.transaction(async (trx) => {
       // Unlink loads from this invoice
       await trx('loads').where({ invoice_id: invoice.id }).update({ invoice_id: null });
       // Delete line items
       await trx('invoice_line_items').where({ invoice_id: invoice.id }).del();
       // Delete invoice
       await trx('invoices').where({ id: invoice.id }).del();
+
+      return invoice.invoice_number;
     });
 
-    console.log(`Invoice ${invoice.invoice_number} deleted`);
+    console.log(`Invoice ${invoiceNumber} deleted`);
     res.json({ message: 'Invoice deleted' });
   }));
 

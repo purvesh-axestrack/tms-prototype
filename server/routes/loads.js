@@ -486,38 +486,45 @@ export default function loadsRouter(db) {
 
   // PATCH /api/loads/:id/status
   router.patch('/:id/status', asyncHandler(async (req, res) => {
-    const load = await db('loads').where({ id: req.params.id }).first();
-    if (!load) return res.status(404).json({ error: 'Load not found' });
-
     const { status, carrier_id, carrier_rate } = req.body;
     if (!status) return res.status(400).json({ error: 'status is required' });
 
-    const validation = validateStatusChange(load, status);
-    if (!validation.valid) return res.status(400).json({ error: validation.error });
+    let oldStatus;
 
-    const updates = { status };
-    const oldStatus = load.status;
-
-    // BROKERED requires carrier assignment
-    if (status === 'BROKERED') {
-      if (!carrier_id) {
-        return res.status(400).json({ error: 'Must select a carrier to broker this load' });
-      }
-      const carrier = await db('carriers').where({ id: carrier_id }).first();
-      if (!carrier) return res.status(400).json({ error: 'Carrier not found' });
-      if (carrier.status === 'INACTIVE' || carrier.status === 'SUSPENDED') {
-        return res.status(400).json({ error: 'Cannot broker to an INACTIVE or SUSPENDED carrier' });
-      }
-      updates.carrier_id = carrier_id;
-      if (carrier_rate) updates.carrier_rate = carrier_rate;
-    }
-
-    if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
-      updates.picked_up_at = db.fn.now();
-    }
-
-    // All writes in a transaction
     await db.transaction(async (trx) => {
+      const load = await trx('loads').where({ id: req.params.id }).forUpdate().first();
+      if (!load) {
+        throw Object.assign(new Error('Load not found'), { status: 404 });
+      }
+
+      const validation = validateStatusChange(load, status);
+      if (!validation.valid) {
+        throw Object.assign(new Error(validation.error), { status: 400 });
+      }
+
+      const updates = { status };
+      oldStatus = load.status;
+
+      // BROKERED requires carrier assignment
+      if (status === 'BROKERED') {
+        if (!carrier_id) {
+          throw Object.assign(new Error('Must select a carrier to broker this load'), { status: 400 });
+        }
+        const carrier = await trx('carriers').where({ id: carrier_id }).first();
+        if (!carrier) {
+          throw Object.assign(new Error('Carrier not found'), { status: 400 });
+        }
+        if (carrier.status === 'INACTIVE' || carrier.status === 'SUSPENDED') {
+          throw Object.assign(new Error('Cannot broker to an INACTIVE or SUSPENDED carrier'), { status: 400 });
+        }
+        updates.carrier_id = carrier_id;
+        if (carrier_rate) updates.carrier_rate = carrier_rate;
+      }
+
+      if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
+        updates.picked_up_at = db.fn.now();
+      }
+
       if (status === 'COMPLETED' && !load.delivered_at) {
         updates.delivered_at = db.fn.now();
         if (load.driver_id) {
@@ -540,9 +547,9 @@ export default function loadsRouter(db) {
       await trx('loads').where({ id: load.id }).update(updates);
     });
 
-    console.log(`Load #${load.id} status changed: ${oldStatus} -> ${status}`);
+    console.log(`Load #${req.params.id} status changed: ${oldStatus} -> ${status}`);
 
-    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const updatedLoad = await db('loads').where({ id: req.params.id }).first();
     const enriched = await enrichLoad(updatedLoad);
     res.json(enriched);
   }));

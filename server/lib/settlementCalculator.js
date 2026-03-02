@@ -10,10 +10,9 @@ export async function calculateDeductions(db, driverId) {
 }
 
 export async function generateSettlement(db, driverId, periodStart, periodEnd, createdBy) {
-  const driver = await db('drivers').where({ id: driverId }).first();
-  if (!driver) throw new Error(`Driver ${driverId} not found`);
-
   return db.transaction(async (trx) => {
+    const driver = await trx('drivers').where({ id: driverId }).first();
+    if (!driver) throw new Error(`Driver ${driverId} not found`);
     // Lock eligible loads with FOR UPDATE to prevent double-settlement
     const loads = await trx('loads')
       .where({ driver_id: driverId })
