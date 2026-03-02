@@ -148,7 +148,7 @@ export default function vehiclesRouter(db) {
       .where(function() {
         this.where('truck_id', req.params.id).orWhere('trailer_id', req.params.id);
       })
-      .whereNotIn('status', ['DELIVERED', 'CANCELLED'])
+      .whereNotIn('status', ['COMPLETED', 'CANCELLED'])
       .count('id as count')
       .first();
 

@@ -385,56 +385,59 @@ export default function loadsRouter(db) {
 
   // PATCH /api/loads/:id/assign
   router.patch('/:id/assign', asyncHandler(async (req, res) => {
-    const load = await db('loads').where({ id: req.params.id }).first();
-    if (!load) return res.status(404).json({ error: 'Load not found' });
-
     const { driver_id, truck_id, trailer_id, driver2_id } = req.body;
     if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
 
-    const driver = await db('drivers').where({ id: driver_id }).first();
-    if (!driver) return res.status(404).json({ error: 'Driver not found' });
-
-    if (driver.status === 'OUT_OF_SERVICE') {
-      return res.status(400).json({ error: 'Cannot assign driver who is out of service' });
-    }
-
-    // Check for conflicts
-    const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
-    const pickupDate = stops[0]?.appointment_start;
-    const deliveryDate = stops[stops.length - 1]?.appointment_end;
-
-    // Get driver's other loads with stop info for conflict check (exclude current load)
-    const driverLoads = await db('loads')
-      .where({ driver_id })
-      .whereNot({ id: load.id })
-      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
-      .select('loads.*');
-
-    const driverLoadsWithStops = await Promise.all(driverLoads.map(async (dl) => {
-      const dlStops = await db('stops').where({ load_id: dl.id }).orderBy('sequence_order');
-      return {
-        ...dl,
-        pickup_start: dlStops[0]?.appointment_start,
-        delivery_end: dlStops[dlStops.length - 1]?.appointment_end,
-        pickup_city: dlStops[0]?.city,
-        delivery_city: dlStops[dlStops.length - 1]?.city,
-      };
-    }));
-
-    const availability = checkDriverConflicts(driverLoadsWithStops, pickupDate, deliveryDate);
-
-    if (!availability.available) {
-      return res.status(409).json({
-        error: 'Driver has conflicting loads',
-        conflicts: availability.conflicts
-      });
-    }
-
-    // All writes in a transaction
+    // All reads and writes in a single transaction to prevent double-booking
     await db.transaction(async (trx) => {
+      const load = await trx('loads').where({ id: req.params.id }).forUpdate().first();
+      if (!load) {
+        throw Object.assign(new Error('Load not found'), { status: 404 });
+      }
+
+      const driver = await trx('drivers').where({ id: driver_id }).first();
+      if (!driver) {
+        throw Object.assign(new Error('Driver not found'), { status: 404 });
+      }
+
+      if (driver.status === 'OUT_OF_SERVICE') {
+        throw Object.assign(new Error('Cannot assign driver who is out of service'), { status: 400 });
+      }
+
+      // Check for conflicts inside the transaction
+      const stops = await trx('stops').where({ load_id: load.id }).orderBy('sequence_order');
+      const pickupDate = stops[0]?.appointment_start;
+      const deliveryDate = stops[stops.length - 1]?.appointment_end;
+
+      const driverLoads = await trx('loads')
+        .where({ driver_id })
+        .whereNot({ id: load.id })
+        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+        .select('loads.*');
+
+      const driverLoadsWithStops = await Promise.all(driverLoads.map(async (dl) => {
+        const dlStops = await trx('stops').where({ load_id: dl.id }).orderBy('sequence_order');
+        return {
+          ...dl,
+          pickup_start: dlStops[0]?.appointment_start,
+          delivery_end: dlStops[dlStops.length - 1]?.appointment_end,
+          pickup_city: dlStops[0]?.city,
+          delivery_city: dlStops[dlStops.length - 1]?.city,
+        };
+      }));
+
+      const availability = checkDriverConflicts(driverLoadsWithStops, pickupDate, deliveryDate);
+
+      if (!availability.available) {
+        throw Object.assign(
+          new Error('Driver has conflicting loads'),
+          { status: 409, conflicts: availability.conflicts }
+        );
+      }
+
       const updates = {
         driver_id,
-        assigned_at: new Date().toISOString(),
+        assigned_at: db.fn.now(),
       };
 
       if (truck_id !== undefined) updates.truck_id = truck_id;
@@ -476,7 +479,7 @@ export default function loadsRouter(db) {
       }
     });
 
-    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const updatedLoad = await db('loads').where({ id: req.params.id }).first();
     const enriched = await enrichLoad(updatedLoad);
     res.json(enriched);
   }));
@@ -510,13 +513,13 @@ export default function loadsRouter(db) {
     }
 
     if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
-      updates.picked_up_at = new Date().toISOString();
+      updates.picked_up_at = db.fn.now();
     }
 
     // All writes in a transaction
     await db.transaction(async (trx) => {
       if (status === 'COMPLETED' && !load.delivered_at) {
-        updates.delivered_at = new Date().toISOString();
+        updates.delivered_at = db.fn.now();
         if (load.driver_id) {
           await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
         }
@@ -557,6 +560,7 @@ export default function loadsRouter(db) {
       'bol_number', 'po_number', 'pro_number', 'pickup_number', 'delivery_number',
       'is_ltl', 'exclude_from_settlement', 'driver2_id',
       'booking_authority_id', 'sales_agent_id', 'customer_ref_number',
+      'fuel_surcharge_amount',
     ];
 
     const updates = {};
@@ -610,6 +614,14 @@ export default function loadsRouter(db) {
       }
 
       if (Object.keys(updates).length > 0) {
+        // Recalculate total_amount when rate or FSC changes
+        if (updates.rate_amount !== undefined || updates.fuel_surcharge_amount !== undefined) {
+          const rateAmt = parseFloat(updates.rate_amount ?? load.rate_amount);
+          const fsc = parseFloat(updates.fuel_surcharge_amount ?? load.fuel_surcharge_amount ?? 0);
+          const accessorials = await trx('load_accessorials').where({ load_id: load.id });
+          const accSum = accessorials.reduce((sum, a) => sum + parseFloat(a.total), 0);
+          updates.total_amount = calculateLoadTotal(rateAmt, fsc, accSum);
+        }
         await trx('loads').where({ id: load.id }).update(updates);
       }
     });

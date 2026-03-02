@@ -183,7 +183,7 @@ export default function settlementsRouter(db) {
       await trx('settlements').where({ id: settlement.id }).update({
         status: 'APPROVED',
         approved_by: req.user.id,
-        approved_at: new Date().toISOString(),
+        approved_at: db.fn.now(),
       });
     });
 
@@ -194,19 +194,23 @@ export default function settlementsRouter(db) {
 
   // POST /api/settlements/:id/pay
   router.post('/:id/pay', asyncHandler(async (req, res) => {
-    const settlement = await db('settlements').where({ id: req.params.id }).first();
-    if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+    await db.transaction(async (trx) => {
+      const settlement = await trx('settlements').where({ id: req.params.id }).forUpdate().first();
+      if (!settlement) {
+        throw Object.assign(new Error('Settlement not found'), { status: 404 });
+      }
 
-    if (settlement.status !== 'APPROVED') {
-      return res.status(400).json({ error: `Cannot pay settlement in ${settlement.status} status` });
-    }
+      if (settlement.status !== 'APPROVED') {
+        throw Object.assign(new Error(`Cannot pay settlement in ${settlement.status} status`), { status: 400 });
+      }
 
-    await db('settlements').where({ id: settlement.id }).update({
-      status: 'PAID',
-      paid_at: new Date().toISOString(),
+      await trx('settlements').where({ id: settlement.id }).update({
+        status: 'PAID',
+        paid_at: db.fn.now(),
+      });
     });
 
-    const updated = await db('settlements').where({ id: settlement.id }).first();
+    const updated = await db('settlements').where({ id: req.params.id }).first();
     const enriched = await enrichSettlement(updated);
     res.json(enriched);
   }));

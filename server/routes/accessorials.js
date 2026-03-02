@@ -6,11 +6,11 @@ import { calculateLoadTotal } from '../lib/rateCalculator.js';
 export default function accessorialsRouter(db) {
   const router = Router();
 
-  async function recalculateLoadTotal(loadId) {
-    const load = await db('loads').where({ id: loadId }).first();
+  async function recalculateLoadTotal(trx, loadId) {
+    const load = await trx('loads').where({ id: loadId }).first();
     if (!load) return;
 
-    const accessorials = await db('load_accessorials').where({ load_id: loadId });
+    const accessorials = await trx('load_accessorials').where({ load_id: loadId });
     const accessorialsSum = accessorials.reduce((sum, a) => sum + parseFloat(a.total), 0);
     const total = calculateLoadTotal(
       parseFloat(load.rate_amount),
@@ -18,7 +18,7 @@ export default function accessorialsRouter(db) {
       accessorialsSum
     );
 
-    await db('loads').where({ id: loadId }).update({ total_amount: total });
+    await trx('loads').where({ id: loadId }).update({ total_amount: total });
   }
 
   // GET /api/accessorial-types
@@ -69,34 +69,47 @@ export default function accessorialsRouter(db) {
       return res.status(400).json({ error: 'accessorial_type_id and rate are required' });
     }
 
-    const load = await db('loads').where({ id: req.params.loadId }).first();
-    if (!load) return res.status(404).json({ error: 'Load not found' });
+    const loadId = parseInt(req.params.loadId);
 
-    const total = Math.round(quantity * rate * 100) / 100;
+    const accessorial = await db.transaction(async (trx) => {
+      const load = await trx('loads').where({ id: loadId }).first();
+      if (!load) {
+        throw Object.assign(new Error('Load not found'), { status: 404 });
+      }
 
-    const [accessorial] = await db('load_accessorials').insert({
-      load_id: parseInt(req.params.loadId),
-      accessorial_type_id,
-      description,
-      quantity,
-      rate,
-      total,
-    }).returning('*');
+      const total = Math.round(quantity * rate * 100) / 100;
 
-    await recalculateLoadTotal(parseInt(req.params.loadId));
+      const [acc] = await trx('load_accessorials').insert({
+        load_id: loadId,
+        accessorial_type_id,
+        description,
+        quantity,
+        rate,
+        total,
+      }).returning('*');
+
+      await recalculateLoadTotal(trx, loadId);
+      return acc;
+    });
 
     res.status(201).json(accessorial);
   }));
 
   // DELETE /api/accessorials/load/:loadId/:id
   router.delete('/load/:loadId/:id', asyncHandler(async (req, res) => {
-    const deleted = await db('load_accessorials')
-      .where({ id: req.params.id, load_id: req.params.loadId })
-      .del();
+    const loadId = parseInt(req.params.loadId);
 
-    if (!deleted) return res.status(404).json({ error: 'Accessorial not found' });
+    await db.transaction(async (trx) => {
+      const deleted = await trx('load_accessorials')
+        .where({ id: req.params.id, load_id: loadId })
+        .del();
 
-    await recalculateLoadTotal(parseInt(req.params.loadId));
+      if (!deleted) {
+        throw Object.assign(new Error('Accessorial not found'), { status: 404 });
+      }
+
+      await recalculateLoadTotal(trx, loadId);
+    });
 
     res.json({ deleted: true });
   }));

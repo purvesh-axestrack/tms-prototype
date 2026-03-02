@@ -31,7 +31,7 @@ export default function customersRouter(db) {
       ...customer,
       stats: {
         total_loads: loads.length,
-        active_loads: loads.filter(l => !['DELIVERED', 'CANCELLED'].includes(l.status)).length,
+        active_loads: loads.filter(l => !['COMPLETED', 'CANCELLED'].includes(l.status)).length,
         total_revenue: totalRevenue,
         outstanding_balance: outstandingBalance,
         total_invoices: invoices.length,
@@ -95,7 +95,7 @@ export default function customersRouter(db) {
 
     const activeLoads = await db('loads')
       .where({ customer_id: req.params.id })
-      .whereNotIn('status', ['DELIVERED', 'CANCELLED'])
+      .whereNotIn('status', ['COMPLETED', 'CANCELLED'])
       .count('id as count')
       .first();
 

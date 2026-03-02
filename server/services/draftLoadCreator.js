@@ -23,54 +23,59 @@ export async function createDraftLoad(db, emailImportId, extractedData, dispatch
     if (mcCustomer) customerId = mcCustomer.id;
   }
 
-  // Create the load
-  // Rate con reference is the customer's ref, not ours — auto-generate internal ref
-  const [load] = await db('loads').insert({
-    reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
-    customer_ref_number: data.reference_number?.value || null,
-    customer_id: customerId,
-    driver_id: null,
-    dispatcher_id: dispatcherId,
-    status: 'OPEN',
-    email_import_id: emailImportId,
-    confidence_score: extractedData.confidence || null,
-    rate_amount: data.rate_amount?.value || 0,
-    rate_type: normalizeEnum(data.rate_type?.value, RATE_TYPES, 'FLAT'),
-    loaded_miles: data.loaded_miles?.value || 0,
-    empty_miles: 0,
-    commodity: data.commodity?.value || '',
-    weight: data.weight?.value || 0,
-    equipment_type: normalizeEnum(data.equipment_type?.value, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES),
-    special_instructions: data.special_instructions?.value || null,
-  }).returning('*');
+  // All writes in a single transaction to prevent orphaned records
+  const load = await db.transaction(async (trx) => {
+    // Create the load
+    // Rate con reference is the customer's ref, not ours — auto-generate internal ref
+    const [newLoad] = await trx('loads').insert({
+      reference_number: `RC-${Date.now().toString(36).toUpperCase()}`,
+      customer_ref_number: data.reference_number?.value || null,
+      customer_id: customerId,
+      driver_id: null,
+      dispatcher_id: dispatcherId,
+      status: 'OPEN',
+      email_import_id: emailImportId,
+      confidence_score: extractedData.confidence || null,
+      rate_amount: data.rate_amount?.value || 0,
+      rate_type: normalizeEnum(data.rate_type?.value, RATE_TYPES, 'FLAT'),
+      loaded_miles: data.loaded_miles?.value || 0,
+      empty_miles: 0,
+      commodity: data.commodity?.value || '',
+      weight: data.weight?.value || 0,
+      equipment_type: normalizeEnum(data.equipment_type?.value, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES),
+      special_instructions: data.special_instructions?.value || null,
+    }).returning('*');
 
-  // Insert stops
-  const stops = data.stops || [];
-  if (stops.length > 0) {
-    const stopRows = stops.map((stop, index) => ({
-      id: `s${Date.now()}-${index}`,
-      load_id: load.id,
-      sequence_order: index + 1,
-      stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
-      facility_name: stop.facility_name || '',
-      address: stop.address || '',
-      city: stop.city || '',
-      state: stop.state || '',
-      zip: stop.zip || '',
-      appointment_start: stop.appointment_start || null,
-      appointment_end: stop.appointment_end || null,
-    }));
-    await db('stops').insert(stopRows);
-  }
+    // Insert stops
+    const stops = data.stops || [];
+    if (stops.length > 0) {
+      const stopRows = stops.map((stop, index) => ({
+        id: `s${Date.now()}-${index}`,
+        load_id: newLoad.id,
+        sequence_order: index + 1,
+        stop_type: normalizeEnum(stop.stop_type, STOP_TYPES, index === 0 ? 'PICKUP' : 'DELIVERY', STOP_ALIASES),
+        facility_name: stop.facility_name || '',
+        address: stop.address || '',
+        city: stop.city || '',
+        state: stop.state || '',
+        zip: stop.zip || '',
+        appointment_start: stop.appointment_start || null,
+        appointment_end: stop.appointment_end || null,
+      }));
+      await trx('stops').insert(stopRows);
+    }
 
-  // Link load to email import
-  await db('email_imports').where({ id: emailImportId }).update({
-    load_id: load.id,
-    processing_status: 'DRAFT_CREATED',
+    // Link load to email import
+    await trx('email_imports').where({ id: emailImportId }).update({
+      load_id: newLoad.id,
+      processing_status: 'DRAFT_CREATED',
+    });
+
+    // Update documents to link to load
+    await trx('documents').where({ email_import_id: emailImportId }).update({ load_id: newLoad.id });
+
+    return newLoad;
   });
-
-  // Update documents to link to load
-  await db('documents').where({ email_import_id: emailImportId }).update({ load_id: load.id });
 
   return load;
 }

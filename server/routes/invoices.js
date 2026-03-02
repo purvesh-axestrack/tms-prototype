@@ -205,77 +205,83 @@ export default function invoicesRouter(db) {
     const customer = await db('customers').where({ id: customer_id }).first();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const loads = await db('loads').whereIn('id', load_ids).where({ customer_id, status: 'COMPLETED' });
-    if (loads.length === 0) {
-      return res.status(400).json({ error: 'No delivered loads found for this customer' });
-    }
-
-    // Reject child loads — only parent/standalone loads can be invoiced
-    const childLoad = loads.find(l => l.parent_load_id != null);
-    if (childLoad) {
-      return res.status(400).json({ error: `Load #${childLoad.id} is a split leg and cannot be invoiced directly. Invoice the parent load instead.` });
-    }
-
-    // Build line items and calculate totals
-    const lineItems = [];
-    let subtotal = 0;
-    let fuelSurchargeTotal = 0;
-    let accessorialTotal = 0;
-
-    for (const load of loads) {
-      const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');
-      const pickup = stops[0];
-      const delivery = stops[stops.length - 1];
-      const desc = `Load #${load.id} - ${load.reference_number} (${pickup?.city}, ${pickup?.state} to ${delivery?.city}, ${delivery?.state})`;
-
-      lineItems.push({
-        load_id: load.id,
-        description: desc,
-        quantity: 1,
-        unit_price: parseFloat(load.rate_amount),
-        amount: parseFloat(load.rate_amount),
-        line_type: 'LOAD_CHARGE',
-      });
-      subtotal += parseFloat(load.rate_amount);
-
-      // Fuel surcharge
-      const fsc = parseFloat(load.fuel_surcharge_amount || 0);
-      if (fsc > 0) {
-        lineItems.push({
-          load_id: load.id,
-          description: `Fuel Surcharge - Load #${load.id}`,
-          quantity: 1,
-          unit_price: fsc,
-          amount: fsc,
-          line_type: 'FUEL_SURCHARGE',
-        });
-        fuelSurchargeTotal += fsc;
-      }
-
-      // Accessorials
-      const accessorials = await db('load_accessorials')
-        .join('accessorial_types', 'load_accessorials.accessorial_type_id', 'accessorial_types.id')
-        .where({ 'load_accessorials.load_id': load.id })
-        .select('load_accessorials.*', 'accessorial_types.name as type_name');
-
-      for (const acc of accessorials) {
-        lineItems.push({
-          load_id: load.id,
-          description: `${acc.type_name} - Load #${load.id}`,
-          quantity: parseFloat(acc.quantity),
-          unit_price: parseFloat(acc.rate),
-          amount: parseFloat(acc.total),
-          line_type: 'ACCESSORIAL',
-        });
-        accessorialTotal += parseFloat(acc.total);
-      }
-    }
-
-    const totalAmount = subtotal + fuelSurchargeTotal + accessorialTotal;
-    const issueDate = new Date().toISOString().slice(0, 10);
-    const dueDate = new Date(Date.now() + (customer.payment_terms || 30) * 86400000).toISOString().slice(0, 10);
-
     const invoice = await db.transaction(async (trx) => {
+      // Lock loads with FOR UPDATE to prevent double-invoicing
+      const loads = await trx('loads')
+        .whereIn('id', load_ids)
+        .where({ customer_id, status: 'COMPLETED' })
+        .whereNull('invoice_id')
+        .forUpdate();
+
+      if (loads.length === 0) {
+        throw Object.assign(new Error('No eligible loads found — they may already be invoiced'), { status: 400 });
+      }
+
+      // Reject child loads — only parent/standalone loads can be invoiced
+      const childLoad = loads.find(l => l.parent_load_id != null);
+      if (childLoad) {
+        throw Object.assign(new Error(`Load #${childLoad.id} is a split leg and cannot be invoiced directly. Invoice the parent load instead.`), { status: 400 });
+      }
+
+      // Build line items and calculate totals
+      const lineItems = [];
+      let subtotal = 0;
+      let fuelSurchargeTotal = 0;
+      let accessorialTotal = 0;
+
+      for (const load of loads) {
+        const stops = await trx('stops').where({ load_id: load.id }).orderBy('sequence_order');
+        const pickup = stops[0];
+        const delivery = stops[stops.length - 1];
+        const desc = `Load #${load.id} - ${load.reference_number} (${pickup?.city}, ${pickup?.state} to ${delivery?.city}, ${delivery?.state})`;
+
+        lineItems.push({
+          load_id: load.id,
+          description: desc,
+          quantity: 1,
+          unit_price: parseFloat(load.rate_amount),
+          amount: parseFloat(load.rate_amount),
+          line_type: 'LOAD_CHARGE',
+        });
+        subtotal += parseFloat(load.rate_amount);
+
+        // Fuel surcharge
+        const fsc = parseFloat(load.fuel_surcharge_amount || 0);
+        if (fsc > 0) {
+          lineItems.push({
+            load_id: load.id,
+            description: `Fuel Surcharge - Load #${load.id}`,
+            quantity: 1,
+            unit_price: fsc,
+            amount: fsc,
+            line_type: 'FUEL_SURCHARGE',
+          });
+          fuelSurchargeTotal += fsc;
+        }
+
+        // Accessorials
+        const accessorials = await trx('load_accessorials')
+          .join('accessorial_types', 'load_accessorials.accessorial_type_id', 'accessorial_types.id')
+          .where({ 'load_accessorials.load_id': load.id })
+          .select('load_accessorials.*', 'accessorial_types.name as type_name');
+
+        for (const acc of accessorials) {
+          lineItems.push({
+            load_id: load.id,
+            description: `${acc.type_name} - Load #${load.id}`,
+            quantity: parseFloat(acc.quantity),
+            unit_price: parseFloat(acc.rate),
+            amount: parseFloat(acc.total),
+            line_type: 'ACCESSORIAL',
+          });
+          accessorialTotal += parseFloat(acc.total);
+        }
+      }
+
+      const totalAmount = subtotal + fuelSurchargeTotal + accessorialTotal;
+      const issueDate = new Date().toISOString().slice(0, 10);
+      const dueDate = new Date(Date.now() + (customer.payment_terms || 30) * 86400000).toISOString().slice(0, 10);
+
       const [inv] = await trx('invoices').insert({
         invoice_number: generateInvoiceNumber(),
         customer_id,
@@ -321,7 +327,7 @@ export default function invoicesRouter(db) {
 
     const updates = { status };
     if (status === 'SENT' && !invoice.sent_at) {
-      updates.sent_at = new Date().toISOString();
+      updates.sent_at = db.fn.now();
     }
 
     await db('invoices').where({ id: invoice.id }).update(updates);
@@ -332,29 +338,43 @@ export default function invoicesRouter(db) {
 
   // POST /api/invoices/:id/payment
   router.post('/:id/payment', asyncHandler(async (req, res) => {
-    const invoice = await db('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-
     const { amount } = req.body;
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid payment amount is required' });
     }
 
-    const newAmountPaid = parseFloat(invoice.amount_paid) + parseFloat(amount);
-    const newBalance = parseFloat(invoice.total_amount) - newAmountPaid;
+    const updated = await db.transaction(async (trx) => {
+      // Lock the invoice row to prevent concurrent payment races
+      const invoice = await trx('invoices').where({ id: req.params.id }).forUpdate().first();
+      if (!invoice) {
+        throw Object.assign(new Error('Invoice not found'), { status: 404 });
+      }
 
-    const updates = {
-      amount_paid: newAmountPaid,
-      balance_due: Math.max(0, newBalance),
-    };
+      const currentBalance = parseFloat(invoice.balance_due);
+      if (parseFloat(amount) > currentBalance) {
+        throw Object.assign(
+          new Error(`Payment amount $${amount} exceeds balance due $${currentBalance.toFixed(2)}`),
+          { status: 400 }
+        );
+      }
 
-    if (newBalance <= 0) {
-      updates.status = 'PAID';
-      updates.paid_at = new Date().toISOString();
-    }
+      const newAmountPaid = parseFloat(invoice.amount_paid) + parseFloat(amount);
+      const newBalance = parseFloat(invoice.total_amount) - newAmountPaid;
 
-    await db('invoices').where({ id: invoice.id }).update(updates);
-    const updated = await db('invoices').where({ id: invoice.id }).first();
+      const updates = {
+        amount_paid: newAmountPaid,
+        balance_due: Math.max(0, newBalance),
+      };
+
+      if (newBalance <= 0) {
+        updates.status = 'PAID';
+        updates.paid_at = db.fn.now();
+      }
+
+      await trx('invoices').where({ id: invoice.id }).update(updates);
+      return trx('invoices').where({ id: invoice.id }).first();
+    });
+
     const enriched = await enrichInvoice(updated);
     res.json(enriched);
   }));

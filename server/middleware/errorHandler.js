@@ -2,7 +2,9 @@ export function errorHandler(err, req, res, _next) {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
 
   if (err.status) {
-    return res.status(err.status).json({ error: err.message });
+    const body = { error: err.message };
+    if (err.conflicts) body.conflicts = err.conflicts;
+    return res.status(err.status).json(body);
   }
 
   res.status(500).json({ error: 'Internal server error' });
