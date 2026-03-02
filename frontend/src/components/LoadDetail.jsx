@@ -48,11 +48,11 @@ export default function LoadDetail({ loadId, initialData, onClose }) {
 
   const { saveField, saveFields, isSaving } = useInlineLoadSave(loadId);
 
-  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers });
-  const { data: carriers = [] } = useQuery({ queryKey: ['carriers'], queryFn: getCarriers });
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: getUsers });
-  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers, staleTime: 5 * 60 * 1000 });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers, staleTime: 5 * 60 * 1000 });
+  const { data: carriers = [] } = useQuery({ queryKey: ['carriers'], queryFn: getCarriers, staleTime: 5 * 60 * 1000 });
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: getUsers, staleTime: 5 * 60 * 1000 });
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles, staleTime: 5 * 60 * 1000 });
 
   const trucks = vehicles.filter(v => v.type === 'TRACTOR' && v.status === 'ACTIVE');
   const trailers = vehicles.filter(v => v.type === 'TRAILER' && v.status === 'ACTIVE');

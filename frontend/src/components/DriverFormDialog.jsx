@@ -43,8 +43,8 @@ export default function DriverFormDialog({ open, onOpenChange, editingDriver, on
     return { ...EMPTY_FORM };
   });
 
-  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
-  const { data: carriers = [] } = useQuery({ queryKey: ['carriers'], queryFn: getCarriers });
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers, staleTime: 5 * 60 * 1000 });
+  const { data: carriers = [] } = useQuery({ queryKey: ['carriers'], queryFn: getCarriers, staleTime: 5 * 60 * 1000 });
 
   const createMutation = useMutation({
     mutationFn: createDriver,

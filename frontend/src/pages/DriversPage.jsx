@@ -28,6 +28,7 @@ export default function DriversPage() {
   const { data: drivers = [], isLoading } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => getDrivers(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: detail, isLoading: detailLoading } = useQuery({

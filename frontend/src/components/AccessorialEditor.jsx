@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,6 +21,7 @@ export default function AccessorialEditor({ loadId }) {
   const { data: types = [] } = useQuery({
     queryKey: ['accessorialTypes'],
     queryFn: getAccessorialTypes,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: accessorials = [] } = useQuery({
@@ -52,6 +54,7 @@ export default function AccessorialEditor({ loadId }) {
       queryClient.invalidateQueries({ queryKey: ['loads', loadId] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to remove accessorial'),
   });
 
   const handleTypeChange = (typeId) => {
@@ -92,15 +95,21 @@ export default function AccessorialEditor({ loadId }) {
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <span className="font-semibold">${parseFloat(acc.total).toFixed(2)}</span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => removeMutation.mutate(acc.id)}
-                    disabled={removeMutation.isPending}
-                    className="text-red-400 hover:text-red-600"
-                  >
-                    Remove
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="xs" disabled={removeMutation.isPending} className="text-red-400 hover:text-red-600">Remove</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove accessorial?</AlertDialogTitle>
+                        <AlertDialogDescription>This will remove the charge from the load total.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => removeMutation.mutate(acc.id)}>Remove</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             ))}

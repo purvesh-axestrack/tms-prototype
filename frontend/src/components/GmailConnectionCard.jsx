@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getGmailStatus, getGmailAuthUrl, disconnectGmail, triggerGmailSync, updateFilterSenders } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { RefreshCw, Unplug, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function GmailConnectionCard() {
-  const [syncing, setSyncing] = useState(false);
   const [senderInput, setSenderInput] = useState('');
   const [showDisconnect, setShowDisconnect] = useState(false);
   const queryClient = useQueryClient();
@@ -23,56 +22,59 @@ export default function GmailConnectionCard() {
     refetchInterval: 60000,
   });
 
-  const handleConnect = async () => {
-    try {
-      const { url } = await getGmailAuthUrl();
-      window.location.href = url;
-    } catch (error) {
-      toast.error('Failed to get auth URL. Check that Gmail credentials are configured on the server.');
-    }
-  };
+  const connectMutation = useMutation({
+    mutationFn: getGmailAuthUrl,
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: () => toast.error('Failed to get auth URL. Check that Gmail credentials are configured on the server.'),
+  });
 
-  const handleDisconnect = async () => {
-    try {
-      await disconnectGmail();
+  const disconnectMutation = useMutation({
+    mutationFn: disconnectGmail,
+    onSuccess: () => {
       toast.success('Gmail disconnected');
       queryClient.invalidateQueries({ queryKey: ['gmail-status'] });
-    } catch (err) {
-      toast.error('Failed to disconnect: ' + (err.response?.data?.error || err.message));
-    }
-  };
+      setShowDisconnect(false);
+    },
+    onError: (err) => toast.error('Failed to disconnect: ' + (err.response?.data?.error || err.message)),
+  });
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      const result = await triggerGmailSync();
+  const syncMutation = useMutation({
+    mutationFn: triggerGmailSync,
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['email-imports'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['loads'] });
       toast.success(`Sync complete: ${result.processed || 0} messages processed`);
-    } catch (error) {
-      toast.error('Sync failed: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setSyncing(false);
-    }
-  };
+    },
+    onError: (err) => toast.error('Sync failed: ' + (err.response?.data?.error || err.message)),
+  });
 
-  const handleAddSender = async () => {
+  const filterSendersMutation = useMutation({
+    mutationFn: updateFilterSenders,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gmail-status'] });
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to update sender list'),
+  });
+
+  const handleAddSender = () => {
     if (!senderInput.trim()) return;
     const current = gmailStatus?.filter_senders || [];
     const updated = [...current, senderInput.trim()];
-    await updateFilterSenders(updated);
-    setSenderInput('');
-    queryClient.invalidateQueries({ queryKey: ['gmail-status'] });
-    toast.success('Sender added');
+    filterSendersMutation.mutate(updated, {
+      onSuccess: () => {
+        setSenderInput('');
+        toast.success('Sender added');
+      },
+    });
   };
 
-  const handleRemoveSender = async (sender) => {
+  const handleRemoveSender = (sender) => {
     const current = gmailStatus?.filter_senders || [];
     const updated = current.filter(s => s !== sender);
-    await updateFilterSenders(updated);
-    queryClient.invalidateQueries({ queryKey: ['gmail-status'] });
-    toast.success('Sender removed');
+    filterSendersMutation.mutate(updated, {
+      onSuccess: () => toast.success('Sender removed'),
+    });
   };
 
   if (isLoading) {
@@ -115,9 +117,9 @@ export default function GmailConnectionCard() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleSync} disabled={syncing} className="theme-brand-bg text-white">
-                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                  {syncing ? 'Syncing...' : 'Sync Now'}
+                <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="theme-brand-bg text-white">
+                  <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                  {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
                 </Button>
                 <Button variant="outline" onClick={() => setShowDisconnect(true)} className="text-red-600 border-red-300 hover:bg-red-50">
                   <Unplug className="w-4 h-4" /> Disconnect
@@ -140,7 +142,7 @@ export default function GmailConnectionCard() {
                     className="flex-1"
                     onKeyDown={(e) => e.key === 'Enter' && handleAddSender()}
                   />
-                  <Button size="sm" onClick={handleAddSender} className="theme-brand-bg text-white">
+                  <Button size="sm" onClick={handleAddSender} disabled={filterSendersMutation.isPending} className="theme-brand-bg text-white">
                     <Plus className="w-4 h-4" /> Add
                   </Button>
                 </div>
@@ -150,9 +152,15 @@ export default function GmailConnectionCard() {
                     {gmailStatus.filter_senders.map(sender => (
                       <Badge key={sender} variant="secondary" className="gap-1">
                         {sender}
-                        <button onClick={() => handleRemoveSender(sender)} className="text-muted-foreground hover:text-red-500">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 p-0 text-muted-foreground hover:text-red-500"
+                          onClick={() => handleRemoveSender(sender)}
+                          disabled={filterSendersMutation.isPending}
+                        >
                           <X className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </Badge>
                     ))}
                   </div>
@@ -169,7 +177,7 @@ export default function GmailConnectionCard() {
                 Connect your Gmail account to automatically detect incoming rate confirmations
                 and create draft loads.
               </p>
-              <Button onClick={handleConnect} className="theme-brand-bg text-white">
+              <Button onClick={() => connectMutation.mutate()} disabled={connectMutation.isPending} className="theme-brand-bg text-white">
                 Connect Gmail
               </Button>
             </div>
@@ -185,7 +193,7 @@ export default function GmailConnectionCard() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => { handleDisconnect(); setShowDisconnect(false); }}>
+            <AlertDialogAction variant="destructive" onClick={() => disconnectMutation.mutate()} disabled={disconnectMutation.isPending}>
               Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>

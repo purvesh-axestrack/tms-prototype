@@ -41,6 +41,7 @@ export default function FleetPage() {
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ['vehicles', tab === 'INACTIVE'],
     queryFn: () => getVehicles(tab === 'INACTIVE' ? { include_inactive: true, status: 'INACTIVE' } : { include_inactive: false }),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: detail } = useQuery({
@@ -52,11 +53,13 @@ export default function FleetPage() {
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: getDrivers,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: carriers = [] } = useQuery({
     queryKey: ['carriers'],
     queryFn: getCarriers,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Sync driver assignment selects when detail changes (fixes team driver bug)

@@ -25,6 +25,7 @@ export default function CustomersPage() {
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: () => getCustomers(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: detail, isLoading: detailLoading } = useQuery({

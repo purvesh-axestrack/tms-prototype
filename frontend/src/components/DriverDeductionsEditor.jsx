@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ export default function DriverDeductionsEditor({ driverId }) {
   const { data: types = [] } = useQuery({
     queryKey: ['deductionTypes'],
     queryFn: getDeductionTypes,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: deductions = [] } = useQuery({
@@ -43,6 +45,7 @@ export default function DriverDeductionsEditor({ driverId }) {
       toast.success('Deduction removed');
       queryClient.invalidateQueries({ queryKey: ['driverDeductions', driverId] });
     },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to remove deduction'),
   });
 
   const handleTypeChange = (typeId) => {
@@ -79,14 +82,21 @@ export default function DriverDeductionsEditor({ driverId }) {
                 <Badge variant={ded.is_active ? 'default' : 'secondary'} className={ded.is_active ? 'bg-green-100 text-green-700' : ''}>
                   {ded.is_active ? 'Active' : 'Inactive'}
                 </Badge>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => removeMutation.mutate(ded.id)}
-                  className="text-red-400 hover:text-red-600"
-                >
-                  Remove
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="xs" disabled={removeMutation.isPending} className="text-red-400 hover:text-red-600">Remove</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove deduction?</AlertDialogTitle>
+                      <AlertDialogDescription>This will remove the recurring deduction from the driver's settlements.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => removeMutation.mutate(ded.id)}>Remove</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}

@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building, Plus, Search, Shield, AlertTriangle, Trash2, User, Truck, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,6 +38,7 @@ export default function CarriersPage() {
   const { data: carriers = [], isLoading } = useQuery({
     queryKey: ['carriers', tab === 'INACTIVE'],
     queryFn: () => getCarriers(tab === 'INACTIVE' ? { include_inactive: true, status: 'INACTIVE' } : { include_inactive: false }),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: detail } = useQuery({
@@ -329,13 +330,27 @@ export default function CarriersPage() {
                                 ) : '\u2014'}
                               </TableCell>
                               <TableCell>
-                                <Button
-                                  variant="ghost" size="sm"
-                                  className="text-red-500 hover:text-red-700 h-7 w-7 p-0"
-                                  onClick={() => removeInsuranceMutation.mutate({ carrierId: detail.id, insuranceId: ins.id })}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost" size="sm"
+                                      className="text-red-500 hover:text-red-700 h-7 w-7 p-0"
+                                      disabled={removeInsuranceMutation.isPending}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove insurance policy?</AlertDialogTitle>
+                                      <AlertDialogDescription>This will permanently remove this insurance record from the carrier.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => removeInsuranceMutation.mutate({ carrierId: detail.id, insuranceId: ins.id })}>Remove</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </TableCell>
                             </TableRow>
                           );

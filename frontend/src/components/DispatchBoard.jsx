@@ -223,9 +223,9 @@ export default function DispatchBoard() {
     queryFn: getLoads,
   });
 
-  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers });
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers });
-  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers, staleTime: 5 * 60 * 1000 });
+  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers, staleTime: 5 * 60 * 1000 });
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles, staleTime: 5 * 60 * 1000 });
 
   const filteredLoads = useMemo(() => applyFilters(loads, filters), [loads, filters]);
 

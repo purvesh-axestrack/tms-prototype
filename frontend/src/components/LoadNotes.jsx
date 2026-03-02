@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { MessageSquare, Pencil, Trash2, X, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,7 +28,7 @@ export default function LoadNotes({ loadId }) {
 
   const createMut = useMutation({
     mutationFn: (note) => createLoadNote(loadId, note),
-    onSuccess: () => { invalidate(); setNewNote(''); },
+    onSuccess: () => { invalidate(); setNewNote(''); toast.success('Note added'); },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to add note'),
   });
 
@@ -92,9 +93,23 @@ export default function LoadNotes({ loadId }) {
                         <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditingId(n.id); setEditText(n.note); }}>
                           <Pencil className="w-2.5 h-2.5" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-5 w-5 text-red-500 hover:text-red-700" onClick={() => deleteMut.mutate(n.id)}>
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-5 w-5 text-red-500 hover:text-red-700">
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete note?</AlertDialogTitle>
+                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteMut.mutate(n.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     )}
                   </div>

@@ -105,16 +105,19 @@ export default function LoadCreateModal({ onClose, prefill }) {
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: getCustomers,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: carriers = [] } = useQuery({
     queryKey: ['carriers'],
     queryFn: getCarriers,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
+    staleTime: 5 * 60 * 1000,
   });
 
   const createMutation = useMutation({

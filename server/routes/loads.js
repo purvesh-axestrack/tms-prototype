@@ -611,9 +611,6 @@ export default function loadsRouter(db) {
 
   // PATCH /api/loads/:id
   router.patch('/:id', asyncHandler(async (req, res) => {
-    const load = await db('loads').where({ id: req.params.id }).first();
-    if (!load) return res.status(404).json({ error: 'Load not found' });
-
     const allowedUpdates = [
       'reference_number', 'customer_id', 'rate_amount', 'rate_type', 'loaded_miles',
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
@@ -636,16 +633,20 @@ export default function loadsRouter(db) {
     if (updates.equipment_type) updates.equipment_type = normalizeEnum(updates.equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES);
     if (updates.rate_type) updates.rate_type = normalizeEnum(updates.rate_type, RATE_TYPES, 'FLAT');
 
-    // Field-level guards
-    if (updates.customer_id === null && !['OPEN'].includes(load.status)) {
-      return res.status(400).json({ error: 'Cannot remove customer from a non-OPEN load' });
-    }
-    if (updates.rate_amount !== undefined && parseFloat(updates.rate_amount) <= 0 && ['COMPLETED', 'INVOICED'].includes(load.status)) {
-      return res.status(400).json({ error: 'Cannot zero out rate on a completed/invoiced load' });
-    }
-
-    // Handle stops + field updates in one transaction
     await db.transaction(async (trx) => {
+      const load = await trx('loads').where({ id: req.params.id }).forUpdate().first();
+      if (!load) {
+        throw Object.assign(new Error('Load not found'), { status: 404 });
+      }
+
+      // Field-level guards
+      if (updates.customer_id === null && !['OPEN'].includes(load.status)) {
+        throw Object.assign(new Error('Cannot remove customer from a non-OPEN load'), { status: 400 });
+      }
+      if (updates.rate_amount !== undefined && parseFloat(updates.rate_amount) <= 0 && ['COMPLETED', 'INVOICED'].includes(load.status)) {
+        throw Object.assign(new Error('Cannot zero out rate on a completed/invoiced load'), { status: 400 });
+      }
+
       if (req.body.stops) {
         await trx('stops').where({ load_id: load.id }).del();
         const stopRows = req.body.stops.map((stop, index) => ({
@@ -699,7 +700,7 @@ export default function loadsRouter(db) {
 
     if (req.body.stops) await autoSaveLocations(req.body.stops);
 
-    const updatedLoad = await db('loads').where({ id: load.id }).first();
+    const updatedLoad = await db('loads').where({ id: req.params.id }).first();
     const enriched = await enrichLoad(updatedLoad);
     res.json(enriched);
   }));
@@ -810,42 +811,54 @@ export default function loadsRouter(db) {
 
   // DELETE /api/loads/:id
   router.delete('/:id', asyncHandler(async (req, res) => {
-    const load = await db('loads').where({ id: req.params.id }).first();
-    if (!load) return res.status(404).json({ error: 'Load not found' });
+    // Collect file paths to delete after DB commit succeeds
+    let filePaths = [];
 
-    if (!['OPEN', 'CANCELLED'].includes(load.status)) {
-      return res.status(400).json({ error: `Cannot delete a load with status ${load.status}. Only OPEN or CANCELLED loads can be deleted.` });
-    }
-
-    if (load.invoice_id) {
-      return res.status(400).json({ error: 'Cannot delete a load that is linked to an invoice' });
-    }
-
-    if (load.settlement_id) {
-      return res.status(400).json({ error: 'Cannot delete a load that is linked to a settlement' });
-    }
-
-    // Delete files outside transaction (filesystem ops can't rollback)
-    const docs = await db('documents').where({ load_id: load.id });
-    for (const doc of docs) {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const filePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', doc.storage_path);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      } catch {}
-    }
-
-    // Cascade-delete related records in transaction
     await db.transaction(async (trx) => {
+      const load = await trx('loads').where({ id: req.params.id }).forUpdate().first();
+      if (!load) {
+        throw Object.assign(new Error('Load not found'), { status: 404 });
+      }
+
+      if (!['OPEN', 'CANCELLED'].includes(load.status)) {
+        throw Object.assign(new Error(`Cannot delete a load with status ${load.status}. Only OPEN or CANCELLED loads can be deleted.`), { status: 400 });
+      }
+
+      if (load.invoice_id) {
+        throw Object.assign(new Error('Cannot delete a load that is linked to an invoice'), { status: 400 });
+      }
+
+      if (load.settlement_id) {
+        throw Object.assign(new Error('Cannot delete a load that is linked to a settlement'), { status: 400 });
+      }
+
+      // Collect file paths before deleting DB records
+      const docs = await trx('documents').where({ load_id: load.id });
+      const path = await import('path');
+      filePaths = docs
+        .filter(d => d.storage_path)
+        .map(d => path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', d.storage_path));
+
+      // Cascade-delete related records
       await trx('documents').where({ load_id: load.id }).del();
       await trx('load_accessorials').where({ load_id: load.id }).del();
       await trx('load_notes').where({ load_id: load.id }).del();
       await trx('stops').where({ load_id: load.id }).del();
       await trx('loads').where({ id: load.id }).del();
+
+      console.log(`Load #${load.id} (${load.reference_number}) deleted`);
     });
 
-    console.log(`Load #${load.id} (${load.reference_number}) deleted`);
+    // Delete files AFTER transaction commits — if this fails, DB is still consistent
+    const fs = await import('fs');
+    for (const fp of filePaths) {
+      try {
+        if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      } catch (e) {
+        console.error(`Failed to delete file ${fp}:`, e.message);
+      }
+    }
+
     res.json({ message: 'Load deleted' });
   }));
 
