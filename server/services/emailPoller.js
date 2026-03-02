@@ -74,37 +74,19 @@ async function processMessage(gmail, db, messageId, settings) {
   const dateHeader = headers.find(h => h.name.toLowerCase() === 'date')?.value;
   const receivedAt = dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString();
 
-  // Layer 2: Keyword check on subject
+  // Keyword check on subject + snippet — silently skip irrelevant emails
   if (!matchesKeywords(subject)) {
-    // Check body snippet too
     const snippet = msg.data.snippet || '';
     if (!matchesKeywords(snippet)) {
-      // Create as SKIPPED
-      await db('email_imports').insert({
-        gmail_message_id: messageId,
-        from_address: from,
-        subject,
-        received_at: receivedAt,
-        processing_status: 'SKIPPED',
-        error_message: 'No rate confirmation keywords found in subject or body',
-      });
       return { status: 'SKIPPED', reason: 'no keywords' };
     }
   }
 
-  // Filter by sender whitelist if configured
+  // Sender whitelist filter — silently skip non-whitelisted senders
   if (settings.filter_senders && settings.filter_senders.length > 0) {
     const fromLower = from.toLowerCase();
     const matchesSender = settings.filter_senders.some(s => fromLower.includes(s.toLowerCase()));
     if (!matchesSender) {
-      await db('email_imports').insert({
-        gmail_message_id: messageId,
-        from_address: from,
-        subject,
-        received_at: receivedAt,
-        processing_status: 'SKIPPED',
-        error_message: 'Sender not in whitelist',
-      });
       return { status: 'SKIPPED', reason: 'sender not whitelisted' };
     }
   }
@@ -122,6 +104,8 @@ async function processMessage(gmail, db, messageId, settings) {
   const attachments = findPdfAttachments(msg.data.payload);
 
   if (attachments.length === 0) {
+    console.log(`[EmailPoller] No PDFs found in message ${messageId} (subject: "${subject}")`);
+    console.log(`[EmailPoller] MIME structure:`, JSON.stringify(summarizeMime(msg.data.payload), null, 2));
     await db('email_imports').where({ id: emailImport.id }).update({
       processing_status: 'SKIPPED',
       error_message: 'No PDF attachments found',
@@ -183,6 +167,12 @@ async function processMessage(gmail, db, messageId, settings) {
   }
 }
 
+function summarizeMime(part) {
+  const info = { mimeType: part.mimeType, filename: part.filename || null, hasAttachmentId: !!part.body?.attachmentId, bodySize: part.body?.size || 0 };
+  if (part.parts) info.parts = part.parts.map(summarizeMime);
+  return info;
+}
+
 function findPdfAttachments(payload, results = []) {
   if (payload.filename && payload.filename.toLowerCase().endsWith('.pdf') && payload.body?.attachmentId) {
     results.push({
@@ -209,10 +199,13 @@ export async function pollOnce(db, userId = null) {
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   try {
-    let query = 'has:attachment filename:pdf';
+    // Push keyword filtering to Gmail so we never fetch irrelevant messages
+    const kwQuery = RATE_CON_KEYWORDS.map(kw => `"${kw}"`).join(' OR ');
+    let query = `has:attachment filename:pdf (${kwQuery})`;
 
     // Use history-based incremental sync if we have a historyId
     let messageIds = [];
+    let historyExpired = false;
 
     if (settings.history_id) {
       try {
@@ -239,16 +232,16 @@ export async function pollOnce(db, userId = null) {
       } catch (e) {
         // historyId expired, fall back to full list
         if (e.response?.status === 404) {
-          console.log('History ID expired, doing full list');
-          messageIds = [];
+          console.log('History ID expired, falling back to list query');
+          historyExpired = true;
         } else {
           throw e;
         }
       }
     }
 
-    // If no history or history expired, do a list query
-    if (messageIds.length === 0 && !settings.history_id) {
+    // If no history, history expired, or no messages from history — do a list query
+    if (messageIds.length === 0 && (!settings.history_id || historyExpired)) {
       const list = await gmail.users.messages.list({
         userId: 'me',
         q: query,
