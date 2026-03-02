@@ -484,6 +484,30 @@ export default function loadsRouter(db) {
     res.json(enriched);
   }));
 
+  // Helper: release a driver only if they have no other active loads
+  async function releaseDriverIfIdle(trx, driverId, excludeLoadId) {
+    const otherActiveLoad = await trx('loads')
+      .where(function () {
+        this.where({ driver_id: driverId }).orWhere({ driver2_id: driverId });
+      })
+      .whereNot({ id: excludeLoadId })
+      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+      .first();
+    if (!otherActiveLoad) {
+      await trx('drivers').where({ id: driverId }).update({ status: 'AVAILABLE' });
+    }
+  }
+
+  // Helper: release both drivers on a load (used by COMPLETED, TONU, CANCELLED)
+  async function releaseDrivers(trx, load) {
+    if (load.driver_id) {
+      await releaseDriverIfIdle(trx, load.driver_id, load.id);
+    }
+    if (load.driver2_id) {
+      await releaseDriverIfIdle(trx, load.driver2_id, load.id);
+    }
+  }
+
   // PATCH /api/loads/:id/status
   router.patch('/:id/status', asyncHandler(async (req, res) => {
     const { status, carrier_id, carrier_rate } = req.body;
@@ -521,26 +545,54 @@ export default function loadsRouter(db) {
         if (carrier_rate) updates.carrier_rate = carrier_rate;
       }
 
-      if (status === 'IN_PICKUP_YARD' && !load.picked_up_at) {
+      // SCHEDULED → OPEN: clear assignment, release drivers
+      if (status === 'OPEN' && load.status === 'SCHEDULED') {
+        if (load.driver_id) await releaseDriverIfIdle(trx, load.driver_id, load.id);
+        if (load.driver2_id) await releaseDriverIfIdle(trx, load.driver2_id, load.id);
+        updates.driver_id = null;
+        updates.driver2_id = null;
+        updates.truck_id = null;
+        updates.trailer_id = null;
+        updates.assigned_at = null;
+      }
+
+      // BROKERED → OPEN: clear carrier
+      if (status === 'OPEN' && load.status === 'BROKERED') {
+        updates.carrier_id = null;
+        updates.carrier_rate = null;
+      }
+
+      // BROKERED → SCHEDULED: clear carrier (driver_id validated by state machine)
+      if (status === 'SCHEDULED' && load.status === 'BROKERED') {
+        updates.carrier_id = null;
+        updates.carrier_rate = null;
+      }
+
+      // Set picked_up_at for IN_PICKUP_YARD or IN_TRANSIT (skip pickup yard)
+      if ((status === 'IN_PICKUP_YARD' || status === 'IN_TRANSIT') && !load.picked_up_at) {
         updates.picked_up_at = db.fn.now();
       }
 
+      // COMPLETED: set delivered_at, release drivers
       if (status === 'COMPLETED' && !load.delivered_at) {
         updates.delivered_at = db.fn.now();
-        if (load.driver_id) {
-          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
-        }
-        if (load.driver2_id) {
-          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
-        }
+        await releaseDrivers(trx, load);
       }
 
+      // TONU: release drivers
       if (status === 'TONU') {
-        if (load.driver_id) {
-          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
-        }
-        if (load.driver2_id) {
-          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
+        await releaseDrivers(trx, load);
+      }
+
+      // CANCELLED: release drivers (bug fix — was missing)
+      if (status === 'CANCELLED') {
+        await releaseDrivers(trx, load);
+      }
+
+      // Accept cancellation_reason for CANCELLED/TONU
+      if (status === 'CANCELLED' || status === 'TONU') {
+        if (req.body.reason) {
+          updates.cancellation_reason = req.body.reason;
         }
       }
 

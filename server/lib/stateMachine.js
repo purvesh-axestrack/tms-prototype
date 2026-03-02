@@ -1,15 +1,15 @@
 // Load status state machine with valid transitions
 
 export const VALID_TRANSITIONS = {
-  OPEN: ['SCHEDULED', 'BROKERED', 'TONU', 'CANCELLED'],
-  SCHEDULED: ['IN_PICKUP_YARD', 'TONU', 'CANCELLED'],
+  OPEN:           ['SCHEDULED', 'BROKERED', 'CANCELLED'],
+  SCHEDULED:      ['OPEN', 'IN_PICKUP_YARD', 'IN_TRANSIT', 'TONU', 'CANCELLED'],
+  BROKERED:       ['OPEN', 'SCHEDULED', 'CANCELLED'],
   IN_PICKUP_YARD: ['IN_TRANSIT', 'TONU', 'CANCELLED'],
-  IN_TRANSIT: ['COMPLETED'],
-  COMPLETED: ['INVOICED'],
-  TONU: [],        // Terminal state
-  CANCELLED: [],   // Terminal state
-  INVOICED: [],    // Terminal state
-  BROKERED: ['SCHEDULED', 'CANCELLED'],
+  IN_TRANSIT:     ['COMPLETED', 'TONU', 'CANCELLED'],
+  COMPLETED:      [],   // Terminal
+  TONU:           [],   // Terminal
+  CANCELLED:      [],   // Terminal
+  INVOICED:       [],   // Terminal (legacy — invoicing tracked by invoice_id)
 };
 
 export function isValidTransition(currentStatus, newStatus) {
