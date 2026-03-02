@@ -144,7 +144,7 @@ async function processMessage(gmail, db, messageId, settings) {
       doc_type: 'RATE_CON',
       filename: att.filename,
       storage_path: storagePath,
-      storage_type: 'local',
+      storage_type: 'LOCAL',
       file_size: buffer.length,
     });
   }
