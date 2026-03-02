@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LayoutGrid, Mail, FileText, Wallet, Settings, LogOut, Map, Building2, User, Truck, Building, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { LayoutGrid, Mail, FileText, Wallet, Settings, LogOut, Building2, User, Truck, Building, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import DispatchBoard from './components/DispatchBoard';
 import StatsBar from './components/StatsBar';
 import EmailImportsPage from './pages/EmailImportsPage';
@@ -106,9 +106,7 @@ function AppLayout() {
         {/* Logo + collapse toggle */}
         <div className={`h-16 flex items-center flex-shrink-0 ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
           <div className={`flex items-center ${collapsed ? '' : 'gap-2.5'}`}>
-            <div className="w-8 h-8 rounded-lg theme-logo flex items-center justify-center shadow-sm flex-shrink-0">
-              <Map className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="TMS" className="w-8 h-8 rounded-lg flex-shrink-0 shadow-sm" />
             {!collapsed && <span className="font-display text-lg font-bold tracking-tight">TMS</span>}
           </div>
           {!collapsed && (

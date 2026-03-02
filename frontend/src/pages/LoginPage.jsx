@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Map, AlertTriangle, Loader2, Info } from 'lucide-react';
+import { AlertTriangle, Loader2, Info } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
@@ -39,9 +39,7 @@ export default function LoginPage() {
     <div className="min-h-screen theme-sidebar flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl theme-logo mb-5 shadow-lg">
-            <Map className="w-8 h-8 text-white" />
-          </div>
+          <img src="/logo.png" alt="TMS" className="inline-block w-16 h-16 rounded-2xl mb-5 shadow-lg" />
           <h1 className="font-display text-3xl font-bold text-white mb-2">TMS Dispatch</h1>
           <p className="theme-sidebar-text text-sm">Transportation Management System</p>
         </div>
