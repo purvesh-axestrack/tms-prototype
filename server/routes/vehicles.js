@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { TERMINAL_STATUSES } from '../lib/constants.js';
+import { TERMINAL_STATUSES, VEHICLE_TYPES, VEHICLE_STATUSES, ACTIVE_LOAD_STATUSES } from '../lib/constants.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function vehiclesRouter(db) {
   const router = Router();
@@ -89,8 +90,8 @@ export default function vehiclesRouter(db) {
   router.post('/', asyncHandler(async (req, res) => {
     const { unit_number, type, vin, year, make, model, license_plate, license_state, notes, carrier_id } = req.body;
     if (!unit_number) return res.status(400).json({ error: 'Unit number is required' });
-    if (!type || !['TRACTOR', 'TRAILER'].includes(type)) {
-      return res.status(400).json({ error: 'Type must be TRACTOR or TRAILER' });
+    if (!type || !VEHICLE_TYPES.includes(type)) {
+      return res.status(400).json({ error: `Type must be one of: ${VEHICLE_TYPES.join(', ')}` });
     }
 
     const id = `v_${crypto.randomUUID().slice(0, 8)}`;
@@ -118,17 +119,13 @@ export default function vehiclesRouter(db) {
     const vehicle = await db('vehicles').where({ id: req.params.id }).first();
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-    const allowed = ['unit_number', 'type', 'vin', 'year', 'make', 'model', 'license_plate', 'license_state', 'status', 'current_driver_id', 'current_driver2_id', 'odometer', 'notes', 'carrier_id'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
+    const updates = pickAllowedFields(req.body, ['unit_number', 'type', 'vin', 'year', 'make', 'model', 'license_plate', 'license_state', 'status', 'current_driver_id', 'current_driver2_id', 'odometer', 'notes', 'carrier_id']);
 
-    if (updates.type && !['TRACTOR', 'TRAILER'].includes(updates.type)) {
-      return res.status(400).json({ error: 'Type must be TRACTOR or TRAILER' });
+    if (updates.type && !VEHICLE_TYPES.includes(updates.type)) {
+      return res.status(400).json({ error: `Type must be one of: ${VEHICLE_TYPES.join(', ')}` });
     }
-    if (updates.status && !['ACTIVE', 'IN_SHOP', 'OUT_OF_SERVICE', 'INACTIVE'].includes(updates.status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    if (updates.status && !VEHICLE_STATUSES.includes(updates.status)) {
+      return res.status(400).json({ error: `Status must be one of: ${VEHICLE_STATUSES.join(', ')}` });
     }
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
@@ -185,7 +182,7 @@ export default function vehiclesRouter(db) {
         for (const oldVehicle of oldVehicles) {
           const activeLoads = await trx('loads')
             .where({ truck_id: oldVehicle.id })
-            .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+            .whereIn('status', ACTIVE_LOAD_STATUSES)
             .select('id', 'reference_number', 'status');
           if (activeLoads.length > 0) {
             warnings.push({

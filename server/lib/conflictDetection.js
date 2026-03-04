@@ -1,8 +1,9 @@
 // Driver conflict detection - prevents double-booking
+import { ACTIVE_LOAD_STATUSES, COMPLETED_LOAD_STATUSES } from './constants.js';
 
 export function checkDriverConflicts(driverLoads, pickupDate, deliveryDate) {
   const activeLoads = driverLoads.filter(load =>
-    ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(load.status)
+    ACTIVE_LOAD_STATUSES.includes(load.status)
   );
 
   const conflicts = activeLoads.filter(load => {
@@ -31,7 +32,7 @@ export function checkDriverConflicts(driverLoads, pickupDate, deliveryDate) {
 // Vehicle conflict detection - warns about truck/trailer double-booking
 export function checkVehicleConflicts(vehicleLoads, pickupDate, deliveryDate) {
   const activeLoads = vehicleLoads.filter(load =>
-    ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(load.status)
+    ACTIVE_LOAD_STATUSES.includes(load.status)
   );
 
   // If no dates on the new load, any active load is a potential conflict
@@ -72,15 +73,15 @@ function formatConflict(load) {
 
 export function calculateDriverStats(driverLoads) {
   const activeLoads = driverLoads.filter(load =>
-    ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'].includes(load.status)
+    ACTIVE_LOAD_STATUSES.includes(load.status)
   ).length;
 
   const completedLoads = driverLoads.filter(load =>
-    ['COMPLETED', 'INVOICED'].includes(load.status)
+    COMPLETED_LOAD_STATUSES.includes(load.status)
   ).length;
 
   const totalMiles = driverLoads
-    .filter(load => ['COMPLETED', 'INVOICED'].includes(load.status))
+    .filter(load => COMPLETED_LOAD_STATUSES.includes(load.status))
     .reduce((sum, load) => sum + (load.loaded_miles || 0), 0);
 
   return {

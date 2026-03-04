@@ -2,7 +2,8 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { checkDriverConflicts, calculateDriverStats } from '../lib/conflictDetection.js';
-import { TERMINAL_STATUSES } from '../lib/constants.js';
+import { pickAllowedFields } from '../lib/helpers.js';
+import { TERMINAL_STATUSES, PAY_MODELS, DRIVER_STATUSES, ACTIVE_LOAD_STATUSES, COMPLETED_LOAD_STATUSES } from '../lib/constants.js';
 
 export default function driversRouter(db) {
   const router = Router();
@@ -28,9 +29,9 @@ export default function driversRouter(db) {
     const statsRows = driverIds.length > 0 ? await db('loads')
       .whereIn('driver_id', driverIds)
       .select('driver_id')
-      .select(db.raw(`COUNT(*) FILTER (WHERE status IN ('SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT')) as active_loads`))
-      .select(db.raw(`COUNT(*) FILTER (WHERE status IN ('COMPLETED', 'INVOICED')) as completed_loads`))
-      .select(db.raw(`COALESCE(SUM(loaded_miles) FILTER (WHERE status IN ('COMPLETED', 'INVOICED')), 0) as total_miles`))
+      .select(db.raw(`COUNT(*) FILTER (WHERE status IN (${ACTIVE_LOAD_STATUSES.map(s => `'${s}'`).join(',')})) as active_loads`))
+      .select(db.raw(`COUNT(*) FILTER (WHERE status IN (${COMPLETED_LOAD_STATUSES.map(s => `'${s}'`).join(',')})) as completed_loads`))
+      .select(db.raw(`COALESCE(SUM(loaded_miles) FILTER (WHERE status IN (${COMPLETED_LOAD_STATUSES.map(s => `'${s}'`).join(',')})), 0) as total_miles`))
       .groupBy('driver_id') : [];
 
     const statsMap = Object.fromEntries(statsRows.map(s => [s.driver_id, {
@@ -86,8 +87,8 @@ export default function driversRouter(db) {
     const { full_name, phone, email, license_number, license_state, pay_model, minimum_per_mile, driver_type, tax_type, route_type, hire_date, carrier_id, team_driver_id } = req.body;
     const pay_rate = parseFloat(req.body.pay_rate);
     if (!full_name) return res.status(400).json({ error: 'Full name is required' });
-    if (!pay_model || !['CPM', 'PERCENTAGE', 'FLAT'].includes(pay_model)) {
-      return res.status(400).json({ error: 'Pay model must be CPM, PERCENTAGE, or FLAT' });
+    if (!pay_model || !PAY_MODELS.includes(pay_model)) {
+      return res.status(400).json({ error: `Pay model must be one of: ${PAY_MODELS.join(', ')}` });
     }
     if (isNaN(pay_rate) || pay_rate < 0) return res.status(400).json({ error: 'Pay rate must be a valid non-negative number' });
 
@@ -120,18 +121,14 @@ export default function driversRouter(db) {
     const driver = await db('drivers').where({ id: req.params.id }).first();
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
-    const allowed = ['full_name', 'phone', 'email', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile', 'driver_type', 'tax_type', 'route_type', 'hire_date', 'carrier_id', 'team_driver_id'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    const updates = pickAllowedFields(req.body, ['full_name', 'phone', 'email', 'license_number', 'license_state', 'status', 'pay_model', 'pay_rate', 'minimum_per_mile', 'driver_type', 'tax_type', 'route_type', 'hire_date', 'carrier_id', 'team_driver_id']);
+
+    if (updates.pay_model && !PAY_MODELS.includes(updates.pay_model)) {
+      return res.status(400).json({ error: `Pay model must be one of: ${PAY_MODELS.join(', ')}` });
     }
 
-    if (updates.pay_model && !['CPM', 'PERCENTAGE', 'FLAT'].includes(updates.pay_model)) {
-      return res.status(400).json({ error: 'Pay model must be CPM, PERCENTAGE, or FLAT' });
-    }
-
-    if (updates.status && !['AVAILABLE', 'EN_ROUTE', 'OUT_OF_SERVICE', 'INACTIVE'].includes(updates.status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    if (updates.status && !DRIVER_STATUSES.includes(updates.status)) {
+      return res.status(400).json({ error: `Status must be one of: ${DRIVER_STATUSES.join(', ')}` });
     }
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
@@ -197,7 +194,7 @@ export default function driversRouter(db) {
 
     const driverLoads = await db('loads')
       .where({ driver_id: req.params.id })
-      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT']);
+      .whereIn('status', ACTIVE_LOAD_STATUSES);
 
     const driverLoadsWithStops = await Promise.all(driverLoads.map(async (load) => {
       const stops = await db('stops').where({ load_id: load.id }).orderBy('sequence_order');

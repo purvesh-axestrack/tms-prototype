@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { isValidInvoiceTransition, getAvailableInvoiceTransitions } from '../lib/invoiceStateMachine.js';
 import { exportInvoiceCSV, exportAgingCSV } from '../lib/csvExporter.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function invoicesRouter(db) {
   const router = Router();
@@ -408,11 +409,7 @@ export default function invoicesRouter(db) {
 
   // PATCH /api/invoices/:id
   router.patch('/:id', asyncHandler(async (req, res) => {
-    const allowed = ['notes', 'due_date', 'issue_date'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
+    const updates = pickAllowedFields(req.body, ['notes', 'due_date', 'issue_date']);
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });

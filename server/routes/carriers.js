@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { CARRIER_STATUSES, INSURANCE_TYPES, TERMINAL_STATUSES } from '../lib/constants.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function carriersRouter(db) {
   const router = Router();
@@ -112,11 +113,7 @@ export default function carriersRouter(db) {
     const carrier = await db('carriers').where({ id: req.params.id }).first();
     if (!carrier) return res.status(404).json({ error: 'Carrier not found' });
 
-    const allowed = ['company_name', 'mc_number', 'dot_number', 'scac_code', 'contact_name', 'contact_email', 'contact_phone', 'address', 'city', 'state', 'zip', 'status', 'is_active', 'notes'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
+    const updates = pickAllowedFields(req.body, ['company_name', 'mc_number', 'dot_number', 'scac_code', 'contact_name', 'contact_email', 'contact_phone', 'address', 'city', 'state', 'zip', 'status', 'is_active', 'notes']);
 
     if (updates.status && !CARRIER_STATUSES.includes(updates.status)) {
       return res.status(400).json({ error: `Status must be one of: ${CARRIER_STATUSES.join(', ')}` });

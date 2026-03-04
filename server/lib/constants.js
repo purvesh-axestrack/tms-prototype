@@ -9,6 +9,8 @@ export const USER_ROLES = ['ADMIN', 'DISPATCHER', 'ACCOUNTANT'];
 // ── Loads ──────────────────────────────────────────────────────────────
 export const LOAD_STATUSES = ['OPEN', 'SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT', 'COMPLETED', 'TONU', 'CANCELLED', 'INVOICED', 'BROKERED'];
 export const TERMINAL_STATUSES = ['COMPLETED', 'INVOICED', 'TONU', 'CANCELLED'];
+export const ACTIVE_LOAD_STATUSES = ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'];
+export const COMPLETED_LOAD_STATUSES = ['COMPLETED', 'INVOICED'];
 export const RATE_TYPES = ['FLAT', 'CPM', 'PERCENTAGE'];
 export const EQUIPMENT_TYPES = ['DRY_VAN', 'REEFER', 'FLATBED', 'STEP_DECK', 'LOWBOY', 'HOTSHOT', 'CONTAINER', 'POWER_ONLY', 'TANKER', 'STRAIGHT_TRUCK', 'SPRINTER_VAN', 'CARGO_VAN'];
 export const STOP_TYPES = ['PICKUP', 'DELIVERY'];
@@ -174,6 +176,8 @@ export function normalizeEnum(raw, validSet, fallback, aliases = {}) {
 export const ALL_ENUMS = {
   USER_ROLES,
   LOAD_STATUSES,
+  ACTIVE_LOAD_STATUSES,
+  COMPLETED_LOAD_STATUSES,
   RATE_TYPES,
   EQUIPMENT_TYPES,
   STOP_TYPES,

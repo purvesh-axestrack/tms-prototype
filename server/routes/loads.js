@@ -3,7 +3,8 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateStatusChange, getAvailableTransitions } from '../lib/stateMachine.js';
 import { checkDriverConflicts, checkVehicleConflicts } from '../lib/conflictDetection.js';
 import { calculateLoadTotal } from '../lib/rateCalculator.js';
-import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
+import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum, ACTIVE_LOAD_STATUSES, COMPLETED_LOAD_STATUSES } from '../lib/constants.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function loadsRouter(db) {
   const router = Router();
@@ -449,7 +450,7 @@ export default function loadsRouter(db) {
       const driverLoads = await trx('loads')
         .where({ driver_id })
         .whereNot({ id: load.id })
-        .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+        .whereIn('status', ACTIVE_LOAD_STATUSES)
         .select('loads.*');
 
       const driverLoadsWithStops = await Promise.all(driverLoads.map(async (dl) => {
@@ -478,7 +479,7 @@ export default function loadsRouter(db) {
         const truckLoads = await trx('loads')
           .where({ truck_id: effectiveTruckId })
           .whereNot({ id: load.id })
-          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+          .whereIn('status', ACTIVE_LOAD_STATUSES)
           .select('loads.*');
 
         const truckLoadsWithStops = await Promise.all(truckLoads.map(async (tl) => {
@@ -558,7 +559,7 @@ export default function loadsRouter(db) {
         this.where({ driver_id: driverId }).orWhere({ driver2_id: driverId });
       })
       .whereNot({ id: excludeLoadId })
-      .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+      .whereIn('status', ACTIVE_LOAD_STATUSES)
       .first();
     if (!otherActiveLoad) {
       await trx('drivers').where({ id: driverId }).update({ status: 'AVAILABLE' });
@@ -675,7 +676,8 @@ export default function loadsRouter(db) {
 
   // PATCH /api/loads/:id
   router.patch('/:id', asyncHandler(async (req, res) => {
-    const allowedUpdates = [
+    // driver_id/driver2_id excluded — must use /assign endpoint for conflict detection
+    const updates = pickAllowedFields(req.body, [
       'reference_number', 'customer_id', 'rate_amount', 'rate_type', 'loaded_miles',
       'empty_miles', 'commodity', 'weight', 'equipment_type', 'special_instructions',
       'carrier_id', 'carrier_rate', 'truck_id', 'trailer_id',
@@ -684,15 +686,7 @@ export default function loadsRouter(db) {
       'is_ltl', 'exclude_from_settlement',
       'booking_authority_id', 'sales_agent_id', 'customer_ref_number',
       'fuel_surcharge_amount',
-    ];
-    // driver_id/driver2_id excluded — must use /assign endpoint for conflict detection
-
-    const updates = {};
-    allowedUpdates.forEach(field => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
-      }
-    });
+    ]);
     // Normalize enums on update
     if (updates.equipment_type) updates.equipment_type = normalizeEnum(updates.equipment_type, EQUIPMENT_TYPES, 'DRY_VAN', EQUIPMENT_ALIASES);
     if (updates.rate_type) updates.rate_type = normalizeEnum(updates.rate_type, RATE_TYPES, 'FLAT');
@@ -707,7 +701,7 @@ export default function loadsRouter(db) {
       if (updates.customer_id === null && !['OPEN'].includes(load.status)) {
         throw Object.assign(new Error('Cannot remove customer from a non-OPEN load'), { status: 400 });
       }
-      if (updates.rate_amount !== undefined && parseFloat(updates.rate_amount) <= 0 && ['COMPLETED', 'INVOICED'].includes(load.status)) {
+      if (updates.rate_amount !== undefined && parseFloat(updates.rate_amount) <= 0 && COMPLETED_LOAD_STATUSES.includes(load.status)) {
         throw Object.assign(new Error('Cannot zero out rate on a completed/invoiced load'), { status: 400 });
       }
 

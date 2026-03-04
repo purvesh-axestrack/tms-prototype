@@ -1,4 +1,5 @@
 import { calculateDriverPay } from './rateCalculator.js';
+import { COMPLETED_LOAD_STATUSES } from './constants.js';
 
 export async function calculateDeductions(db, driverId, periodStart, periodEnd) {
   let query = db('driver_deductions')
@@ -28,7 +29,7 @@ export async function generateSettlement(db, driverId, periodStart, periodEnd, c
     // Lock eligible loads with FOR UPDATE to prevent double-settlement
     const loads = await trx('loads')
       .where({ driver_id: driverId })
-      .whereIn('status', ['COMPLETED', 'INVOICED'])
+      .whereIn('status', COMPLETED_LOAD_STATUSES)
       .whereNull('settlement_id')
       .where('delivered_at', '>=', periodStart)
       .where('delivered_at', '<=', periodEnd + 'T23:59:59Z')

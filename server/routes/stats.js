@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { ACTIVE_LOAD_STATUSES } from '../lib/constants.js';
 
 export default function statsRouter(db) {
   const router = Router();
@@ -18,7 +19,7 @@ export default function statsRouter(db) {
       statusCounts, outstanding, overdueInvoices, pendingSettlements,
     ] = await Promise.all([
       db('loads').count('id as count').first(),
-      db('loads').whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT']).count('id as count').first(),
+      db('loads').whereIn('status', ACTIVE_LOAD_STATUSES).count('id as count').first(),
       db('drivers').where({ status: 'AVAILABLE' }).count('id as count').first(),
       db('loads').where({ status: 'COMPLETED' }).whereNotNull('delivered_at')
         .where('delivered_at', '>=', today.toISOString()).where('delivered_at', '<', tomorrow.toISOString())

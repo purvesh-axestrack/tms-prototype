@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function locationsRouter(db) {
   const router = Router();
@@ -62,11 +63,7 @@ export default function locationsRouter(db) {
     const location = await db('locations').where({ id: req.params.id }).first();
     if (!location) return res.status(404).json({ error: 'Location not found' });
 
-    const allowed = ['facility_name', 'address', 'city', 'state', 'zip', 'lat', 'lng', 'contact_name', 'contact_phone', 'notes', 'is_active'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
+    const updates = pickAllowedFields(req.body, ['facility_name', 'address', 'city', 'state', 'zip', 'lat', 'lng', 'contact_name', 'contact_phone', 'notes', 'is_active']);
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No valid fields to update' });

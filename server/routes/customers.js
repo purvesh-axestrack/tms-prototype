@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { TERMINAL_STATUSES } from '../lib/constants.js';
+import { pickAllowedFields } from '../lib/helpers.js';
 
 export default function customersRouter(db) {
   const router = Router();
@@ -75,11 +76,7 @@ export default function customersRouter(db) {
     const customer = await db('customers').where({ id: req.params.id }).first();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const allowed = ['company_name', 'customer_type', 'mc_number', 'dot_number', 'billing_email', 'payment_terms', 'phone', 'contact_name', 'address', 'city', 'state', 'zip', 'credit_limit', 'is_active'];
-    const updates = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
+    const updates = pickAllowedFields(req.body, ['company_name', 'customer_type', 'mc_number', 'dot_number', 'billing_email', 'payment_terms', 'phone', 'contact_name', 'address', 'city', 'state', 'zip', 'credit_limit', 'is_active']);
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
 
