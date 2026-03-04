@@ -42,6 +42,10 @@ export const VEHICLE_STATUSES = ['ACTIVE', 'IN_SHOP', 'OUT_OF_SERVICE', 'INACTIV
 export const CARRIER_STATUSES = ['PROSPECT', 'ACTIVE', 'SUSPENDED', 'INACTIVE'];
 export const INSURANCE_TYPES = ['AUTO_LIABILITY', 'CARGO', 'GENERAL'];
 
+// ── Company ───────────────────────────────────────────────────────────
+export const AUTHORITY_TYPES = ['OWN_AUTHORITY', 'BROKERAGE', 'BOTH'];
+export const COMPANY_INSURANCE_TYPES = ['AUTO_LIABILITY', 'CARGO', 'GENERAL', 'WORKERS_COMP', 'UMBRELLA'];
+
 // ── Documents ──────────────────────────────────────────────────────────
 export const DOC_TYPES = ['RATE_CON', 'BOL', 'POD', 'INVOICE', 'OTHER'];
 export const STORAGE_TYPES = ['LOCAL', 'S3'];
@@ -183,6 +187,8 @@ export const ALL_ENUMS = {
   VEHICLE_STATUSES,
   CARRIER_STATUSES,
   INSURANCE_TYPES,
+  AUTHORITY_TYPES,
+  COMPANY_INSURANCE_TYPES,
   DOC_TYPES,
   IMPORT_STATUSES,
   ACCESSORIAL_UNITS,

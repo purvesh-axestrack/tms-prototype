@@ -20,6 +20,7 @@ import carriersRouter from './routes/carriers.js';
 import usersRouter from './routes/users.js';
 import samsaraRouter from './routes/samsara.js';
 import locationsRouter from './routes/locations.js';
+import companyProfileRouter from './routes/companyProfile.js';
 import rateconRouter from './routes/rateconExtract.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authenticate } from './middleware/auth.js';
@@ -64,6 +65,7 @@ app.use('/api/carriers', carriersRouter(db));
 app.use('/api/users', usersRouter(db));
 app.use('/api/samsara', samsaraRouter(db));
 app.use('/api/locations', locationsRouter(db));
+app.use('/api/company-profile', companyProfileRouter(db));
 app.use('/api/ratecon', rateconRouter(db));
 
 // SPA catch-all: serve index.html for all non-API routes

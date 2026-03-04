@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -6,6 +6,7 @@ import {
   getAccessorialTypes, createAccessorialType,
   getDeductionTypes, createDeductionType,
   getSamsaraStatus, connectSamsara, disconnectSamsara,
+  getCompanyProfile, saveCompanyProfile, addCompanyInsurance, removeCompanyInsurance,
 } from '../services/api';
 import GmailConnectionCard from '../components/GmailConnectionCard';
 import ThemeSelector from '../components/ThemeSelector';
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Users, Receipt, Minus, Link2, Plus, KeyRound, Loader2 } from 'lucide-react';
+import { Settings, Users, Receipt, Minus, Link2, Plus, KeyRound, Loader2, Building, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -36,8 +37,9 @@ export default function SettingsPage() {
         Settings
       </h2>
 
-      <Tabs defaultValue="appearance">
+      <Tabs defaultValue={isAdmin ? "company" : "appearance"}>
         <TabsList>
+          {isAdmin && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="gmail">Gmail</TabsTrigger>
           {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
@@ -45,6 +47,12 @@ export default function SettingsPage() {
           {isAdmin && <TabsTrigger value="deductions">Deduction Types</TabsTrigger>}
           {isAdmin && <TabsTrigger value="samsara">Samsara</TabsTrigger>}
         </TabsList>
+
+        {isAdmin && (
+          <TabsContent value="company" className="mt-4">
+            <CompanyProfileTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="appearance" className="mt-4">
           <ThemeSelector />
@@ -79,6 +87,352 @@ export default function SettingsPage() {
         )}
       </Tabs>
     </div>
+  );
+}
+
+// ─── Company Profile Tab ────────────────────────────────────
+
+const AUTHORITY_LABELS = { OWN_AUTHORITY: 'Own Authority', BROKERAGE: 'Brokerage', BOTH: 'Both' };
+const INSURANCE_TYPE_OPTIONS = [
+  { value: 'AUTO_LIABILITY', label: 'Auto Liability' },
+  { value: 'CARGO', label: 'Cargo' },
+  { value: 'GENERAL', label: 'General Liability' },
+  { value: 'WORKERS_COMP', label: 'Workers Comp' },
+  { value: 'UMBRELLA', label: 'Umbrella' },
+];
+
+function CompanyProfileTab() {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    company_name: '', dba_name: '', mc_number: '', dot_number: '', scac_code: '', ein: '',
+    authority_type: 'OWN_AUTHORITY', contact_name: '', phone: '', email: '', website: '',
+    address: '', city: '', state: '', zip: '',
+  });
+  const [insuranceForm, setInsuranceForm] = useState({ policy_type: '', provider: '', policy_number: '', coverage_amount: '', expiration_date: '' });
+  const [showInsurance, setShowInsurance] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [dirty, setDirty] = useState(false);
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['companyProfile'],
+    queryFn: getCompanyProfile,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Sync form when profile loads or changes
+  useEffect(() => {
+    if (profile && !dirty) {
+      setForm({
+        company_name: profile.company_name || '',
+        dba_name: profile.dba_name || '',
+        mc_number: profile.mc_number || '',
+        dot_number: profile.dot_number || '',
+        scac_code: profile.scac_code || '',
+        ein: profile.ein || '',
+        authority_type: profile.authority_type || 'OWN_AUTHORITY',
+        contact_name: profile.contact_name || '',
+        phone: profile.phone || '',
+        email: profile.email || '',
+        website: profile.website || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        zip: profile.zip || '',
+      });
+    }
+  }, [profile?.id]);
+
+  const saveMutation = useMutation({
+    mutationFn: saveCompanyProfile,
+    onSuccess: () => {
+      toast.success('Company profile saved');
+      queryClient.invalidateQueries({ queryKey: ['companyProfile'] });
+      setDirty(false);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to save'),
+  });
+
+  const addInsuranceMutation = useMutation({
+    mutationFn: addCompanyInsurance,
+    onSuccess: () => {
+      toast.success('Insurance policy added');
+      queryClient.invalidateQueries({ queryKey: ['companyProfile'] });
+      setShowInsurance(false);
+      setInsuranceForm({ policy_type: '', provider: '', policy_number: '', coverage_amount: '', expiration_date: '' });
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to add'),
+  });
+
+  const removeInsuranceMutation = useMutation({
+    mutationFn: removeCompanyInsurance,
+    onSuccess: () => {
+      toast.success('Insurance policy removed');
+      queryClient.invalidateQueries({ queryKey: ['companyProfile'] });
+      setDeleteTarget(null);
+    },
+    onError: (err) => toast.error(err.response?.data?.error || 'Failed to remove'),
+  });
+
+  const updateField = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setDirty(true);
+  };
+
+  if (isLoading) return <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
+
+  const insurance = profile?.insurance || [];
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Company Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Building className="w-5 h-5" /> Company Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Company Name *</Label>
+                <Input value={form.company_name} onChange={(e) => updateField('company_name', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>DBA Name</Label>
+                <Input value={form.dba_name} onChange={(e) => updateField('dba_name', e.target.value)} placeholder="Doing Business As" />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label>MC Number</Label>
+                <Input value={form.mc_number} onChange={(e) => updateField('mc_number', e.target.value)} placeholder="MC-XXXXXX" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>DOT Number</Label>
+                <Input value={form.dot_number} onChange={(e) => updateField('dot_number', e.target.value)} placeholder="XXXXXXX" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>SCAC Code</Label>
+                <Input value={form.scac_code} onChange={(e) => updateField('scac_code', e.target.value)} placeholder="XXXX" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>EIN</Label>
+                <Input value={form.ein} onChange={(e) => updateField('ein', e.target.value)} placeholder="XX-XXXXXXX" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 max-w-xs">
+              <Label>Authority Type</Label>
+              <Select value={form.authority_type} onValueChange={(v) => updateField('authority_type', v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OWN_AUTHORITY">Own Authority (Carrier)</SelectItem>
+                  <SelectItem value="BROKERAGE">Brokerage</SelectItem>
+                  <SelectItem value="BOTH">Both (Carrier + Broker)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Contact Name</Label>
+                <Input value={form.contact_name} onChange={(e) => updateField('contact_name', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Website</Label>
+                <Input value={form.website} onChange={(e) => updateField('website', e.target.value)} placeholder="https://" />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Address</Label>
+                <Input value={form.address} onChange={(e) => updateField('address', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>City</Label>
+                <Input value={form.city} onChange={(e) => updateField('city', e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label>State</Label>
+                  <Input value={form.state} onChange={(e) => updateField('state', e.target.value)} maxLength={2} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>ZIP</Label>
+                  <Input value={form.zip} onChange={(e) => updateField('zip', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => saveMutation.mutate(form)}
+                disabled={saveMutation.isPending || !form.company_name || !dirty}
+                className="theme-brand-bg text-white"
+              >
+                {saveMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Profile'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Insurance */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-display flex items-center gap-2">
+                <Shield className="w-5 h-5" /> Insurance Policies
+              </CardTitle>
+              <Button
+                size="sm"
+                onClick={() => setShowInsurance(true)}
+                disabled={!profile}
+                className="theme-brand-bg text-white"
+              >
+                <Plus className="w-4 h-4" /> Add Policy
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!profile ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Save your company profile first to add insurance policies.</p>
+            ) : insurance.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No insurance policies added yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Policy #</TableHead>
+                    <TableHead className="text-right">Coverage</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {insurance.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {INSURANCE_TYPE_OPTIONS.find(o => o.value === p.policy_type)?.label || p.policy_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{p.provider}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-mono">{p.policy_number || '—'}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {p.coverage_amount ? `$${parseFloat(p.coverage_amount).toLocaleString()}` : '—'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {p.expiration_date ? (
+                          <span className={new Date(p.expiration_date) < new Date() ? 'text-red-600 font-semibold' : ''}>
+                            {new Date(p.expiration_date).toLocaleDateString()}
+                          </span>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => setDeleteTarget(p)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Add Insurance Dialog */}
+      <Dialog open={showInsurance} onOpenChange={setShowInsurance}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="font-display">Add Insurance Policy</DialogTitle></DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Policy Type *</Label>
+                <Select value={insuranceForm.policy_type || undefined} onValueChange={(v) => setInsuranceForm(p => ({ ...p, policy_type: v }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INSURANCE_TYPE_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Provider *</Label>
+                <Input value={insuranceForm.provider} onChange={(e) => setInsuranceForm(p => ({ ...p, provider: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Policy Number</Label>
+                <Input value={insuranceForm.policy_number} onChange={(e) => setInsuranceForm(p => ({ ...p, policy_number: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Coverage Amount</Label>
+                <Input type="number" value={insuranceForm.coverage_amount} onChange={(e) => setInsuranceForm(p => ({ ...p, coverage_amount: e.target.value }))} step="1000" placeholder="1000000" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Expiration Date</Label>
+                <Input type="date" value={insuranceForm.expiration_date} onChange={(e) => setInsuranceForm(p => ({ ...p, expiration_date: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInsurance(false)}>Cancel</Button>
+            <Button
+              onClick={() => addInsuranceMutation.mutate(insuranceForm)}
+              disabled={addInsuranceMutation.isPending || !insuranceForm.policy_type || !insuranceForm.provider}
+              className="theme-brand-bg text-white"
+            >
+              {addInsuranceMutation.isPending ? 'Adding...' : 'Add Policy'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Insurance Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Insurance Policy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove the {INSURANCE_TYPE_OPTIONS.find(o => o.value === deleteTarget?.policy_type)?.label} policy from {deleteTarget?.provider}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => removeInsuranceMutation.mutate(deleteTarget.id)}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

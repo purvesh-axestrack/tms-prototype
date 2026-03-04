@@ -427,6 +427,20 @@ export default function loadsRouter(db) {
         throw Object.assign(new Error('Cannot assign driver who is out of service'), { status: 400 });
       }
 
+      // Auto-fill truck from driver's current vehicle if not specified
+      let resolvedTruckId = truck_id;
+      if (truck_id === undefined && !load.truck_id) {
+        const driverVehicle = await trx('vehicles')
+          .where(function () {
+            this.where({ current_driver_id: driver_id }).orWhere({ current_driver2_id: driver_id });
+          })
+          .whereIn('type', ['TRACTOR', 'STRAIGHT_TRUCK', 'SLEEPER', 'DAY_CAB'])
+          .first();
+        if (driverVehicle) {
+          resolvedTruckId = driverVehicle.id;
+        }
+      }
+
       // Check for conflicts inside the transaction
       const stops = await trx('stops').where({ load_id: load.id }).orderBy('sequence_order');
       const pickupDate = stops[0]?.appointment_start;
@@ -459,7 +473,7 @@ export default function loadsRouter(db) {
       }
 
       // Check truck conflicts (warning, not blocking)
-      const effectiveTruckId = truck_id !== undefined ? truck_id : load.truck_id;
+      const effectiveTruckId = resolvedTruckId !== undefined ? resolvedTruckId : load.truck_id;
       if (effectiveTruckId) {
         const truckLoads = await trx('loads')
           .where({ truck_id: effectiveTruckId })
@@ -489,7 +503,7 @@ export default function loadsRouter(db) {
         assigned_at: db.fn.now(),
       };
 
-      if (truck_id !== undefined) updates.truck_id = truck_id;
+      if (resolvedTruckId !== undefined) updates.truck_id = resolvedTruckId;
       if (trailer_id !== undefined) updates.trailer_id = trailer_id;
       if (driver2_id !== undefined) updates.driver2_id = driver2_id;
 
@@ -510,6 +524,22 @@ export default function loadsRouter(db) {
 
       if (driver2_id) {
         await trx('drivers').where({ id: driver2_id }).update({ status: 'EN_ROUTE' });
+      }
+
+      // Sync vehicles.current_driver_id to keep fleet page in sync
+      const assignedTruckId = updates.truck_id || load.truck_id;
+      if (assignedTruckId) {
+        // Clear driver from any other vehicle they're currently on
+        await trx('vehicles').where({ current_driver_id: driver_id }).whereNot({ id: assignedTruckId }).update({ current_driver_id: null });
+        // Set driver on this truck
+        await trx('vehicles').where({ id: assignedTruckId }).update({ current_driver_id: driver_id });
+        // Sync team driver on vehicle too
+        if (driver2_id !== undefined) {
+          if (driver2_id) {
+            await trx('vehicles').where({ current_driver2_id: driver2_id }).whereNot({ id: assignedTruckId }).update({ current_driver2_id: null });
+          }
+          await trx('vehicles').where({ id: assignedTruckId }).update({ current_driver2_id: driver2_id || null });
+        }
       }
     });
 

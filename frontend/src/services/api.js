@@ -571,6 +571,27 @@ export const deleteLocation = async (id) => {
   return response.data;
 };
 
+// Company Profile
+export const getCompanyProfile = async () => {
+  const response = await api.get('/company-profile');
+  return response.data;
+};
+
+export const saveCompanyProfile = async (data) => {
+  const response = await api.post('/company-profile', data);
+  return response.data;
+};
+
+export const addCompanyInsurance = async (data) => {
+  const response = await api.post('/company-profile/insurance', data);
+  return response.data;
+};
+
+export const removeCompanyInsurance = async (id) => {
+  const response = await api.delete(`/company-profile/insurance/${id}`);
+  return response.data;
+};
+
 // Admin - Accessorial Types
 export const createAccessorialType = async (data) => {
   const response = await api.post('/accessorials/types', data);
