@@ -7,6 +7,7 @@ export default function accessorialsRouter(db) {
   const router = Router();
 
   async function recalculateLoadTotal(trx, loadId) {
+    // Caller must already hold forUpdate lock on the load row
     const load = await trx('loads').where({ id: loadId }).first();
     if (!load) return;
 
@@ -14,7 +15,7 @@ export default function accessorialsRouter(db) {
     const accessorialsSum = accessorials.reduce((sum, a) => sum + parseFloat(a.total), 0);
     const total = calculateLoadTotal(
       parseFloat(load.rate_amount),
-      parseFloat(load.fuel_surcharge_amount || 0),
+      parseFloat(load.fuel_surcharge_amount ?? 0),
       accessorialsSum
     );
 
@@ -63,16 +64,21 @@ export default function accessorialsRouter(db) {
 
   // POST /api/accessorials/load/:loadId
   router.post('/load/:loadId', asyncHandler(async (req, res) => {
-    const { accessorial_type_id, description, quantity = 1, rate } = req.body;
+    const { accessorial_type_id, description } = req.body;
+    const quantity = parseFloat(req.body.quantity ?? 1);
+    const rate = parseFloat(req.body.rate);
 
-    if (!accessorial_type_id || rate === undefined) {
-      return res.status(400).json({ error: 'accessorial_type_id and rate are required' });
+    if (!accessorial_type_id || isNaN(rate)) {
+      return res.status(400).json({ error: 'accessorial_type_id and a valid numeric rate are required' });
+    }
+    if (isNaN(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: 'quantity must be a positive number' });
     }
 
     const loadId = parseInt(req.params.loadId);
 
     const accessorial = await db.transaction(async (trx) => {
-      const load = await trx('loads').where({ id: loadId }).first();
+      const load = await trx('loads').where({ id: loadId }).forUpdate().first();
       if (!load) {
         throw Object.assign(new Error('Load not found'), { status: 404 });
       }
@@ -100,6 +106,9 @@ export default function accessorialsRouter(db) {
     const loadId = parseInt(req.params.loadId);
 
     await db.transaction(async (trx) => {
+      // Lock load row before modifying accessorials + recalculating total
+      await trx('loads').where({ id: loadId }).forUpdate().first();
+
       const deleted = await trx('load_accessorials')
         .where({ id: req.params.id, load_id: loadId })
         .del();

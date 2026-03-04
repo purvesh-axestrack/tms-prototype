@@ -97,8 +97,10 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
   const handleDriverSelect = async (driverId) => {
     if (!driverId) {
       setConflicts(null);
-      // Unassign driver
-      if (load.driver_id) saveField('driver_id', null);
+      // Unassign driver through /assign endpoint (releases driver status properly)
+      if (load.driver_id) {
+        assignMutation.mutate({ driverId: null });
+      }
       return;
     }
 
@@ -217,11 +219,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
                 onSave={(v) => {
                   const newCarrierId = v ? parseInt(v) : null;
                   if (newCarrierId !== load.carrier_id) {
-                    // Carrier changed — clear stale dispatch fields
+                    // Carrier changed — unassign drivers through /assign (releases driver status),
+                    // then update carrier + clear truck/trailer via PATCH
+                    if (load.driver_id) {
+                      assignMutation.mutate({ driverId: null, truck_id: null, trailer_id: null });
+                    }
                     saveFields({
                       carrier_id: newCarrierId,
-                      driver_id: null,
-                      driver2_id: null,
                       truck_id: null,
                       trailer_id: null,
                     });
@@ -311,12 +315,17 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
             <EditableCombobox
               value={load.driver2_id ? String(load.driver2_id) : null}
               displayValue={load.driver2_name}
-              onSave={(v) => saveField('driver2_id', v)}
+              onSave={(v) => {
+                // Route through /assign since driver2_id is blocked on PATCH
+                if (load.driver_id) {
+                  assignMutation.mutate({ driverId: load.driver_id, driver2_id: v || null });
+                }
+              }}
               options={driver2Opts}
               placeholder="None"
               searchPlaceholder="Search drivers..."
               allowNone
-              disabled={disabled}
+              disabled={disabled || !load.driver_id}
             />
           </div>
         </div>

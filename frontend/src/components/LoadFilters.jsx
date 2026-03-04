@@ -146,10 +146,10 @@ function FilterSection({ label, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div>
-      <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-slate-700 py-1">
+      <Button variant="ghost" onClick={() => setOpen(!open)} className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-slate-700 py-1 h-auto px-0">
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         {label}
-      </button>
+      </Button>
       {open && <div className="flex flex-wrap gap-2 mt-1 mb-2">{children}</div>}
     </div>
   );

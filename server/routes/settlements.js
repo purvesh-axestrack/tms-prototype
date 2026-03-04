@@ -92,16 +92,20 @@ export default function settlementsRouter(db) {
 
   // POST /api/settlements/driver-deductions/:driverId
   router.post('/driver-deductions/:driverId', asyncHandler(async (req, res) => {
-    const { deduction_type_id, amount, notes, start_date, end_date } = req.body;
+    const { deduction_type_id, notes, start_date, end_date } = req.body;
+    const amount = parseFloat(req.body.amount);
 
-    if (!deduction_type_id || !amount) {
-      return res.status(400).json({ error: 'deduction_type_id and amount are required' });
+    if (!deduction_type_id || isNaN(amount)) {
+      return res.status(400).json({ error: 'deduction_type_id and a valid numeric amount are required' });
+    }
+    if (amount < 0) {
+      return res.status(400).json({ error: 'amount must be non-negative' });
     }
 
     const [deduction] = await db('driver_deductions').insert({
       driver_id: req.params.driverId,
       deduction_type_id,
-      amount,
+      amount: Math.round(amount * 100) / 100,
       notes,
       start_date: start_date || null,
       end_date: end_date || null,

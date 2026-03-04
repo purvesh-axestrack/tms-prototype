@@ -387,9 +387,10 @@ export default function loadsRouter(db) {
   }));
 
   // PATCH /api/loads/:id/assign
+  // Accepts driver_id (required) — pass null to unassign all dispatch fields
   router.patch('/:id/assign', asyncHandler(async (req, res) => {
     const { driver_id, truck_id, trailer_id, driver2_id } = req.body;
-    if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
+    if (driver_id === undefined) return res.status(400).json({ error: 'driver_id is required (null to unassign)' });
 
     // All reads and writes in a single transaction to prevent double-booking
     let truckWarnings = [];
@@ -399,6 +400,24 @@ export default function loadsRouter(db) {
         throw Object.assign(new Error('Load not found'), { status: 404 });
       }
 
+      // === UNASSIGN PATH: driver_id is null ===
+      if (driver_id === null) {
+        // Release current drivers
+        await releaseDrivers(trx, load);
+
+        const updates = {
+          driver_id: null,
+          driver2_id: null,
+          truck_id: truck_id !== undefined ? truck_id : null,
+          trailer_id: trailer_id !== undefined ? trailer_id : null,
+          assigned_at: null,
+        };
+
+        await trx('loads').where({ id: load.id }).update(updates);
+        return;
+      }
+
+      // === ASSIGN PATH: driver_id is a value ===
       const driver = await trx('drivers').where({ id: driver_id }).first();
       if (!driver) {
         throw Object.assign(new Error('Driver not found'), { status: 404 });
@@ -480,25 +499,10 @@ export default function loadsRouter(db) {
 
       // Release old driver(s) if reassigning
       if (load.driver_id && load.driver_id !== driver_id) {
-        const oldDriverOtherLoads = await trx('loads')
-          .where({ driver_id: load.driver_id })
-          .whereNot({ id: load.id })
-          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
-          .first();
-        if (!oldDriverOtherLoads) {
-          await trx('drivers').where({ id: load.driver_id }).update({ status: 'AVAILABLE' });
-        }
+        await releaseDriverIfIdle(trx, load.driver_id, load.id);
       }
       if (load.driver2_id && driver2_id !== undefined && load.driver2_id !== driver2_id) {
-        const oldD2OtherLoads = await trx('loads')
-          .where({ driver_id: load.driver2_id })
-          .orWhere({ driver2_id: load.driver2_id })
-          .whereNot({ id: load.id })
-          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
-          .first();
-        if (!oldD2OtherLoads) {
-          await trx('drivers').where({ id: load.driver2_id }).update({ status: 'AVAILABLE' });
-        }
+        await releaseDriverIfIdle(trx, load.driver2_id, load.id);
       }
 
       await trx('loads').where({ id: load.id }).update(updates);

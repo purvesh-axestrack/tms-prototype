@@ -83,12 +83,13 @@ export default function driversRouter(db) {
 
   // POST /api/drivers
   router.post('/', asyncHandler(async (req, res) => {
-    const { full_name, phone, email, license_number, license_state, pay_model, pay_rate, minimum_per_mile, driver_type, tax_type, route_type, hire_date, carrier_id } = req.body;
+    const { full_name, phone, email, license_number, license_state, pay_model, minimum_per_mile, driver_type, tax_type, route_type, hire_date, carrier_id, team_driver_id } = req.body;
+    const pay_rate = parseFloat(req.body.pay_rate);
     if (!full_name) return res.status(400).json({ error: 'Full name is required' });
     if (!pay_model || !['CPM', 'PERCENTAGE', 'FLAT'].includes(pay_model)) {
       return res.status(400).json({ error: 'Pay model must be CPM, PERCENTAGE, or FLAT' });
     }
-    if (pay_rate === undefined || pay_rate === null) return res.status(400).json({ error: 'Pay rate is required' });
+    if (isNaN(pay_rate) || pay_rate < 0) return res.status(400).json({ error: 'Pay rate must be a valid non-negative number' });
 
     const id = `d_${crypto.randomUUID().slice(0, 8)}`;
     await db('drivers').insert({
@@ -107,6 +108,7 @@ export default function driversRouter(db) {
       route_type: route_type || null,
       hire_date: hire_date || null,
       carrier_id: carrier_id || null,
+      team_driver_id: team_driver_id || null,
     });
 
     const driver = await db('drivers').where({ id }).first();

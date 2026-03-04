@@ -105,16 +105,24 @@ export default function documentsRouter(db) {
 
   // DELETE /api/documents/:id
   router.delete('/:id', asyncHandler(async (req, res) => {
-    const doc = await db('documents').where({ id: req.params.id }).first();
-    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    let filePath = null;
 
-    // Remove file from disk
-    const filePath = path.resolve(__dirname, '..', doc.storage_path);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    await db.transaction(async (trx) => {
+      const doc = await trx('documents').where({ id: req.params.id }).forUpdate().first();
+      if (!doc) {
+        throw Object.assign(new Error('Document not found'), { status: 404 });
+      }
+
+      if (doc.storage_path) {
+        filePath = path.resolve(__dirname, '..', doc.storage_path);
+      }
+      await trx('documents').where({ id: req.params.id }).delete();
+    });
+
+    // Delete file after transaction commits
+    if (filePath && fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (e) { console.error('Failed to delete file:', filePath, e.message); }
     }
-
-    await db('documents').where({ id: req.params.id }).delete();
     res.json({ message: 'Document deleted' });
   }));
 

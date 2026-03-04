@@ -7,8 +7,10 @@ export default function emailImportsRouter(db) {
 
   // GET /api/email-imports
   router.get('/', asyncHandler(async (req, res) => {
-    const { status, page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { status } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
 
     let query = db('email_imports');
     if (status) query = query.where({ processing_status: status });
@@ -100,6 +102,7 @@ export default function emailImportsRouter(db) {
     if (loadUpdates.rate_type) loadUpdates.rate_type = normalizeEnum(loadUpdates.rate_type, RATE_TYPES, 'FLAT');
 
     await db.transaction(async (trx) => {
+      await trx('loads').where({ id: imp.load_id }).forUpdate().first();
       await trx('loads').where({ id: imp.load_id }).update(loadUpdates);
 
       // Update stops if provided
