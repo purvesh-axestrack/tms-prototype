@@ -74,6 +74,13 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
         ? `Driver assigned (auto-filled: ${autoFilled.join(', ')})`
         : 'Driver assigned';
       toast.success(msg);
+
+      // Show truck conflict warnings
+      if (data.truck_warnings?.length > 0) {
+        const refs = data.truck_warnings.map(w => `#${w.reference_number || w.id}`).join(', ');
+        toast.warning(`Truck is also on active load(s): ${refs}`, { duration: 8000 });
+      }
+
       invalidate();
       setConflicts(null);
     },
@@ -140,7 +147,7 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
     }
   };
 
-  // Truck-first auto-fill
+  // Truck-first auto-fill: if the truck has a driver, route through /assign for conflict detection
   const handleTruckSelect = async (truckId) => {
     if (!truckId) {
       saveField('truck_id', null);
@@ -148,23 +155,43 @@ export default function DispatchCard({ load, drivers, trucks, trailers, carriers
     }
 
     const truck = trucks.find(t => String(t.id) === String(truckId));
-    const updates = { truck_id: truckId };
+    const autoFillDriverId = !load.driver_id && truck?.current_driver_id ? truck.current_driver_id : null;
 
-    // Auto-fill drivers from truck assignment if not already set
-    if (!load.driver_id && truck?.current_driver_id) {
-      updates.driver_id = truck.current_driver_id;
-    }
-    if (!load.driver2_id && truck?.current_driver2_id) {
-      updates.driver2_id = truck.current_driver2_id;
-    }
+    if (autoFillDriverId) {
+      // Route through assign endpoint — handles driver conflict detection + EN_ROUTE status
+      setChecking(true);
+      setConflicts(null);
+      try {
+        const pickupDate = load.stops?.[0]?.appointment_start;
+        const deliveryDate = load.stops?.[load.stops.length - 1]?.appointment_end;
 
-    saveFields(updates);
+        if (pickupDate && deliveryDate) {
+          const availability = await checkDriverAvailability(autoFillDriverId, pickupDate, deliveryDate);
+          if (!availability.available) {
+            // Driver has conflicts — set truck only, show driver conflicts
+            saveField('truck_id', truckId);
+            setConflicts(availability.conflicts);
+            setChecking(false);
+            toast.success('Truck set, but driver has conflicts — assign manually');
+            return;
+          }
+        }
 
-    const autoFilled = [];
-    if (updates.driver_id) autoFilled.push(`Driver ${truck?.driver_name || ''}`);
-    if (updates.driver2_id) autoFilled.push(`Team ${truck?.driver2_name || ''}`);
-    if (autoFilled.length > 0) {
-      toast.success(`Truck set (auto-filled: ${autoFilled.join(', ')})`);
+        setChecking(false);
+        const payload = { driverId: autoFillDriverId, truck_id: truckId };
+        if (!load.driver2_id && truck?.current_driver2_id) {
+          payload.driver2_id = truck.current_driver2_id;
+        }
+        assignMutation.mutate(payload);
+      } catch (error) {
+        setChecking(false);
+        // Fallback: set truck only
+        saveField('truck_id', truckId);
+        toast.error(error.response?.data?.error || 'Failed to check driver — truck set without driver');
+      }
+    } else {
+      // No driver to auto-fill, just set the truck
+      saveField('truck_id', truckId);
     }
   };
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateStatusChange, getAvailableTransitions } from '../lib/stateMachine.js';
-import { checkDriverConflicts } from '../lib/conflictDetection.js';
+import { checkDriverConflicts, checkVehicleConflicts } from '../lib/conflictDetection.js';
 import { calculateLoadTotal } from '../lib/rateCalculator.js';
 import { EQUIPMENT_TYPES, RATE_TYPES, STOP_TYPES, EQUIPMENT_ALIASES, STOP_ALIASES, normalizeEnum } from '../lib/constants.js';
 
@@ -392,6 +392,7 @@ export default function loadsRouter(db) {
     if (!driver_id) return res.status(400).json({ error: 'driver_id is required' });
 
     // All reads and writes in a single transaction to prevent double-booking
+    let truckWarnings = [];
     await db.transaction(async (trx) => {
       const load = await trx('loads').where({ id: req.params.id }).forUpdate().first();
       if (!load) {
@@ -436,6 +437,32 @@ export default function loadsRouter(db) {
           new Error('Driver has conflicting loads'),
           { status: 409, conflicts: availability.conflicts }
         );
+      }
+
+      // Check truck conflicts (warning, not blocking)
+      const effectiveTruckId = truck_id !== undefined ? truck_id : load.truck_id;
+      if (effectiveTruckId) {
+        const truckLoads = await trx('loads')
+          .where({ truck_id: effectiveTruckId })
+          .whereNot({ id: load.id })
+          .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+          .select('loads.*');
+
+        const truckLoadsWithStops = await Promise.all(truckLoads.map(async (tl) => {
+          const tlStops = await trx('stops').where({ load_id: tl.id }).orderBy('sequence_order');
+          return {
+            ...tl,
+            pickup_start: tlStops[0]?.appointment_start,
+            delivery_end: tlStops[tlStops.length - 1]?.appointment_end,
+            pickup_city: tlStops[0]?.city,
+            delivery_city: tlStops[tlStops.length - 1]?.city,
+          };
+        }));
+
+        const truckAvailability = checkVehicleConflicts(truckLoadsWithStops, pickupDate, deliveryDate);
+        if (!truckAvailability.clear) {
+          truckWarnings = truckAvailability.conflicts;
+        }
       }
 
       const updates = {
@@ -484,6 +511,9 @@ export default function loadsRouter(db) {
 
     const updatedLoad = await db('loads').where({ id: req.params.id }).first();
     const enriched = await enrichLoad(updatedLoad);
+    if (truckWarnings.length > 0) {
+      enriched.truck_warnings = truckWarnings;
+    }
     res.json(enriched);
   }));
 

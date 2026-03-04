@@ -168,9 +168,40 @@ export default function vehiclesRouter(db) {
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
     const col = role === 'TEAM' ? 'current_driver2_id' : 'current_driver_id';
+    let warnings = [];
 
     await db.transaction(async (trx) => {
       if (driver_id) {
+        // Find vehicles this driver is currently on (before unassigning)
+        const oldVehicles = await trx('vehicles')
+          .where(function () {
+            this.where({ current_driver_id: driver_id })
+              .orWhere({ current_driver2_id: driver_id });
+          })
+          .where({ type: vehicle.type })
+          .whereNot({ id: req.params.id });
+
+        // Check if those old vehicles have active loads
+        for (const oldVehicle of oldVehicles) {
+          const activeLoads = await trx('loads')
+            .where({ truck_id: oldVehicle.id })
+            .whereIn('status', ['SCHEDULED', 'IN_PICKUP_YARD', 'IN_TRANSIT'])
+            .select('id', 'reference_number', 'status');
+          if (activeLoads.length > 0) {
+            warnings.push({
+              type: 'ACTIVE_LOADS_ON_OLD_VEHICLE',
+              vehicle_id: oldVehicle.id,
+              unit_number: oldVehicle.unit_number,
+              loads: activeLoads.map(l => ({
+                id: l.id,
+                reference_number: l.reference_number,
+                status: l.status,
+              })),
+              message: `Driver removed from ${oldVehicle.unit_number} which has ${activeLoads.length} active load(s)`,
+            });
+          }
+        }
+
         // Unassign this driver from BOTH slots on other vehicles of the same type
         await trx('vehicles')
           .where({ current_driver_id: driver_id, type: vehicle.type })
@@ -194,6 +225,10 @@ export default function vehiclesRouter(db) {
       .select('vehicles.*', 'd1.full_name as driver_name', 'd2.full_name as driver2_name')
       .where('vehicles.id', req.params.id)
       .first();
+
+    if (warnings.length > 0) {
+      updated.warnings = warnings;
+    }
     res.json(updated);
   }));
 

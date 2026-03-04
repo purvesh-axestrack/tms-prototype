@@ -126,8 +126,15 @@ export default function FleetPage() {
 
   const assignMutation = useMutation({
     mutationFn: ({ vehicleId, driverId, role }) => assignVehicleDriver(vehicleId, driverId, role),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Driver assigned');
+      // Show warnings about active loads on the old vehicle
+      if (data.warnings?.length > 0) {
+        for (const w of data.warnings) {
+          const loadRefs = w.loads.map(l => `#${l.reference_number || l.id}`).join(', ');
+          toast.warning(`${w.message}: ${loadRefs}`, { duration: 8000 });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       queryClient.invalidateQueries({ queryKey: ['vehicle', selectedId] });
     },
