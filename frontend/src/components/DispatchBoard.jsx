@@ -240,7 +240,7 @@ export default function DispatchBoard() {
   const colCount = activeColumns.length;
 
   const handleCardClick = (load) => {
-    if (load.status === 'OPEN' && load.email_import_id) {
+    if (load.status === 'OPEN' && load.email_import_id && load.email_processing_status === 'DRAFT_CREATED') {
       setDraftReview({ id: load.email_import_id });
     } else {
       setSelectedLoad(load);

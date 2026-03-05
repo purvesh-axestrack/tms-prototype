@@ -169,6 +169,12 @@ export default function vehiclesRouter(db) {
 
     await db.transaction(async (trx) => {
       if (driver_id) {
+        // Block assigning same driver to both roles on the same vehicle
+        const otherCol = role === 'TEAM' ? 'current_driver_id' : 'current_driver2_id';
+        if (String(vehicle[otherCol]) === String(driver_id)) {
+          return res.status(400).json({ error: 'Driver is already assigned to this vehicle in a different role' });
+        }
+
         // Find vehicles this driver is currently on (before unassigning)
         const oldVehicles = await trx('vehicles')
           .where(function () {
@@ -214,6 +220,48 @@ export default function vehiclesRouter(db) {
         [col]: driver_id || null,
         updated_at: db.fn.now(),
       });
+
+      // Sync team driver relationship in drivers table
+      if (role === 'TEAM') {
+        const primaryDriverId = vehicle.current_driver_id;
+        if (driver_id && primaryDriverId) {
+          // Setting a team driver — sync drivers.team_driver_id bidirectionally
+          // Clear old team links
+          await trx('drivers').where({ team_driver_id: driver_id }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          await trx('drivers').where({ team_driver_id: primaryDriverId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          // Set new bidirectional link
+          await trx('drivers').where({ id: primaryDriverId }).update({ team_driver_id: driver_id, updated_at: db.fn.now() });
+          await trx('drivers').where({ id: driver_id }).update({ team_driver_id: primaryDriverId, updated_at: db.fn.now() });
+        } else if (!driver_id && primaryDriverId) {
+          // Removing team driver — clear the link
+          const oldTeamId = vehicle.current_driver2_id;
+          if (oldTeamId) {
+            await trx('drivers').where({ id: primaryDriverId, team_driver_id: oldTeamId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+            await trx('drivers').where({ id: oldTeamId, team_driver_id: primaryDriverId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          }
+        }
+      } else if (role === 'PRIMARY') {
+        const teamDriverId = vehicle.current_driver2_id;
+        if (driver_id && teamDriverId) {
+          // New primary driver gets linked to existing team driver
+          // Clear old links first
+          const oldPrimaryId = vehicle.current_driver_id;
+          if (oldPrimaryId) {
+            await trx('drivers').where({ id: oldPrimaryId, team_driver_id: teamDriverId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+            await trx('drivers').where({ id: teamDriverId, team_driver_id: oldPrimaryId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          }
+          // Set new bidirectional link
+          await trx('drivers').where({ id: driver_id }).update({ team_driver_id: teamDriverId, updated_at: db.fn.now() });
+          await trx('drivers').where({ id: teamDriverId }).update({ team_driver_id: driver_id, updated_at: db.fn.now() });
+        } else if (!driver_id && teamDriverId) {
+          // Removing primary driver — clear team link
+          const oldPrimaryId = vehicle.current_driver_id;
+          if (oldPrimaryId) {
+            await trx('drivers').where({ id: oldPrimaryId, team_driver_id: teamDriverId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+            await trx('drivers').where({ id: teamDriverId, team_driver_id: oldPrimaryId }).update({ team_driver_id: null, updated_at: db.fn.now() });
+          }
+        }
+      }
     });
 
     const updated = await db('vehicles')

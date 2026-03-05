@@ -154,6 +154,29 @@ export default function driversRouter(db) {
           }
           await trx('drivers').where({ id: newTeamId }).update({ team_driver_id: req.params.id, updated_at: db.fn.now() });
         }
+
+        // Sync to vehicles — update current_driver2_id on shared vehicle
+        const driverVehicle = await trx('vehicles')
+          .where({ current_driver_id: req.params.id })
+          .first();
+        if (driverVehicle) {
+          // This driver is primary on a vehicle — update its team slot
+          await trx('vehicles').where({ id: driverVehicle.id }).update({
+            current_driver2_id: newTeamId,
+            updated_at: db.fn.now(),
+          });
+        } else if (newTeamId) {
+          // Check if this driver is team on a vehicle — update that vehicle's team slot too
+          const teamVehicle = await trx('vehicles')
+            .where({ current_driver_id: newTeamId })
+            .first();
+          if (teamVehicle) {
+            await trx('vehicles').where({ id: teamVehicle.id }).update({
+              current_driver2_id: req.params.id,
+              updated_at: db.fn.now(),
+            });
+          }
+        }
       }
 
       await trx('drivers').where({ id: req.params.id }).update(updates);

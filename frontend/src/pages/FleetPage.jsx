@@ -396,6 +396,7 @@ export default function FleetPage() {
                           options={drivers.map(d => ({ value: String(d.id), label: d.full_name }))}
                           placeholder="No driver assigned"
                           searchPlaceholder="Search drivers..."
+                          allowClear
                         />
                       </div>
                       <Button
@@ -419,6 +420,7 @@ export default function FleetPage() {
                           options={drivers.map(d => ({ value: String(d.id), label: d.full_name }))}
                           placeholder="No team driver assigned"
                           searchPlaceholder="Search drivers..."
+                          allowClear
                         />
                       </div>
                       <Button

@@ -197,7 +197,15 @@ export default function loadsRouter(db) {
       latestNotesMap = Object.fromEntries(latestNotes.rows.map(n => [n.load_id, { note: n.note, user_name: n.user_name, created_at: n.created_at }]));
     }
 
-    // 5. Assemble
+    // 5. Batch email import statuses
+    const emailImportIds = [...new Set(loads.map(l => l.email_import_id).filter(Boolean))];
+    let emailImportMap = {};
+    if (emailImportIds.length > 0) {
+      const imports = await db('email_imports').whereIn('id', emailImportIds).select('id', 'processing_status');
+      emailImportMap = Object.fromEntries(imports.map(e => [e.id, e.processing_status]));
+    }
+
+    // 6. Assemble
     return loads.map(load => {
       const stops = stopsByLoad[load.id] || [];
       const firstStop = stops[0];
@@ -238,6 +246,7 @@ export default function loadsRouter(db) {
         available_transitions: getAvailableTransitions(load.status),
         notes_count: notesMap[load.id] || 0,
         latest_note: latestNotesMap[load.id] || null,
+        email_processing_status: emailImportMap[load.email_import_id] || null,
       };
     });
   }
